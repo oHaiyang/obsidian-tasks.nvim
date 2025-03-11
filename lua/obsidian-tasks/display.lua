@@ -122,6 +122,9 @@ function M.display_tasks(tasks, grouped_tasks)
 
   -- Make buffer editable
   M.setup_editable_buffer(buf, tasks)
+  
+  -- Reset the modified flag after setting content
+  vim.api.nvim_set_option_value('modified', false, { buf = buf })
 
   -- Open a new window and set to current buffer
   vim.api.nvim_set_current_buf(buf)
@@ -163,6 +166,9 @@ function M.display_tasks_float(tasks, grouped_tasks)
 
   -- Make buffer editable
   M.setup_editable_buffer(buf, tasks)
+  
+  -- Reset the modified flag after setting content
+  vim.api.nvim_set_option_value('modified', false, { buf = buf })
 
   -- Calculate window size and position
   local width = math.max(80, math.floor(vim.o.columns * 0.8))
