@@ -89,18 +89,10 @@ function M.parse_query(query)
 end
 
 -- Filter tasks based on query
-function M.filter_tasks(tasks, filters)
+function M.filter_tasks(tasks, filter)
   local filtered_tasks = {}
   for _, task in ipairs(tasks) do
-    local include = true
-    if filters.not_done then
-      include = task.status == "[ ]"
-    elseif filters.done then
-      include = task.status ~= "[ ]"
-    end
-    if include and filters.due_date then
-      include = task.due_date == filters.due_date
-    end
+    local include = filter(task)
     if include then
       table.insert(filtered_tasks, task)
     end

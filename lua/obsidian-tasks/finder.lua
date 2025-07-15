@@ -7,17 +7,19 @@ local core = require("obsidian-tasks.core")
 -- Main function to find tasks
 function M.find_tasks(opts)
   opts = opts or {}
-  local filter = opts.filter or ""
+  local filter = opts.filter or function ()
+    return true
+  end
   local group_by = opts.group_by or {}
   local use_float = opts.float or false
-  local vault_path = opts.vault_path or "/Users/didi/Notes" -- Default path
+  local vault_path = opts.vault_path
 
   -- Call ripgrep to find tasks
   M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 end
 
 -- Find tasks using vim.loop and ripgrep
-function M.find_tasks_with_ripgrep(vault_path, query, use_float, group_by)
+function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
   local stdout = vim.loop.new_pipe(false)
   local stderr = vim.loop.new_pipe(false)
 
@@ -30,10 +32,8 @@ function M.find_tasks_with_ripgrep(vault_path, query, use_float, group_by)
     stderr:close()
     handle:close()
 
-    -- Parse query
-    local filters = parser.parse_query(query)
     -- Filter tasks
-    local filtered_tasks = parser.filter_tasks(tasks, filters)
+    local filtered_tasks = parser.filter_tasks(tasks, filter)
 
     -- If no output data, notify user
     if #filtered_tasks == 0 then
