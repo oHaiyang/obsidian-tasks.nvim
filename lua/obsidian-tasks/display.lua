@@ -58,21 +58,18 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 
 			if use_hierarchical_headings then
 				-- For hierarchical headings, determine the heading level based on the number of colons
-				local heading_level = 2 -- Default level
 				local parts = {}
 				for part in group_name:gmatch("[^:]+") do
 					table.insert(parts, part)
 				end
 
-				-- Calculate heading level (2 for top level, 3 for second level, etc.)
-				heading_level = #parts + 1
-				if heading_level > 6 then
-					heading_level = 6
-				end -- Max heading level is 6
-
-				-- Create heading with appropriate number of #
-				local heading = string.rep("#", heading_level) .. " " .. parts[#parts]
-				table.insert(display_lines, heading)
+				-- Add all parts as separate headings with appropriate levels
+				for i, part in ipairs(parts) do
+					local level = i + 1 -- Start at level 2
+					if level > 6 then level = 6 end -- Max heading level is 6
+					
+					table.insert(display_lines, string.rep("#", level) .. " " .. part)
+				end
 			else
 				-- Traditional flat heading style
 				table.insert(display_lines, "## " .. group_name:gsub(":", " > "))
