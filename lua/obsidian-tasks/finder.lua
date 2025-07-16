@@ -31,19 +31,23 @@ function M.find_tasks(opts)
 	local group_by = opts.group_by or {}
 	local use_float = opts.float or false
 	local vault_path = opts.vault_path
+	local display_opts = {
+		hierarchical_headings = opts.hierarchical_headings or false
+	}
 
 	-- Call ripgrep to find tasks
-	M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
+	M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, display_opts)
 end
 
 -- Find tasks using vim.loop and ripgrep
-function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
+function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, display_opts)
 	local stdout = vim.loop.new_pipe(false)
 	local stderr = vim.loop.new_pipe(false)
 
 	local handle
 	local tasks = {}
 	group_by = group_by or {}
+	display_opts = display_opts or {}
 
 	local function on_exit()
 		stdout:close()
@@ -121,9 +125,9 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 				local grouped_tasks = parser.group_tasks(filtered_tasks, group_by)
 
 				if use_float then
-					display.display_tasks_float(filtered_tasks, grouped_tasks)
+					display.display_tasks_float(filtered_tasks, grouped_tasks, display_opts)
 				else
-					display.display_tasks(filtered_tasks, grouped_tasks)
+					display.display_tasks(filtered_tasks, grouped_tasks, display_opts)
 				end
 			end)
 		end

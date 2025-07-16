@@ -32,7 +32,11 @@ function M.format_task_for_display(task, index)
 end
 
 -- Format grouped tasks for display
-function M.format_grouped_tasks(grouped_tasks)
+function M.format_grouped_tasks(grouped_tasks, opts)
+  -- require('plenary.log').info('[xxxhhh][grouped_tasks]', grouped_tasks, opts)
+	opts = opts or {}
+	local use_hierarchical_headings = opts.hierarchical_headings or false
+
 	local display_lines = {}
 	local index_map = {} -- Map display indices to original tasks
 	local current_index = 1
@@ -51,7 +55,28 @@ function M.format_grouped_tasks(grouped_tasks)
 		-- Add group title (if not default group)
 		if group_name ~= "default" then
 			table.insert(display_lines, "")
-			table.insert(display_lines, "## " .. group_name)
+
+			if use_hierarchical_headings then
+				-- For hierarchical headings, determine the heading level based on the number of colons
+				local heading_level = 2 -- Default level
+				local parts = {}
+				for part in group_name:gmatch("[^:]+") do
+					table.insert(parts, part)
+				end
+
+				-- Calculate heading level (2 for top level, 3 for second level, etc.)
+				heading_level = #parts + 1
+				if heading_level > 6 then
+					heading_level = 6
+				end -- Max heading level is 6
+
+				-- Create heading with appropriate number of #
+				local heading = string.rep("#", heading_level) .. " " .. parts[#parts]
+				table.insert(display_lines, heading)
+			else
+				-- Traditional flat heading style
+				table.insert(display_lines, "## " .. group_name:gsub(":", " > "))
+			end
 		end
 
 		-- Process tasks in group
@@ -63,6 +88,7 @@ function M.format_grouped_tasks(grouped_tasks)
 		end
 	end
 
+  -- require('plenary.log').info('[xxxhhh][display lines]', display_lines)
 	return display_lines, index_map
 end
 
@@ -120,7 +146,9 @@ function M.setup_editable_buffer(buf, tasks)
 end
 
 -- Display editable task list
-function M.display_tasks(tasks, grouped_tasks)
+function M.display_tasks(tasks, grouped_tasks, opts)
+	opts = opts or {}
+
 	-- Create a new buffer
 	local buf = vim.api.nvim_create_buf(true, false) -- Create normal buffer
 
@@ -130,7 +158,7 @@ function M.display_tasks(tasks, grouped_tasks)
 	-- Format task display
 	local display_lines
 	if grouped_tasks then
-		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks)
+		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do
@@ -164,7 +192,9 @@ function M.display_tasks(tasks, grouped_tasks)
 end
 
 -- Display editable task list in floating window
-function M.display_tasks_float(tasks, grouped_tasks)
+function M.display_tasks_float(tasks, grouped_tasks, opts)
+	opts = opts or {}
+
 	-- Create a new buffer
 	local buf = vim.api.nvim_create_buf(false, false)
 
@@ -174,7 +204,7 @@ function M.display_tasks_float(tasks, grouped_tasks)
 	-- Format task display
 	local display_lines
 	if grouped_tasks then
-		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks)
+		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do
@@ -200,7 +230,7 @@ function M.display_tasks_float(tasks, grouped_tasks)
 	local row = math.floor((vim.o.lines - height) / 2)
 
 	-- Window options
-	local opts = {
+	local win_opts = {
 		relative = "editor",
 		width = width,
 		height = height,
@@ -211,7 +241,7 @@ function M.display_tasks_float(tasks, grouped_tasks)
 	}
 
 	-- Create floating window
-	local win = vim.api.nvim_open_win(buf, true, opts)
+	local win = vim.api.nvim_open_win(buf, true, win_opts)
 
 	-- Set window options
 	vim.api.nvim_set_option_value("winhl", "NormalFloat:Normal", { win = win })
