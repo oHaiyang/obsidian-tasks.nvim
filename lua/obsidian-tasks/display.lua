@@ -2,7 +2,7 @@ local M = {}
 
 -- Help information
 M.TASK_VIEW_HELP_LINES = {
-	"-- Tasks List (q:close, s:save changes) --",
+	"-- Tasks List (q:close, <c-s>:save changes) --",
 	"-- Change `[ ]` to `[x]` to mark tasks as done --",
 	"",
 }
@@ -91,7 +91,7 @@ function M.setup_editable_buffer(buf, tasks)
 	vim.api.nvim_buf_set_keymap(buf, "n", "q", ":bd!<CR>", { noremap = true, silent = true })
 
 	local obsidian_tasks = require("obsidian-tasks")
-	vim.keymap.set({ "n" }, "s", obsidian_tasks.save_current_tasks, { buffer = buf, noremap = true, silent = true })
+	vim.keymap.set({ "n" }, "<c-s>", obsidian_tasks.save_current_tasks, { buffer = buf, noremap = true, silent = true })
 
 	-- Toggle task status
 	vim.keymap.set(
