@@ -53,6 +53,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 		-- 应用文件过滤
 		local file_filtered_tasks = {}
 
+    -- require('plenary.log').info("[xxxhhh][exit handle all tasks]", tasks);
 		-- 首先应用文件包含/排除过滤
 		for _, task in ipairs(tasks) do
 			local include_task = true
@@ -60,7 +61,9 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 			-- 如果指定了 include_files，则只包含匹配的文件
 			if filter.include_files and #filter.include_files > 0 then
 				include_task = false
+        -- require('plenary.log').info("[xxxhhh][changed to false][1]");
 				for _, pattern in ipairs(filter.include_files) do
+          -- require('plenary.log').info("xxxhhh", task.file_path, pattern, task.file_path:match(pattern));
 					if task.file_path:match(pattern) then
 						include_task = true
 						break
@@ -73,11 +76,32 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 				for _, pattern in ipairs(filter.exclude_files) do
 					if task.file_path:match(pattern) then
 						include_task = false
+            -- require('plenary.log').info("[xxxhhh][changed to false][2]");
 						break
 					end
 				end
 			end
 
+			-- 应用 status 过滤
+			if include_task and filter.status then
+				-- 如果 status 是字符串，转换为表格以便统一处理
+				local status_filters = filter.status
+				if type(status_filters) == "string" then
+					status_filters = { status_filters }
+				end
+
+				-- 检查任务状态是否匹配任何指定的状态
+				include_task = false
+        -- require('plenary.log').info("[xxxhhh][changed to false][3]");
+				for _, status in ipairs(status_filters) do
+					if task.status == status then
+						include_task = true
+						break
+					end
+				end
+			end
+
+      -- require('plenary.log').info("[xxxhhh][last include flag]");
 			if include_task then
 				table.insert(file_filtered_tasks, task)
 			end
@@ -112,14 +136,17 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 
 	vim.loop.read_start(stdout, function(err, data)
 		assert(not err, err)
+    -- require('plenary.log').info("xxxhhh rg data", data);
 		if data then
 			-- Split data by lines and store in tasks
 			for line in data:gmatch("[^\r\n]+") do
 				-- Extract task, file path and line number
 				local file_path, line_number, task_text = line:match("^(%S+):(%d+):(.+)$")
+        -- require('plenary.log').info("[xxxhhh][rg line]", line, file_path, line_number, task_text);
 				if task_text and file_path and line_number then
 					local status = task_text:match("%[(.?)%]")
-					status = status == " " and "[ ]" or "[x]"
+					-- 保留完整的状态标记，包括方括号
+					status = status and "[" .. status .. "]" or "[ ]"
 
 					-- Extract due date
 					local due_date = task_text:match("📅 (%d%d%d%d%-%d%d%-%d%d)")
