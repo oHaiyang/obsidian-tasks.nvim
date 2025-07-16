@@ -13,11 +13,15 @@ function M.save_tasks_changes(buf, tasks)
   local updated_count = 0
 
   for _, line in ipairs(current_lines) do
+    -- require('plenary.log').info('[xxxhhh][try saving line]', line);
     if line:match("^%d+%. %[.?%]") then  -- Ensure this is a task line, not a group title or help line
+      -- require('plenary.log').info('[xxxhhh][valid task line]', line);
       local parsed = parser.parse_display_line(line)
+      -- require('plenary.log').info('[xxxhhh][parsed line]', parsed);
       if parsed and parsed.index and tasks[parsed.index] then
         local original_task = tasks[parsed.index]
 
+        -- require('plenary.log').info('[xxxhhh][compare task]', original_task.status ~= parsed.status);
         -- Check if there are changes
         if original_task.status ~= parsed.status then
           -- Apply changes

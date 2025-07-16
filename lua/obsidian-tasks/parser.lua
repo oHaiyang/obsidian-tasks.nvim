@@ -32,6 +32,7 @@ end
 -- Parse display line to task information
 function M.parse_display_line(line)
   local index, status, rest = line:match("^(%d+)%. (%[.?%]) (.+)")
+  -- require('plenary.log').info('[xxxhhh][parsing line]', index, status, rest);
 
   if not (index and status and rest) then
     return nil
@@ -51,13 +52,15 @@ function M.parse_display_line(line)
       priority_tag == "LOW" or 
       priority_tag == "LOWEST" then
       priority = priority_tag:lower()
-      text = rest:match("^%[([%w]+)%] (.+)")
+      _, text = rest:match("^%[([%w]+)%] (.+)")
     end
   end
+  -- require('plenary.log').info('[xxxhhh][priority and text]', priority, text);
 
   -- Extract file path and line number
   local file_path, line_number
-  text, file_path, line_number = text:match("(.+) <!%-%- (.+):(%d+) %-%->$")
+  text, file_path, line_number = text:match("(.+) %[%[(.+)#L(%d+)%]%]")
+  -- require('plenary.log').info('[xxxhhh][parsing file path]', text, file_path, line_number);
 
   if not (text and file_path and line_number) then
     return nil

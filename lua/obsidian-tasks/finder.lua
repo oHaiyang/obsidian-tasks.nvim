@@ -63,8 +63,8 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 				include_task = false
         -- require('plenary.log').info("[xxxhhh][changed to false][1]");
 				for _, pattern in ipairs(filter.include_files) do
-          -- require('plenary.log').info("xxxhhh", task.file_path, pattern, task.file_path:match(pattern));
 					if task.file_path:match(pattern) then
+            -- require('plenary.log').info("[xxxhhh][changed to true][1]");
 						include_task = true
 						break
 					end
@@ -101,7 +101,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by)
 				end
 			end
 
-      -- require('plenary.log').info("[xxxhhh][last include flag]");
+      -- require('plenary.log').info("[xxxhhh][last include flag]", include_task, task);
 			if include_task then
 				table.insert(file_filtered_tasks, task)
 			end
