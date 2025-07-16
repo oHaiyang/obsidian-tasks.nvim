@@ -2,7 +2,7 @@ local M = {}
 
 -- Help information
 M.TASK_VIEW_HELP_LINES = {
-	"-- Tasks List (q:close, <c-s>:save changes, <c-r>:refresh) --",
+	"-- Tasks List (q:close, <c-s>:save changes, <c-r>:refresh), J/K move between task --",
 	"-- Change `[ ]` to `[x]` to mark tasks as done --",
 	"",
 }
@@ -53,7 +53,7 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 
 	-- For hierarchical headings, we need to track which headings we've already displayed
 	local displayed_headings = {}
-	
+
 	-- Process each group
 	for _, group_name in ipairs(group_names) do
 		local tasks = grouped_tasks[group_name]
@@ -71,19 +71,21 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 
 				-- Build up the heading path as we go
 				local current_path = ""
-				
+
 				-- Add all parts as separate headings with appropriate levels, but only if not already displayed
 				for i, part in ipairs(parts) do
 					local level = i + 1 -- Start at level 2
-					if level > 6 then level = 6 end -- Max heading level is 6
-					
+					if level > 6 then
+						level = 6
+					end -- Max heading level is 6
+
 					-- Build the current path to this heading level
 					if current_path == "" then
 						current_path = part
 					else
 						current_path = current_path .. ":" .. part
 					end
-					
+
 					-- Only display this heading if we haven't seen it before
 					if not displayed_headings[current_path] then
 						table.insert(display_lines, string.rep("#", level) .. " " .. part)
@@ -113,32 +115,32 @@ end
 function M.refresh_tasks_view()
 	local buf = vim.api.nvim_get_current_buf()
 	local tasks = core.buffer_tasks[buf]
-	
+
 	if not tasks or #tasks == 0 then
 		vim.notify("No tasks to refresh", vim.log.levels.WARN)
 		return
 	end
-	
+
 	-- Store current window and cursor position
 	local win = vim.api.nvim_get_current_win()
 	local cursor_pos = vim.api.nvim_win_get_cursor(win)
-	
+
 	-- Get the first task's file path to determine vault path
 	local first_task = tasks[1]
 	local vault_path = first_task and first_task.file_path:match("^(.+)/[^/]+$") or nil
-	
+
 	if not vault_path then
 		vim.notify("Could not determine vault path for refresh", vim.log.levels.ERROR)
 		return
 	end
-	
+
 	-- Check if we're in a floating window
 	local win_config = vim.api.nvim_win_get_config(win)
 	local is_float = win_config.relative and win_config.relative ~= ""
-	
+
 	-- Get current buffer options to preserve them
 	local hierarchical_headings = false
-	
+
 	-- Try to determine current grouping from buffer content
 	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	for _, line in ipairs(lines) do
@@ -154,31 +156,31 @@ function M.refresh_tasks_view()
 			break
 		end
 	end
-	
+
 	-- Close current buffer
 	vim.cmd("bd!")
-	
+
 	-- Re-run the finder with the same options as before
 	local finder = require("obsidian-tasks.finder")
-	
+
 	-- Create options table for the finder
 	local opts = {
 		vault_path = vault_path,
 		float = is_float,
-		hierarchical_headings = hierarchical_headings
+		hierarchical_headings = hierarchical_headings,
 	}
-	
+
 	-- Reuse the last filter and group_by settings if available
 	if M.last_finder_opts.filter then
 		opts.filter = M.last_finder_opts.filter
 	end
-	
+
 	if M.last_finder_opts.group_by then
 		opts.group_by = M.last_finder_opts.group_by
 	end
-	
+
 	finder.find_tasks(opts)
-	
+
 	-- Notify user
 	vim.notify("Tasks refreshed", vim.log.levels.INFO)
 end
@@ -209,7 +211,7 @@ function M.setup_editable_buffer(buf, tasks)
 
 	local obsidian_tasks = require("obsidian-tasks")
 	vim.keymap.set({ "n" }, "<c-s>", obsidian_tasks.save_current_tasks, { buffer = buf, noremap = true, silent = true })
-	
+
 	-- Add refresh functionality
 	vim.keymap.set({ "n" }, "<c-r>", M.refresh_tasks_view, { buffer = buf, noremap = true, silent = true })
 
@@ -237,6 +239,60 @@ function M.setup_editable_buffer(buf, tasks)
 	-- Map both gd and gf to the jump function
 	vim.keymap.set({ "n" }, "gd", jump_to_task_source, { noremap = true, silent = true, buffer = buf })
 	vim.keymap.set({ "n" }, "gf", jump_to_task_source, { noremap = true, silent = true, buffer = buf })
+
+	-- Add navigation between tasks with J and K
+	local function move_to_task(direction)
+		local current_line = vim.api.nvim_win_get_cursor(0)[1]
+		local line_count = vim.api.nvim_buf_line_count(buf)
+		local target_line = current_line
+
+		-- Skip help lines at the top
+		local help_lines_count = #M.TASK_VIEW_HELP_LINES
+
+		-- Function to check if a line contains a task
+		local function is_task_line(line_num)
+			if line_num <= 0 or line_num > line_count then
+				return false
+			end
+
+			local line_content = vim.api.nvim_buf_get_lines(buf, line_num - 1, line_num, false)[1]
+			-- Check if line matches task pattern (starts with a number followed by dot and status)
+			return line_content:match("^%d+%. %[.?%]")
+		end
+
+		if direction == "next" then
+			-- Find next task line
+			for i = current_line + 1, line_count do
+				if is_task_line(i) then
+					target_line = i
+					break
+				end
+			end
+		else -- direction == "prev"
+			-- Find previous task line
+			for i = current_line - 1, help_lines_count + 1, -1 do
+				if is_task_line(i) then
+					target_line = i
+					break
+				end
+			end
+		end
+
+		-- Move cursor to target line
+		if target_line ~= current_line then
+			vim.api.nvim_win_set_cursor(0, { target_line, 0 })
+			-- Center the cursor in the window
+			vim.cmd("normal! zz")
+		end
+	end
+
+	-- Add J and K keybindings for task navigation
+	vim.keymap.set({ "n" }, "J", function()
+		move_to_task("next")
+	end, { noremap = true, silent = true, buffer = buf, desc = "Move to next task" })
+	vim.keymap.set({ "n" }, "K", function()
+		move_to_task("prev")
+	end, { noremap = true, silent = true, buffer = buf, desc = "Move to previous task" })
 end
 
 -- Display editable task list
