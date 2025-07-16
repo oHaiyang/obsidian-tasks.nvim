@@ -33,7 +33,7 @@ end
 
 -- Format grouped tasks for display
 function M.format_grouped_tasks(grouped_tasks, opts)
-  -- require('plenary.log').info('[xxxhhh][grouped_tasks]', grouped_tasks, opts)
+	-- require('plenary.log').info('[xxxhhh][grouped_tasks]', grouped_tasks, opts)
 	opts = opts or {}
 	local use_hierarchical_headings = opts.hierarchical_headings or false
 
@@ -48,6 +48,9 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 	end
 	table.sort(group_names)
 
+	-- For hierarchical headings, we need to track which headings we've already displayed
+	local displayed_headings = {}
+	
 	-- Process each group
 	for _, group_name in ipairs(group_names) do
 		local tasks = grouped_tasks[group_name]
@@ -63,12 +66,26 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 					table.insert(parts, part)
 				end
 
-				-- Add all parts as separate headings with appropriate levels
+				-- Build up the heading path as we go
+				local current_path = ""
+				
+				-- Add all parts as separate headings with appropriate levels, but only if not already displayed
 				for i, part in ipairs(parts) do
 					local level = i + 1 -- Start at level 2
 					if level > 6 then level = 6 end -- Max heading level is 6
 					
-					table.insert(display_lines, string.rep("#", level) .. " " .. part)
+					-- Build the current path to this heading level
+					if current_path == "" then
+						current_path = part
+					else
+						current_path = current_path .. ":" .. part
+					end
+					
+					-- Only display this heading if we haven't seen it before
+					if not displayed_headings[current_path] then
+						table.insert(display_lines, string.rep("#", level) .. " " .. part)
+						displayed_headings[current_path] = true
+					end
 				end
 			else
 				-- Traditional flat heading style
@@ -85,7 +102,7 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 		end
 	end
 
-  -- require('plenary.log').info('[xxxhhh][display lines]', display_lines)
+	-- require('plenary.log').info('[xxxhhh][display lines]', display_lines)
 	return display_lines, index_map
 end
 
