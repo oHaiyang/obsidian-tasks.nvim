@@ -10,6 +10,9 @@ M.TASK_VIEW_HELP_LINES = {
 local core = require("obsidian-tasks.core")
 local parser = require("obsidian-tasks.parser")
 
+-- Store the last used options for refresh functionality
+M.last_finder_opts = {}
+
 -- Format task for display
 function M.format_task_for_display(task, index)
 	-- Format priority label (if not normal)
@@ -135,7 +138,6 @@ function M.refresh_tasks_view()
 	
 	-- Get current buffer options to preserve them
 	local hierarchical_headings = false
-	local group_by = {}
 	
 	-- Try to determine current grouping from buffer content
 	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -156,13 +158,26 @@ function M.refresh_tasks_view()
 	-- Close current buffer
 	vim.cmd("bd!")
 	
-	-- Re-run the finder with similar options
+	-- Re-run the finder with the same options as before
 	local finder = require("obsidian-tasks.finder")
-	finder.find_tasks({
+	
+	-- Create options table for the finder
+	local opts = {
 		vault_path = vault_path,
 		float = is_float,
 		hierarchical_headings = hierarchical_headings
-	})
+	}
+	
+	-- Reuse the last filter and group_by settings if available
+	if M.last_finder_opts.filter then
+		opts.filter = M.last_finder_opts.filter
+	end
+	
+	if M.last_finder_opts.group_by then
+		opts.group_by = M.last_finder_opts.group_by
+	end
+	
+	finder.find_tasks(opts)
 	
 	-- Notify user
 	vim.notify("Tasks refreshed", vim.log.levels.INFO)

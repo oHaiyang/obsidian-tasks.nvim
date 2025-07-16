@@ -35,6 +35,15 @@ function M.find_tasks(opts)
 		hierarchical_headings = opts.hierarchical_headings or false
 	}
 
+	-- Store the options for refresh functionality
+	display.last_finder_opts = {
+		filter = filter,
+		group_by = group_by,
+		float = use_float,
+		vault_path = vault_path,
+		hierarchical_headings = opts.hierarchical_headings or false
+	}
+
 	-- Call ripgrep to find tasks
 	M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, display_opts)
 end
