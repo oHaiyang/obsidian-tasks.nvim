@@ -134,6 +134,12 @@ function M.group_tasks(tasks, group_by)
         group_value = (task.status == "[ ]") and "Pending" or "Completed"
       elseif current_group == "priority" then
         group_value = task.priority:sub(1, 1):upper() .. task.priority:sub(2)
+      elseif current_group == "file" then
+        -- Extract filename from file_path (without extension)
+        local filename = task.file_path:match("([^/]+)%.%w+$") or task.file_path
+        -- Remove extension if present
+        filename = filename:gsub("%.%w+$", "")
+        group_value = filename
       else
         group_value = "Other"
       end
