@@ -35,8 +35,8 @@ function M.format_task_for_display(task, index)
 end
 
 -- Format grouped tasks for display
-function M.format_grouped_tasks(grouped_tasks, opts)
-	-- require('plenary.log').info('[xxxhhh][grouped_tasks]', grouped_tasks, opts)
+function M.format_grouped_tasks(grouped_tasks, group_order, opts)
+	-- require('plenary.log').info('[xxxhhh][format grouped_tasks]', grouped_tasks, group_order, opts)
 	opts = opts or {}
 	local use_hierarchical_headings = opts.hierarchical_headings or false
 
@@ -44,18 +44,11 @@ function M.format_grouped_tasks(grouped_tasks, opts)
 	local index_map = {} -- Map display indices to original tasks
 	local current_index = 1
 
-	-- Sort group names for consistent display order
-	local group_names = {}
-	for name in pairs(grouped_tasks) do
-		table.insert(group_names, name)
-	end
-	table.sort(group_names)
-
 	-- For hierarchical headings, we need to track which headings we've already displayed
 	local displayed_headings = {}
 
 	-- Process each group
-	for _, group_name in ipairs(group_names) do
+	for _, group_name in ipairs(group_order) do
 		local tasks = grouped_tasks[group_name]
 
 		-- Add group title (if not default group)
@@ -296,7 +289,7 @@ function M.setup_editable_buffer(buf, tasks)
 end
 
 -- Display editable task list
-function M.display_tasks(tasks, grouped_tasks, opts)
+function M.display_tasks(tasks, grouped_tasks, group_order, opts)
 	opts = opts or {}
 
 	-- Create a new buffer
@@ -308,7 +301,7 @@ function M.display_tasks(tasks, grouped_tasks, opts)
 	-- Format task display
 	local display_lines
 	if grouped_tasks then
-		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, opts)
+		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, group_order, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do
@@ -342,7 +335,7 @@ function M.display_tasks(tasks, grouped_tasks, opts)
 end
 
 -- Display editable task list in floating window
-function M.display_tasks_float(tasks, grouped_tasks, opts)
+function M.display_tasks_float(tasks, grouped_tasks, group_order, opts)
 	opts = opts or {}
 
 	-- Create a new buffer
@@ -354,7 +347,7 @@ function M.display_tasks_float(tasks, grouped_tasks, opts)
 	-- Format task display
 	local display_lines
 	if grouped_tasks then
-		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, opts)
+		display_lines, core.task_index_map = M.format_grouped_tasks(grouped_tasks, group_order, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do

@@ -6,9 +6,9 @@ M.PRIORITY_EMOJIS = {
 	["⏫"] = "high",
 	["🔼"] = "medium",
 	["🔽"] = "low",
-  -- ⏬️ and ⏬ are different emojis
+	-- ⏬️ and ⏬ are different emojis
 	["⏬️"] = "lowest",
-  ["⏬"] = "lowest",
+	["⏬"] = "lowest",
 }
 
 -- Priority order (for sorting)
@@ -110,11 +110,12 @@ end
 -- Group tasks by given criteria
 function M.group_tasks(tasks, group_by)
 	if #group_by == 0 then
-		return { default = tasks }
+		return { default = tasks }, { "default" }
 	end
 
 	-- Create groups based on given criteria
 	local grouped = {}
+	local group_order = {} -- To track the order of groups
 
 	-- Recursive function to handle multiple levels of grouping
 	local function process_groups(current_tasks, group_index, prefix)
@@ -128,11 +129,15 @@ function M.group_tasks(tasks, group_by)
 				key = "default"
 			end
 			grouped[key] = current_tasks
+      -- require('plenary.log').info('[xxxhhh][insert group to result]', grouped);
+			table.insert(group_order, key)
 			return
 		end
 
 		-- Group tasks by current grouping type
 		local sub_groups = {}
+		local sub_group_names = {} -- To track the order of sub-groups
+
 		for _, task in ipairs(current_tasks) do
 			local group_value
 
@@ -150,12 +155,30 @@ function M.group_tasks(tasks, group_by)
 				group_value = "Other"
 			end
 
+			if not sub_groups[group_value] then
+				table.insert(sub_group_names, group_value)
+			end
+
 			sub_groups[group_value] = sub_groups[group_value] or {}
 			table.insert(sub_groups[group_value], task)
 		end
 
+		-- Sort sub_group_names if current_group is priority
+		if current_group == "priority" then
+			table.sort(sub_group_names, function(a, b)
+				-- Convert group name (e.g., "Highest") to priority key (e.g., "highest")
+				local a_priority = a:lower()
+				local b_priority = b:lower()
+
+				-- Use the PRIORITY_ORDER table to determine sort order
+				return M.PRIORITY_ORDER[a_priority] < M.PRIORITY_ORDER[b_priority]
+			end)
+		end
+    -- require('plenary.log').info('[xxxhhh][sorted priority group names]', sub_group_names);
+
 		-- Recursively process next level of grouping
-		for sub_name, sub_tasks in pairs(sub_groups) do
+		for _, sub_name in ipairs(sub_group_names) do
+			local sub_tasks = sub_groups[sub_name]
 			local new_prefix = vim.deepcopy(prefix)
 			table.insert(new_prefix, sub_name)
 			process_groups(sub_tasks, group_index + 1, new_prefix)
@@ -163,7 +186,8 @@ function M.group_tasks(tasks, group_by)
 	end
 
 	process_groups(tasks, 1)
-	return grouped
+  -- require('plenary.log').info('[xxxhhh][grouped]', group_order, grouped);
+	return grouped, group_order
 end
 
 return M

@@ -131,12 +131,13 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		else
 			vim.schedule(function()
 				-- Process tasks by group
-				local grouped_tasks = parser.group_tasks(filtered_tasks, group_by)
+				local grouped_tasks, group_order = parser.group_tasks(filtered_tasks, group_by)
+        -- require('plenary.log').info("[xxxhhh][grouped task]", group_order, grouped_tasks);
 
 				if use_float then
-					display.display_tasks_float(filtered_tasks, grouped_tasks, display_opts)
+					display.display_tasks_float(filtered_tasks, grouped_tasks, group_order, display_opts)
 				else
-					display.display_tasks(filtered_tasks, grouped_tasks, display_opts)
+					display.display_tasks(filtered_tasks, grouped_tasks, group_order, display_opts)
 				end
 			end)
 		end
