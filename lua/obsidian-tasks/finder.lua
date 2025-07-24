@@ -5,6 +5,8 @@ local display = require("obsidian-tasks.display")
 local core = require("obsidian-tasks.core")
 
 -- Main function to find tasks
+---@param opts? ObsidianTaskFinderOptions
+---@return nil
 function M.find_tasks(opts)
 	opts = opts or {}
 	local filter = opts.filter or {}
@@ -49,21 +51,30 @@ function M.find_tasks(opts)
 end
 
 -- Find tasks using vim.loop and ripgrep
+---@param vault_path string # Path to the Obsidian vault
+---@param filter ObsidianTaskFilter # Filter criteria for tasks
+---@param use_float boolean # Whether to use floating window
+---@param group_by table # Grouping options
+---@param display_opts ObsidianTaskDisplayOptions # Display options
+---@return nil
 function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, display_opts)
 	local stdout = vim.loop.new_pipe(false)
 	local stderr = vim.loop.new_pipe(false)
 
 	local handle
+	---@type ObsidianTask[]
 	local tasks = {}
 	group_by = group_by or {}
 	display_opts = display_opts or {}
 
+	---@type fun() # Callback when process exits
 	local function on_exit()
-		stdout:close()
-		stderr:close()
+		if stdout then stdout:close() end
+		if stderr then stderr:close() end
 		handle:close()
 
 		-- 应用文件过滤
+		---@type ObsidianTask[]
 		local file_filtered_tasks = {}
 
     -- require('plenary.log').info("[xxxhhh][exit handle all tasks]", tasks);
@@ -98,10 +109,12 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 			-- 应用 status 过滤
 			if include_task and filter.status then
 				-- 如果 status 是字符串，转换为表格以便统一处理
+				---@type string|string[]
 				local status_filters = filter.status
 				if type(status_filters) == "string" then
 					status_filters = { status_filters }
 				end
+        assert(status_filters)
 
 				-- 检查任务状态是否匹配任何指定的状态
 				include_task = false
@@ -121,6 +134,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		end
 
 		-- 应用自定义过滤器
+		---@type ObsidianTask[]
 		local filtered_tasks = parser.filter_tasks(file_filtered_tasks, filter.custom)
 
 		-- If no output data, notify user
@@ -131,6 +145,8 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		else
 			vim.schedule(function()
 				-- Process tasks by group
+				---@type table<string, ObsidianTask[]>
+				---@type string[]
 				local grouped_tasks, group_order = parser.group_tasks(filtered_tasks, group_by)
         -- require('plenary.log').info("[xxxhhh][grouped task]", group_order, grouped_tasks);
 
@@ -148,6 +164,8 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		stdio = { nil, stdout, stderr },
 	}, vim.schedule_wrap(on_exit))
 
+	---@param err? string # Error message if any
+	---@param data? string # Data received from stdout
 	vim.loop.read_start(stdout, function(err, data)
 		assert(not err, err)
     -- require('plenary.log').info("xxxhhh rg data", data);
@@ -155,23 +173,28 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 			-- Split data by lines and store in tasks
 			for line in data:gmatch("[^\r\n]+") do
 				-- Extract task, file path and line number
+				---@type string?, string?, string?
 				local file_path, line_number, task_text = line:match("^(%S+):(%d+):(.+)$")
         -- require('plenary.log').info("[xxxhhh][rg line]", line, file_path, line_number, task_text);
 				if task_text and file_path and line_number then
+					---@type string?
 					local status = task_text:match("%[(.?)%]")
 					-- 保留完整的状态标记，包括方括号
 					status = status and "[" .. status .. "]" or "[ ]"
 
 					-- Extract due date
+					---@type string?
 					local due_date = task_text:match("📅 (%d%d%d%d%-%d%d%-%d%d)")
 
 					-- Clean task text
 					local clean_text = task_text:gsub("^%s*- %[.?%]", "")
 
 					-- Extract priority
+					---@type string
 					local priority = parser.extract_priority(clean_text)
 
 					-- Create task object
+					---@type ObsidianTask
 					local task = {
 						text = clean_text,
 						file_path = file_path,
@@ -187,6 +210,8 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		end
 	end)
 
+	---@param err? string # Error message if any
+	---@param data? string # Data received from stderr
 	vim.loop.read_start(stderr, function(err, data)
 		assert(not err, err)
 		if data then

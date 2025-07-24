@@ -1,13 +1,15 @@
 local M = {}
 
 -- Re-export functions from other modules
+---@param config? ObsidianTasksConfig
+---@return ObsidianTasks
 function M.setup(config)
 	-- Load modules
 	local core = require("obsidian-tasks.core")
 
 	-- Initialize with config
 	config = config or {}
-	local vault_path = config.vault_path or "/Users/didi/Notes"
+	local vault_path = config.vault_path
 
 	-- Default display options
 	config.display = config.display or {}
@@ -23,6 +25,7 @@ function M.setup(config)
 end
 
 -- Re-export main API functions
+---@param opts? ObsidianTaskFinderOptions
 function M.find_tasks(opts)
 	opts = opts or {}
 
@@ -36,10 +39,12 @@ function M.find_tasks(opts)
 	return require("obsidian-tasks.finder").find_tasks(opts)
 end
 
+---@return boolean success
 function M.save_current_tasks()
 	return require("obsidian-tasks.core").save_current_tasks()
 end
 
+---@return boolean success
 function M.toggle_task_at_cursor()
 	return require("obsidian-tasks.core").toggle_task_at_cursor()
 end

@@ -1,6 +1,15 @@
+---@class ObsidianTasksParser
+---@field PRIORITY_EMOJIS table<string, string> # Maps emoji to priority level
+---@field PRIORITY_ORDER table<string, number> # Maps priority level to numeric order
+---@field extract_priority fun(task_text: string): string # Extracts priority from task text
+---@field parse_display_line fun(line: string): ObsidianTask|nil # Parses a display line into a task object
+---@field parse_query fun(query: string): table # Parses a query string into filters
+---@field filter_tasks fun(tasks: ObsidianTask[], filter: fun(task: ObsidianTask): boolean): ObsidianTask[] # Filters tasks based on a filter function
+---@field group_tasks fun(tasks: ObsidianTask[], group_by: string[]): {[string]: ObsidianTask[]}, string[] # Groups tasks by given criteria
 local M = {}
 
 -- Store priority emoji mappings
+---@type table<string, string>
 M.PRIORITY_EMOJIS = {
 	["🔺"] = "highest",
 	["⏫"] = "high",
@@ -12,6 +21,7 @@ M.PRIORITY_EMOJIS = {
 }
 
 -- Priority order (for sorting)
+---@type table<string, number>
 M.PRIORITY_ORDER = {
 	highest = 1,
 	high = 2,
@@ -22,6 +32,8 @@ M.PRIORITY_ORDER = {
 }
 
 -- Extract task priority
+---@param task_text string The text of the task
+---@return string priority The priority level of the task
 function M.extract_priority(task_text)
 	for emoji, priority in pairs(M.PRIORITY_EMOJIS) do
 		if task_text:find(emoji) then
@@ -32,6 +44,8 @@ function M.extract_priority(task_text)
 end
 
 -- Parse display line to task information
+---@param line string The line to parse
+---@return ObsidianTask|nil task The parsed task or nil if parsing failed
 function M.parse_display_line(line)
 	local index, status, rest = line:match("^(%d+)%. (%[.?%]) (.+)")
 	-- require('plenary.log').info('[xxxhhh][parsing line]', index, status, rest);
@@ -80,7 +94,14 @@ function M.parse_display_line(line)
 	}
 end
 
+---@class QueryFilters
+---@field not_done? boolean # Filter for tasks that are not done
+---@field done? boolean # Filter for tasks that are done
+---@field due_date? string # Filter for tasks due on a specific date
+
 -- Parse query string
+---@param query string The query string to parse
+---@return QueryFilters filters The parsed filters
 function M.parse_query(query)
 	local filters = {}
 	if query:match("not done") then
@@ -96,6 +117,9 @@ function M.parse_query(query)
 end
 
 -- Filter tasks based on query
+---@param tasks ObsidianTask[] The tasks to filter
+---@param filter fun(task: ObsidianTask): boolean The filter function
+---@return ObsidianTask[] filtered_tasks The filtered tasks
 function M.filter_tasks(tasks, filter)
 	local filtered_tasks = {}
 	for _, task in ipairs(tasks) do
@@ -108,6 +132,10 @@ function M.filter_tasks(tasks, filter)
 end
 
 -- Group tasks by given criteria
+---@param tasks ObsidianTask[] The tasks to group
+---@param group_by string[] The criteria to group by
+---@return table<string, ObsidianTask[]> grouped The grouped tasks
+---@return string[] group_order The order of the groups
 function M.group_tasks(tasks, group_by)
 	if #group_by == 0 then
 		return { default = tasks }, { "default" }
@@ -118,6 +146,9 @@ function M.group_tasks(tasks, group_by)
 	local group_order = {} -- To track the order of groups
 
 	-- Recursive function to handle multiple levels of grouping
+	---@param current_tasks ObsidianTask[] The tasks to process
+	---@param group_index number The current group index
+	---@param prefix? string[] The prefix for the group key
 	local function process_groups(current_tasks, group_index, prefix)
 		prefix = prefix or {}
 		local current_group = group_by[group_index]
@@ -129,7 +160,7 @@ function M.group_tasks(tasks, group_by)
 				key = "default"
 			end
 			grouped[key] = current_tasks
-      -- require('plenary.log').info('[xxxhhh][insert group to result]', grouped);
+			-- require('plenary.log').info('[xxxhhh][insert group to result]', grouped);
 			table.insert(group_order, key)
 			return
 		end
@@ -174,7 +205,7 @@ function M.group_tasks(tasks, group_by)
 				return M.PRIORITY_ORDER[a_priority] < M.PRIORITY_ORDER[b_priority]
 			end)
 		end
-    -- require('plenary.log').info('[xxxhhh][sorted priority group names]', sub_group_names);
+		-- require('plenary.log').info('[xxxhhh][sorted priority group names]', sub_group_names);
 
 		-- Recursively process next level of grouping
 		for _, sub_name in ipairs(sub_group_names) do
@@ -186,7 +217,7 @@ function M.group_tasks(tasks, group_by)
 	end
 
 	process_groups(tasks, 1)
-  -- require('plenary.log').info('[xxxhhh][grouped]', group_order, grouped);
+	-- require('plenary.log').info('[xxxhhh][grouped]', group_order, grouped);
 	return grouped, group_order
 end
 
