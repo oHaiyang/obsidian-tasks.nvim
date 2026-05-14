@@ -3,8 +3,14 @@
 ---@field file_path string # Path to the file containing the task
 ---@field line_number? number # Line number where the task appears
 ---@field status string # Task status (e.g. "[ ]", "[x]")
+---@field status_symbol? string # Status character inside the checkbox
+---@field indentation? string # Original indentation before the list marker
+---@field list_marker? string # Original list marker ("-", "*", "+", "1.", "1)")
+---@field body? string # Original task body after the checkbox
 ---@field due_date? string # Due date in YYYY-MM-DD format if present
 ---@field priority? string # Task priority if present
+---@field tags? string[] # Tags in the task description
+---@field heading? string # Previous markdown heading in the source file
 ---@field index? number # Task index in the display
 
 ---@class ObsidianTaskFilter
@@ -22,6 +28,8 @@
 ---@field float? boolean # Whether to use floating window
 ---@field vault_path string # Path to the Obsidian vault
 ---@field hierarchical_headings? boolean # Whether to display headings hierarchically
+---@field global_filter? string # Optional global filter string
+---@field globalFilter? string # Optional global filter string, camelCase compatibility
 
 ---@class ObsidianTasksFinder
 ---@field find_tasks fun(opts?: ObsidianTaskFinderOptions): nil # Find tasks matching criteria
@@ -29,6 +37,7 @@
 
 ---@class ObsidianTasksConfig
 ---@field vault_path string # Path to the Obsidian vault
+---@field global_filter? string # Optional global filter string
 ---@field display? ObsidianTasksDisplayConfig # Display configuration options
 
 ---@class ObsidianTasksDisplayConfig
@@ -57,6 +66,24 @@ M.task_index_map = {}
 
 -- Importing other modules
 local parser = require("obsidian-tasks.parser")
+local task_model = require("obsidian-tasks.task")
+
+local function format_display_line(parsed)
+	local priority_text = ""
+	if parsed.priority and parsed.priority ~= "normal" then
+		priority_text = "[" .. parsed.priority:upper() .. "] "
+	end
+
+	return string.format(
+		"%d. %s %s%s [[%s#L%d]]",
+		parsed.index,
+		parsed.status,
+		priority_text,
+		parsed.text,
+		parsed.file_path,
+		parsed.line_number
+	)
+end
 
 -- Save all task changes
 ---@param buf number # Buffer handle
@@ -65,6 +92,7 @@ local parser = require("obsidian-tasks.parser")
 function M.save_tasks_changes(buf, tasks)
 	local current_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	local updated_count = 0
+	local failed_count = 0
 
 	for _, line in ipairs(current_lines) do
 		-- require('plenary.log').info('[xxxhhh][try saving line]', line);
@@ -83,6 +111,8 @@ function M.save_tasks_changes(buf, tasks)
 					-- Apply changes
 					if M.apply_task_changes(original_task, parsed) then
 						updated_count = updated_count + 1
+					else
+						failed_count = failed_count + 1
 					end
 				end
 			end
@@ -90,7 +120,7 @@ function M.save_tasks_changes(buf, tasks)
 	end
 
 	vim.notify(string.format("Updated %d task(s)", updated_count), vim.log.levels.INFO)
-	return updated_count > 0
+	return failed_count == 0
 end
 
 -- Apply task changes back to original file
@@ -119,11 +149,18 @@ function M.apply_task_changes(original_task, updated_task)
 		return false
 	end
 
-	-- Create new task text
-	local new_status = updated_task.status
+	local parsed_source_task = task_model.parse_line({
+		line = original_line,
+		file_path = original_task.file_path,
+		line_number = original_task.line_number,
+	})
 
-	-- Replace status, preserve other formatting
-	local new_line = original_line:gsub("%[.?%]", new_status)
+	if not parsed_source_task then
+		vim.notify("Line is no longer a valid task: " .. updated_task.file_path, vim.log.levels.ERROR)
+		return false
+	end
+
+	local new_line = task_model.serialize(task_model.with_status(parsed_source_task, updated_task.status))
 
 	-- Write back to file
 	file = io.open(updated_task.file_path, "w")
@@ -182,32 +219,25 @@ function M.toggle_task_at_cursor()
 
 	---@type ObsidianTask|nil
 	local parsed = parser.parse_display_line(line)
-	vim.notify(vim.inspect(parsed))
 	if parsed then
 		-- Toggle status
-		if parsed.status == "[ ]" then
-			parsed.status = "[x]"
-		else
-			parsed.status = "[ ]"
-		end
+		local toggled = task_model.toggle_status(parsed)
+		parsed.status = toggled.status
+		parsed.status_symbol = toggled.status_symbol
 
-		-- Update line
-		local priority_text = ""
-		if parsed.priority ~= "normal" then
-			priority_text = "[" .. parsed.priority:upper() .. "] "
-		end
+		vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { format_display_line(parsed) })
+		vim.api.nvim_set_option_value("modified", true, { buf = buf })
+		return true
+	end
 
-		local new_line = string.format(
-			"%d. %s %s%s [[%s#L%d]]",
-			parsed.index,
-			parsed.status,
-			priority_text,
-			parsed.text,
-			parsed.file_path,
-			parsed.line_number
-		)
-
-		vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { new_line })
+	local source_task = task_model.parse_line({
+		line = line,
+		file_path = vim.api.nvim_buf_get_name(buf),
+		line_number = row,
+	})
+	if source_task then
+		local toggled = task_model.toggle_status(source_task)
+		vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { task_model.serialize(toggled) })
 		vim.api.nvim_set_option_value("modified", true, { buf = buf })
 		return true
 	end

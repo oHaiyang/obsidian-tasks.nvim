@@ -17,16 +17,17 @@ M.last_finder_opts = {}
 function M.format_task_for_display(task, index)
 	-- Format priority label (if not normal)
 	local priority_text = ""
-	if task.priority ~= "normal" then
+	if task.priority and task.priority ~= "normal" then
 		priority_text = "[" .. task.priority:upper() .. "] "
 	end
+	local task_text = task.display_text or task.body or task.text or ""
 
 	local display_text = string.format(
 		"%d. %s %s%s",
 		index,
 		task.status,
 		priority_text,
-		task.text:gsub("^%[.?%] ", "") -- Remove task status part
+		task_text:gsub("^%[.?%] ", "") -- Remove task status part
 	)
 
 	-- Add file path info as wiki link (for internal tracking and navigation)
@@ -119,8 +120,7 @@ function M.refresh_tasks_view()
 	local cursor_pos = vim.api.nvim_win_get_cursor(win)
 
 	-- Get the first task's file path to determine vault path
-	local first_task = tasks[1]
-	local vault_path = first_task and first_task.file_path:match("^(.+)/[^/]+$") or nil
+	local vault_path = M.last_finder_opts.vault_path
 
 	if not vault_path then
 		vim.notify("Could not determine vault path for refresh", vim.log.levels.ERROR)
@@ -160,6 +160,7 @@ function M.refresh_tasks_view()
 	local opts = {
 		vault_path = vault_path,
 		float = is_float,
+		global_filter = M.last_finder_opts.global_filter,
 		hierarchical_headings = hierarchical_headings,
 	}
 
@@ -225,7 +226,7 @@ function M.setup_editable_buffer(buf, tasks)
 			-- Close current buffer
 			vim.cmd("bd")
 			-- Open the source file at the specified line
-			vim.cmd("edit +" .. line_number .. " " .. file_path)
+			vim.cmd("edit +" .. line_number .. " " .. vim.fn.fnameescape(file_path))
 		end
 	end
 

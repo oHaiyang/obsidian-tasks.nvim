@@ -14,6 +14,7 @@ function M.setup(config)
 	-- Default display options
 	config.display = config.display or {}
 	config.display.hierarchical_headings = config.display.hierarchical_headings or false
+	config.global_filter = config.global_filter or config.globalFilter or ""
 
 	-- Register tree-sitter parser
 	vim.treesitter.language.register("markdown", "obstasks")
@@ -33,6 +34,14 @@ function M.find_tasks(opts)
 	if M.config and M.config.display then
 		if opts.hierarchical_headings == nil then
 			opts.hierarchical_headings = M.config.display.hierarchical_headings
+		end
+	end
+	if M.config then
+		if opts.vault_path == nil then
+			opts.vault_path = M.config.vault_path
+		end
+		if opts.global_filter == nil and opts.globalFilter == nil then
+			opts.global_filter = M.config.global_filter
 		end
 	end
 

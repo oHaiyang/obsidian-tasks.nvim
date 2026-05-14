@@ -7,18 +7,11 @@
 ---@field filter_tasks fun(tasks: ObsidianTask[], filter: fun(task: ObsidianTask): boolean): ObsidianTask[] # Filters tasks based on a filter function
 ---@field group_tasks fun(tasks: ObsidianTask[], group_by: string[]): {[string]: ObsidianTask[]}, string[] # Groups tasks by given criteria
 local M = {}
+local task_model = require("obsidian-tasks.task")
 
 -- Store priority emoji mappings
 ---@type table<string, string>
-M.PRIORITY_EMOJIS = {
-	["🔺"] = "highest",
-	["⏫"] = "high",
-	["🔼"] = "medium",
-	["🔽"] = "low",
-	-- ⏬️ and ⏬ are different emojis
-	["⏬️"] = "lowest",
-	["⏬"] = "lowest",
-}
+M.PRIORITY_EMOJIS = task_model.PRIORITY_EMOJIS
 
 -- Priority order (for sorting)
 ---@type table<string, number>
@@ -35,12 +28,7 @@ M.PRIORITY_ORDER = {
 ---@param task_text string The text of the task
 ---@return string priority The priority level of the task
 function M.extract_priority(task_text)
-	for emoji, priority in pairs(M.PRIORITY_EMOJIS) do
-		if task_text:find(emoji) then
-			return priority
-		end
-	end
-	return "normal"
+	return task_model.extract_priority(task_text)
 end
 
 -- Parse display line to task information
@@ -87,7 +75,9 @@ function M.parse_display_line(line)
 	return {
 		index = tonumber(index),
 		status = status,
+		status_symbol = status:sub(2, 2),
 		text = text,
+		display_text = text,
 		file_path = file_path,
 		line_number = tonumber(line_number),
 		priority = priority,
@@ -173,7 +163,7 @@ function M.group_tasks(tasks, group_by)
 			local group_value
 
 			if current_group == "status" then
-				group_value = (task.status == "[ ]") and "Pending" or "Completed"
+				group_value = (task.status_symbol == " " or task.status == "[ ]") and "Pending" or "Completed"
 			elseif current_group == "priority" then
 				group_value = task.priority:sub(1, 1):upper() .. task.priority:sub(2)
 			elseif current_group == "file" then
