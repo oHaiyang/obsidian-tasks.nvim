@@ -17,6 +17,9 @@ function M.setup(config)
 	config.global_filter = config.global_filter or config.globalFilter or ""
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
+	config.presets = config.presets or config.query_presets or config.queryPresets or {}
+	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
+	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses
 	config.set_done_date = config.set_done_date or config.setDoneDate or false
 	config.set_cancelled_date = config.set_cancelled_date or config.setCancelledDate or false
@@ -78,6 +81,14 @@ end
 
 function M.postpone_task_at_cursor(expr)
 	return require("obsidian-tasks.core").postpone_task_at_cursor(expr)
+end
+
+function M.edit_current_task()
+	return require("obsidian-tasks.edit").edit_current_task()
+end
+
+function M.create_task(opts)
+	return require("obsidian-tasks.edit").create_task(opts)
 end
 
 function M.open(opts)

@@ -109,12 +109,12 @@
 | F206 | Line continuations | 反斜杠续行，便于长表达式。 | Todo。 | P2 |
 | F207 | Limit | `limit <n>`、`limit groups <n>`。 | Partial：已支持 `limit <n>`。 | P0 |
 | F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Todo。 | P2 |
-| F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Todo。 | P2 |
+| F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Partial：Phase 5 支持 `preset name`。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Todo。 | P2 |
 | F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Todo。 | P2 |
-| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Todo。 | P1 |
-| F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Todo。 | P1 |
-| F214 | Custom filters | `filter by function ...` 执行 JavaScript 表达式。 | Todo；nvim 可考虑 Lua 表达式。 | P2 |
+| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5 支持独立 `OR` 行分组。 | P1 |
+| F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Partial：Phase 5 基于 `vim.regex()` 支持常用字段。 | P1 |
+| F214 | Custom filters | `filter by function ...` 执行 JavaScript 表达式。 | Partial：Phase 5 支持 opt-in Lua 表达式。 | P2 |
 | F215 | Custom sorting | `sort by function ...`。 | Todo；nvim 可考虑 Lua 表达式。 | P2 |
 | F216 | Custom grouping | `group by function ...`。 | Todo；nvim 可考虑 Lua 表达式。 | P2 |
 
@@ -195,7 +195,7 @@
 | F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 已支持，规则 parser 待补全。 | P1 |
 | F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Done：`ObsidianTasksChangeStatus` 和 `ObsidianTasksStatus*`。 | P1 |
 | F406 | Status context menu | 右键 checkbox 可选择任意 status。 | Obsidian-only；nvim 可做 picker。 | P2 |
-| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Todo；nvim 可做 float form。 | P1 |
+| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP。 | P1 |
 | F408 | Modal field visibility | 可隐藏不用字段。 | Todo。 | P3 |
 | F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Todo。 | P1 |
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Obsidian-only；nvim 可做 calendar/picker。 | P2 |
@@ -308,16 +308,22 @@
 
 ### Phase 5: Editing and Advanced Query
 
+状态：已实现第一版，详见 `PHASE_5.md` 和 `PHASE_5_TEST.md`。
+
 目标是接近 Obsidian Tasks 的高级使用体验。
 
-建议范围：
+当前核心需求：
 
 1. Create/Edit task floating form。
-2. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
-3. Boolean / regex / function query。
-4. Presets、placeholders、query file defaults。
-5. Dataview task format。
-6. Frontmatter properties 和 links。
+2. Boolean / regex / function query MVP。
+3. `preset name` query expansion。
+
+后续继续补：
+
+1. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
+2. Placeholders、query file defaults。
+3. Dataview task format。
+4. Frontmatter properties 和 links。
 
 ### Phase 6: Polish and Ecosystem
 

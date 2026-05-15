@@ -90,6 +90,8 @@ nvim -u /private/tmp/obsidian-tasks-phase4-init.lua /private/tmp/obsidian-tasks-
 - [/] #task Todo item 📅 2026-05-15
 ```
 
+说明：这里的 `📅 2026-05-15` 是测试数据里原本存在的 due date。切到 `IN_PROGRESS` 只改变 checkbox status，不会自动新增 `✅`、`❌` 或 `🛫` 日期。
+
 再执行：
 
 ```vim

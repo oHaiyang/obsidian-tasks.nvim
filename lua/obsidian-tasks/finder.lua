@@ -111,6 +111,8 @@ function M.find_tasks(opts)
 	if query_text and query_text ~= "" then
 		query_plan = query.parse(query_text, {
 			today = opts.today,
+			config = require("obsidian-tasks").config or {},
+			enable_lua_filters = opts.enable_lua_filters or opts.enableLuaFilters,
 		})
 		if #query_plan.errors > 0 then
 			display.last_finder_opts = {

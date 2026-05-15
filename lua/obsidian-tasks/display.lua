@@ -82,7 +82,7 @@ local function build_header_lines(opts)
 		source,
 		"",
 		"o queries  [q previous query  ]q next query  gq query source",
-		"<space> toggle  s status  p postpone  <c-s> save  <c-r> refresh  gd task source  q close",
+			"<space> toggle  e edit  s status  p postpone  <c-s> save  <c-r> refresh  gd task source  q close",
 		"",
 	}
 end
@@ -328,6 +328,10 @@ function M.setup_editable_buffer(buf, tasks, opts)
 	vim.keymap.set({ "n" }, "p", function()
 		require("obsidian-tasks").postpone_task_at_cursor()
 	end, { buffer = buf, noremap = true, silent = true, desc = "Postpone task" })
+
+	vim.keymap.set({ "n" }, "e", function()
+		require("obsidian-tasks").edit_current_task()
+	end, { buffer = buf, noremap = true, silent = true, desc = "Edit task" })
 
 	-- Add jump to task source file functionality for gd and gf
 	local function jump_to_task_source()

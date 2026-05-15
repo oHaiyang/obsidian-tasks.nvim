@@ -317,6 +317,22 @@ function M.setup_commands()
 		force = true,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksEdit", function()
+		require("obsidian-tasks").edit_current_task()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksCreate", function(command)
+		require("obsidian-tasks").create_task({
+			file_path = command.args ~= "" and command.args or nil,
+		})
+	end, {
+		nargs = "?",
+		force = true,
+		complete = "file",
+	})
+
 	require("obsidian-tasks.status").setup_status_commands()
 end
 

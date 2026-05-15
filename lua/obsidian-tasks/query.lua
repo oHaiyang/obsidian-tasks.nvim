@@ -96,6 +96,119 @@ local function add_error(plan, line_number, line, message)
 	})
 end
 
+local function add_filter(plan, filter)
+	table.insert(plan.filters, filter)
+end
+
+local parse_line
+
+local function preset_map(opts)
+	opts = opts or {}
+	local config = opts.config
+	if not config then
+		local ok, plugin = pcall(require, "obsidian-tasks")
+		config = ok and plugin.config or {}
+	end
+	return (config and (config.presets or config.query_presets or config.queryPresets)) or {}
+end
+
+local function add_preset(plan, line_number, original_line, name, opts)
+	name = trim(name)
+	local presets = preset_map(opts)
+	local preset = presets[name]
+	if not preset then
+		local names = {}
+		for key, _ in pairs(presets) do
+			table.insert(names, key)
+		end
+		table.sort(names)
+		local message = "Unknown preset: " .. name
+		if #names > 0 then
+			message = message .. ". Available presets: " .. table.concat(names, ", ")
+		end
+		add_error(plan, line_number, original_line, message)
+		return
+	end
+
+	local source = tostring(preset or "")
+	for line in (source .. "\n"):gmatch("(.-)\n") do
+		parse_line(plan, line_number, line, opts)
+	end
+end
+
+local function parse_regex_expr(expr)
+	expr = trim(expr)
+	local pattern, flags = expr:match("^/(.*)/([%a]*)$")
+	if not pattern then
+		return nil, "Expected /pattern/flags"
+	end
+
+	local vim_pattern = "\\v" .. pattern
+	if flags:find("i", 1, true) then
+		vim_pattern = "\\c" .. vim_pattern
+	end
+
+	local ok, compiled = pcall(vim.regex, vim_pattern)
+	if not ok then
+		return nil, compiled
+	end
+
+	return {
+		pattern = pattern,
+		flags = flags,
+		compiled = compiled,
+	}
+end
+
+local function compile_lua_filter(expr)
+	local source = "return function(task, query) return (" .. expr .. ") end"
+	local env = {
+		string = string,
+		table = table,
+		math = math,
+		tonumber = tonumber,
+		tostring = tostring,
+		type = type,
+		ipairs = ipairs,
+		pairs = pairs,
+	}
+	local chunk, err = load(source, "obsidian-tasks-filter", "t", env)
+	if not chunk then
+		return nil, err
+	end
+
+	local ok, fn_or_err = pcall(chunk)
+	if not ok then
+		return nil, fn_or_err
+	end
+	return fn_or_err
+end
+
+local function add_lua_filter(plan, line_number, original_line, expr, opts)
+	opts = opts or {}
+	local config = opts.config
+	if not config then
+		local ok, plugin = pcall(require, "obsidian-tasks")
+		config = ok and plugin.config or {}
+	end
+	if not (opts.enable_lua_filters or opts.enableLuaFilters or config.enable_lua_filters or config.enableLuaFilters) then
+		add_error(plan, line_number, original_line, "Lua function filters are disabled. Set enable_lua_filters = true.")
+		return
+	end
+
+	local fn, err = compile_lua_filter(expr)
+	if not fn then
+		add_error(plan, line_number, original_line, "Invalid Lua function filter: " .. tostring(err))
+		return
+	end
+
+	add_filter(plan, {
+		type = "function",
+		expr = expr,
+		fn = fn,
+	})
+end
+
 local function add_date_filter(plan, line_number, original_line, field, op, expr, opts)
 	field = lower(field)
 	if not DATE_FIELDS[field] then
@@ -109,7 +222,7 @@ local function add_date_filter(plan, line_number, original_line, field, op, expr
 		return
 	end
 
-	table.insert(plan.filters, {
+	add_filter(plan, {
 		type = "date_compare",
 		field = field,
 		op = op,
@@ -124,14 +237,14 @@ local function add_date_exists_filter(plan, line_number, original_line, field, e
 		return
 	end
 
-	table.insert(plan.filters, {
+	add_filter(plan, {
 		type = "date_exists",
 		field = field,
 		exists = exists,
 	})
 end
 
-local function parse_line(plan, line_number, line, opts)
+function parse_line(plan, line_number, line, opts)
 	local original_line = line
 	line = trim(line)
 	if line == "" or line:match("^#") then
@@ -140,54 +253,85 @@ local function parse_line(plan, line_number, line, opts)
 
 	local line_lower = line:lower()
 
+	if line == "OR" then
+		add_filter(plan, { type = "or" })
+		return
+	end
+
+	local preset_name = line:match("^preset%s+(.+)$")
+	if preset_name then
+		add_preset(plan, line_number, original_line, preset_name, opts)
+		return
+	end
+
+	local function_expr = line:match("^filter%s+by%s+lua%s+(.+)$") or line:match("^filter%s+by%s+function%s+(.+)$")
+	if function_expr then
+		add_lua_filter(plan, line_number, original_line, function_expr, opts)
+		return
+	end
+
 	if line_lower == "not done" then
-		table.insert(plan.filters, { type = "done", value = false })
+		add_filter(plan, { type = "done", value = false })
 		return
 	elseif line_lower == "done" then
-		table.insert(plan.filters, { type = "done", value = true })
+		add_filter(plan, { type = "done", value = true })
 		return
 	end
 
 	local value = line:match("^status%s+is%s+not%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status", op = "is_not", value = normalize_status(value) })
+		add_filter(plan, { type = "status", op = "is_not", value = normalize_status(value) })
 		return
 	end
 
 	value = line:match("^status%s+is%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status", op = "is", value = normalize_status(value) })
+		add_filter(plan, { type = "status", op = "is", value = normalize_status(value) })
 		return
 	end
 
 	value = line_lower:match("^status[%.%s]+type%s+is%s+not%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status_type", op = "is_not", value = normalize_status_type(value) })
+		add_filter(plan, { type = "status_type", op = "is_not", value = normalize_status_type(value) })
 		return
 	end
 
 	value = line_lower:match("^status[%.%s]+type%s+is%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status_type", op = "is", value = normalize_status_type(value) })
+		add_filter(plan, { type = "status_type", op = "is", value = normalize_status_type(value) })
 		return
 	end
 
 	value = line_lower:match("^status[%.%s]+name%s+does%s+not%s+include%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status_name_includes", value = trim(value), negate = true })
+		add_filter(plan, { type = "status_name_includes", value = trim(value), negate = true })
 		return
 	end
 
 	value = line_lower:match("^status[%.%s]+name%s+includes%s+(.+)$")
 	if value then
-		table.insert(plan.filters, { type = "status_name_includes", value = trim(value), negate = false })
+		add_filter(plan, { type = "status_name_includes", value = trim(value), negate = false })
 		return
 	end
 
-	for _, field in ipairs({ "description", "tag", "tags", "path", "filename", "heading" }) do
-		value = line:match("^" .. field .. "%s+does%s+not%s+include%s+(.+)$")
+	for _, field in ipairs({
+		"description",
+		"tag",
+		"tags",
+		"path",
+		"root",
+		"folder",
+		"filename",
+		"heading",
+		"id",
+		"recurrence",
+		"status.name",
+		"status.type",
+	}) do
+		local field_pattern = field:gsub("%.", "%%.")
+		value = line:match("^" .. field_pattern .. "%s+does%s+not%s+include%s+(.+)$")
 		if value then
-			table.insert(plan.filters, {
+			add_filter(plan, {
 				type = "includes",
 				field = field == "tags" and "tag" or field,
 				value = trim(value),
@@ -196,14 +340,46 @@ local function parse_line(plan, line_number, line, opts)
 			return
 		end
 
-		value = line:match("^" .. field .. "%s+includes%s+(.+)$")
+		value = line:match("^" .. field_pattern .. "%s+includes%s+(.+)$")
 		if value then
-			table.insert(plan.filters, {
+			add_filter(plan, {
 				type = "includes",
 				field = field == "tags" and "tag" or field,
 				value = trim(value),
 				negate = false,
 			})
+			return
+		end
+
+		value = line:match("^" .. field_pattern .. "%s+regex%s+does%s+not%s+match%s+(.+)$")
+		if value then
+			local regex, err = parse_regex_expr(value)
+			if not regex then
+				add_error(plan, line_number, original_line, "Invalid regex: " .. tostring(err))
+			else
+				add_filter(plan, {
+					type = "regex",
+					field = field == "tags" and "tag" or field,
+					regex = regex,
+					negate = true,
+				})
+			end
+			return
+		end
+
+		value = line:match("^" .. field_pattern .. "%s+regex%s+matches%s+(.+)$")
+		if value then
+			local regex, err = parse_regex_expr(value)
+			if not regex then
+				add_error(plan, line_number, original_line, "Invalid regex: " .. tostring(err))
+			else
+				add_filter(plan, {
+					type = "regex",
+					field = field == "tags" and "tag" or field,
+					regex = regex,
+					negate = false,
+				})
+			end
 			return
 		end
 	end
@@ -390,6 +566,10 @@ local function field_text(task, field)
 		return task.description or task.text or ""
 	elseif field == "path" then
 		return task.file_path or ""
+	elseif field == "root" then
+		return task.file and task.file.root or "/"
+	elseif field == "folder" then
+		return task.file and task.file.folder or ""
 	elseif field == "filename" then
 		if task.file and task.file.filename_without_extension then
 			return task.file.filename_without_extension
@@ -398,6 +578,14 @@ local function field_text(task, field)
 		return filename:gsub("%.[^%.]+$", "")
 	elseif field == "heading" then
 		return task.heading or ""
+	elseif field == "id" then
+		return task.id or ""
+	elseif field == "recurrence" then
+		return task.recurrence_rule or ""
+	elseif field == "status.name" then
+		return status.get(task_status_symbol(task)).name
+	elseif field == "status.type" then
+		return status.type(task_status_symbol(task))
 	end
 	return ""
 end
@@ -418,6 +606,30 @@ local function includes_matches(task, filter)
 		matched = tag_matches(task, filter.value)
 	else
 		matched = field_text(task, filter.field):lower():find(lower(filter.value), 1, true) ~= nil
+	end
+
+	if filter.negate then
+		return not matched
+	end
+	return matched
+end
+
+local function regex_matches(task, filter)
+	local function matches_text(text)
+		return filter.regex.compiled:match_str(text or "") ~= nil
+	end
+
+	local matched
+	if filter.field == "tag" then
+		matched = false
+		for _, tag in ipairs(task.tags or {}) do
+			if matches_text(tag) then
+				matched = true
+				break
+			end
+		end
+	else
+		matched = matches_text(field_text(task, filter.field))
 	end
 
 	if filter.negate then
@@ -456,6 +668,11 @@ local function filter_matches(task, filter, context)
 		return matches
 	elseif filter.type == "includes" then
 		return includes_matches(task, filter)
+	elseif filter.type == "regex" then
+		return regex_matches(task, filter)
+	elseif filter.type == "function" then
+		local ok, result = pcall(filter.fn, task, context.query or {})
+		return ok and result == true
 	elseif filter.type == "priority" then
 		local task_priority = priority_order(task.priority)
 		local expected = priority_order(filter.value)
@@ -491,12 +708,30 @@ local function filter_matches(task, filter, context)
 end
 
 function M.matches(task, plan, context)
+	local group_matched = true
+	local group_has_filter = false
+	local saw_or = false
+
 	for _, filter in ipairs(plan.filters or {}) do
-		if not filter_matches(task, filter, context) then
-			return false
+		if filter.type == "or" then
+			if group_has_filter and group_matched then
+				return true
+			end
+			saw_or = true
+			group_matched = true
+			group_has_filter = false
+		else
+			group_has_filter = true
+			if not filter_matches(task, filter, context) then
+				group_matched = false
+			end
 		end
 	end
-	return true
+
+	if saw_or then
+		return group_has_filter and group_matched
+	end
+	return group_matched
 end
 
 function M.filter_tasks(tasks, plan)
@@ -504,6 +739,10 @@ function M.filter_tasks(tasks, plan)
 	local context = {
 		tasks = tasks or {},
 		status_config = require("obsidian-tasks").config or {},
+		query = {
+			all_tasks = tasks or {},
+			allTasks = tasks or {},
+		},
 	}
 	for _, task in ipairs(tasks or {}) do
 		if M.matches(task, plan, context) then

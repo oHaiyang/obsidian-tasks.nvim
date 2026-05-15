@@ -132,6 +132,9 @@ vim.api.nvim_win_set_cursor(0, { 2, 0 })
 vim.cmd("ObsidianTasksChangeStatus In Progress")
 local line = vim.api.nvim_buf_get_lines(0, 1, 2, false)[1]
 assert(line:find("%[/%]"), line)
+assert(not line:find("✅", 1, true), line)
+assert(not line:find("❌", 1, true), line)
+assert(not line:find("🛫", 1, true), line)
 
 vim.cmd("ObsidianTasksPostpone 2026-05-20")
 line = vim.api.nvim_buf_get_lines(0, 1, 2, false)[1]
