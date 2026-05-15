@@ -112,7 +112,7 @@
 | F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Partial：Phase 5 支持 `preset name`。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Todo。 | P2 |
 | F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Todo。 | P2 |
-| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5 支持独立 `OR` 行分组。 | P1 |
+| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5.1 支持括号 AND/OR/NOT；XOR 和其它 delimiter 待补。 | P1 |
 | F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Partial：Phase 5 基于 `vim.regex()` 支持常用字段。 | P1 |
 | F214 | Custom filters | `filter by function ...` 执行 JavaScript 表达式。 | Partial：Phase 5 支持 opt-in Lua 表达式。 | P2 |
 | F215 | Custom sorting | `sort by function ...`。 | Todo；nvim 可考虑 Lua 表达式。 | P2 |
@@ -321,9 +321,10 @@
 后续继续补：
 
 1. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
-2. Placeholders、query file defaults。
-3. Dataview task format。
-4. Frontmatter properties 和 links。
+2. XOR / bracket / quote Boolean delimiters。
+3. Placeholders、query file defaults。
+4. Dataview task format。
+5. Frontmatter properties 和 links。
 
 ### Phase 6: Polish and Ecosystem
 

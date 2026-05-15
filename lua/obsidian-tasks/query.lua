@@ -244,7 +244,220 @@ local function add_date_exists_filter(plan, line_number, original_line, field, e
 	})
 end
 
+local function matching_close_index(value, open_index)
+	local depth = 0
+	local quote = nil
+	local escaped = false
+
+	for index = open_index, #value do
+		local char = value:sub(index, index)
+		if quote then
+			if escaped then
+				escaped = false
+			elseif char == "\\" then
+				escaped = true
+			elseif char == quote then
+				quote = nil
+			end
+		elseif char == '"' or char == "'" then
+			quote = char
+		elseif char == "(" then
+			depth = depth + 1
+		elseif char == ")" then
+			depth = depth - 1
+			if depth == 0 then
+				return index
+			elseif depth < 0 then
+				return nil
+			end
+		end
+	end
+
+	return nil
+end
+
+local function strip_outer_parentheses(value)
+	value = trim(value)
+	while value:sub(1, 1) == "(" do
+		local close_index = matching_close_index(value, 1)
+		if close_index ~= #value then
+			break
+		end
+		value = trim(value:sub(2, #value - 1))
+	end
+	return value
+end
+
+local function operator_at(value, index, operator)
+	if value:sub(index, index + #operator - 1) ~= operator then
+		return false
+	end
+
+	local before = index == 1 and "" or value:sub(index - 1, index - 1)
+	local after_index = index + #operator
+	local after = after_index > #value and "" or value:sub(after_index, after_index)
+	local before_ok = before == "" or before:match("%s") ~= nil or before == "("
+	local after_ok = after == "" or after:match("%s") ~= nil or after == "("
+	return before_ok and after_ok
+end
+
+local function find_top_level_operator(value, operator)
+	local depth = 0
+	local quote = nil
+	local escaped = false
+
+	for index = 1, #value do
+		local char = value:sub(index, index)
+		if quote then
+			if escaped then
+				escaped = false
+			elseif char == "\\" then
+				escaped = true
+			elseif char == quote then
+				quote = nil
+			end
+		elseif char == '"' or char == "'" then
+			quote = char
+		elseif char == "(" then
+			depth = depth + 1
+		elseif char == ")" then
+			depth = depth - 1
+			if depth < 0 then
+				return nil, "Unmatched closing parenthesis"
+			end
+		elseif depth == 0 and operator_at(value, index, operator) then
+			return index
+		end
+	end
+
+	if depth > 0 then
+		return nil, "Unmatched opening parenthesis"
+	end
+	return nil
+end
+
+local function boolean_operand_shape(value)
+	value = trim(value)
+	return value:sub(1, 1) == "(" or value:match("^NOT%s+%(") ~= nil
+end
+
+local function parse_subfilter(value, opts)
+	local temp = {
+		raw = value,
+		filters = {},
+		sorts = {},
+		group_by = {},
+		limit = nil,
+		errors = {},
+		warnings = {},
+	}
+
+	local sub_opts = vim.tbl_extend("force", opts or {}, {
+		disable_boolean = true,
+	})
+	parse_line(temp, 0, value, sub_opts)
+
+	if #temp.errors > 0 then
+		return nil, temp.errors[1].message
+	end
+	if #temp.filters ~= 1 or #temp.sorts > 0 or #temp.group_by > 0 or temp.limit ~= nil then
+		return nil, "Boolean operands must resolve to exactly one filter"
+	end
+	if temp.filters[1].type == "or" then
+		return nil, "`OR` line separators cannot be used inside Boolean operands"
+	end
+
+	return temp.filters[1]
+end
+
+local function parse_boolean_expr(value, opts)
+	value = trim(value)
+	if value == "" then
+		return nil, "Empty Boolean expression", false
+	end
+
+	local stripped = strip_outer_parentheses(value)
+	if stripped ~= value then
+		local node, err, is_boolean = parse_boolean_expr(stripped, opts)
+		return node, err, is_boolean or true
+	end
+
+	if value:match("^NOT%s+") then
+		local rest = trim(value:gsub("^NOT%s+", "", 1))
+		if rest == "" then
+			return nil, "NOT must be followed by a filter or expression", true
+		end
+		local child, err = parse_boolean_expr(rest, opts)
+		if not child then
+			return nil, err, true
+		end
+		return {
+			type = "not",
+			child = child,
+		}, nil, true
+	end
+
+	for _, operator in ipairs({ "OR", "AND" }) do
+		local index, err = find_top_level_operator(value, operator)
+		if err then
+			return nil, err, true
+		end
+		if index then
+			local left = trim(value:sub(1, index - 1))
+			local right = trim(value:sub(index + #operator))
+			if left == "" or right == "" then
+				return nil, "Boolean operator " .. operator .. " requires filters on both sides", true
+			end
+			if not boolean_operand_shape(left) or not boolean_operand_shape(right) then
+				break
+			end
+
+			local left_node, left_err = parse_boolean_expr(left, opts)
+			if not left_node then
+				return nil, left_err, true
+			end
+			local right_node, right_err = parse_boolean_expr(right, opts)
+			if not right_node then
+				return nil, right_err, true
+			end
+			return {
+				type = operator:lower(),
+				left = left_node,
+				right = right_node,
+			}, nil, true
+		end
+	end
+
+	local filter, err = parse_subfilter(value, opts)
+	if not filter then
+		return nil, err, false
+	end
+	return {
+		type = "filter",
+		filter = filter,
+	}, nil, false
+end
+
+local function add_boolean_filter(plan, line_number, original_line, opts)
+	local node, err, is_boolean = parse_boolean_expr(original_line, opts)
+	if not node and is_boolean then
+		add_error(plan, line_number, original_line, "Invalid Boolean expression: " .. tostring(err))
+		return true
+	end
+
+	if node and (is_boolean or trim(original_line):sub(1, 1) == "(") then
+		add_filter(plan, {
+			type = "boolean",
+			node = node,
+		})
+		return true
+	end
+
+	return false
+end
+
 function parse_line(plan, line_number, line, opts)
+	opts = opts or {}
 	local original_line = line
 	line = trim(line)
 	if line == "" or line:match("^#") then
@@ -255,6 +468,10 @@ function parse_line(plan, line_number, line, opts)
 
 	if line == "OR" then
 		add_filter(plan, { type = "or" })
+		return
+	end
+
+	if not opts.disable_boolean and add_boolean_filter(plan, line_number, line, opts) then
 		return
 	end
 
@@ -642,6 +859,8 @@ local function priority_order(priority)
 	return sort.PRIORITY_ORDER[priority or "normal"] or sort.PRIORITY_ORDER.normal
 end
 
+local boolean_node_matches
+
 local function filter_matches(task, filter, context)
 	context = context or {}
 	if filter.type == "done" then
@@ -673,6 +892,8 @@ local function filter_matches(task, filter, context)
 	elseif filter.type == "function" then
 		local ok, result = pcall(filter.fn, task, context.query or {})
 		return ok and result == true
+	elseif filter.type == "boolean" then
+		return boolean_node_matches(filter.node, task, context)
 	elseif filter.type == "priority" then
 		local task_priority = priority_order(task.priority)
 		local expected = priority_order(filter.value)
@@ -702,6 +923,24 @@ local function filter_matches(task, filter, context)
 			matched = dependencies.is_blocking(task, context.tasks, context.status_config)
 		end
 		return matched == filter.value
+	end
+
+	return true
+end
+
+function boolean_node_matches(node, task, context)
+	if not node then
+		return true
+	end
+
+	if node.type == "filter" then
+		return filter_matches(task, node.filter, context)
+	elseif node.type == "and" then
+		return boolean_node_matches(node.left, task, context) and boolean_node_matches(node.right, task, context)
+	elseif node.type == "or" then
+		return boolean_node_matches(node.left, task, context) or boolean_node_matches(node.right, task, context)
+	elseif node.type == "not" then
+		return not boolean_node_matches(node.child, task, context)
 	end
 
 	return true

@@ -102,6 +102,8 @@ nvim -u /private/tmp/obsidian-tasks-phase5-init.lua /private/tmp/obsidian-tasks-
 
 不显示 `Beta home item`。
 
+括号 Boolean 的完整测试见 `PHASE_5_1_TEST.md`。
+
 ## 6. 测试 preset
 
 ```vim

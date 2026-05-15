@@ -15,8 +15,9 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - `tag regex matches /.../`
   - `path/root/folder/filename/heading/id/recurrence/status.name/status.type regex matches /.../`
   - `regex does not match`
-- 简化 Boolean OR：
-  - 多行 query 中单独一行 `OR` 分隔两个 AND filter group。
+- Boolean query：
+  - 独立行 `OR` 分隔两个 AND filter group。
+  - Phase 5.1 已支持括号表达式：`(A) AND ((B) OR (C))`、`NOT (A)`。
 - Presets：
   - `setup({ presets = { name = "..." } })`
   - query 中 `preset name` 展开为完整 instruction lines。
@@ -31,7 +32,6 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 仍留到后续打磨：
 
-- 完整括号 Boolean parser：`(A) AND ((B) OR (C))`。
 - `{{preset.name}}`、`{{query.file.*}}` placeholders。
 - Query File Defaults。
 - Auto-suggest popup。
@@ -75,9 +75,22 @@ tag regex matches /#work/
 
 当前使用 Neovim `vim.regex()` 执行，语法接近 Vim very-magic pattern，而不是完整 JavaScript Regex。常见的字面文本、`|`、`^`、`$`、简单字符类可用；更复杂的 JS regex 需要后续继续适配。
 
-### OR
+### Boolean
 
-原 Obsidian Tasks 支持括号内 Boolean 组合。Phase 5 先实现多行 `OR` 分组：
+Phase 5.1 支持括号 Boolean 表达式：
+
+```tasks
+(not done) AND ((tag includes #work) OR (tag includes #home))
+```
+
+也支持：
+
+```tasks
+NOT (done)
+(not done) AND NOT (description includes someday)
+```
+
+Phase 5 的独立行 `OR` 分组仍保留：
 
 ```tasks
 not done
