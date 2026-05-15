@@ -18,12 +18,15 @@ function M.setup(config)
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
 
-	-- Register tree-sitter parser
-	vim.treesitter.language.register("markdown", "obstasks")
-
 	-- Store config for other modules to access
 	M.config = config
 	require("obsidian-tasks.panel").setup_commands()
+
+	-- Register tree-sitter parser when available. Command registration should
+	-- not depend on tree-sitter support in the user's Neovim build.
+	if vim.treesitter and vim.treesitter.language and vim.treesitter.language.register then
+		pcall(vim.treesitter.language.register, "markdown", "obstasks")
+	end
 
 	return M
 end
@@ -71,6 +74,22 @@ end
 
 function M.run_query(query, opts)
 	return require("obsidian-tasks.panel").run_query(query, opts)
+end
+
+function M.run_query_at_cursor(opts)
+	return require("obsidian-tasks.panel").run_query_at_cursor(opts)
+end
+
+function M.refresh_queries(opts)
+	return require("obsidian-tasks.panel").refresh_queries(opts)
+end
+
+function M.preview_toggle()
+	return require("obsidian-tasks.preview").toggle()
+end
+
+function M.preview_refresh()
+	return require("obsidian-tasks.preview").refresh_buffer()
 end
 
 return M

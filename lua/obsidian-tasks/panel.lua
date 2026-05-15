@@ -15,68 +15,21 @@ local function active_buffer_name()
 end
 
 local function pinned_buffer_name(source)
-	return "obsidian-tasks://" .. slug(source.id or source.name)
-end
-
-local function normalize_source(id, value)
-	if type(value) == "string" then
-		return {
-			id = id,
-			name = id,
-			query = value,
-			source_type = "config",
-		}
-	elseif type(value) == "table" then
-		return {
-			id = value.id or id,
-			name = value.name or value.id or id,
-			query = value.query or value.text or "",
-			source_type = value.source_type or "config",
-			source_path = value.source_path,
-			source_line = value.source_line,
-		}
-	end
-	return nil
+	return "obsidian-tasks://" .. slug(source.qualified_id or source.id or source.name)
 end
 
 function M.get_sources()
-	local config = get_config()
-	local queries = config.queries or {}
-	local sources = {}
-
-	if #queries > 0 then
-		for index, item in ipairs(queries) do
-			local source = normalize_source(item.id or item.name or tostring(index), item)
-			if source and source.query ~= "" then
-				table.insert(sources, source)
-			end
-		end
-	else
-		for id, value in pairs(queries) do
-			local source = normalize_source(id, value)
-			if source and source.query ~= "" then
-				table.insert(sources, source)
-			end
-		end
-	end
-
-	table.sort(sources, function(left, right)
-		return tostring(left.name) < tostring(right.name)
-	end)
-
-	return sources
+	return require("obsidian-tasks.query_registry").get_sources()
 end
 
 function M.complete_query_names()
-	local names = {}
-	for _, source in ipairs(M.get_sources()) do
-		table.insert(names, source.id)
-	end
-	return names
+	return require("obsidian-tasks.query_registry").complete_names()
 end
 
 function M.find_source(name)
-	local sources = M.get_sources()
+	local registry = require("obsidian-tasks.query_registry")
+	local source, sources
+	source, sources = registry.find_source(name)
 	if #sources == 0 then
 		return nil, sources
 	end
@@ -87,12 +40,7 @@ function M.find_source(name)
 	end
 
 	if name and name ~= "" then
-		for _, source in ipairs(sources) do
-			if source.id == name or source.name == name then
-				return source, sources
-			end
-		end
-		return nil, sources
+		return registry.find_source(name)
 	end
 
 	return sources[1], sources
@@ -162,14 +110,15 @@ function M.run_query(query_text, opts)
 		id = opts.id or "manual",
 		name = opts.name or "manual",
 		query = query_text,
-		source_type = "manual",
+		source_type = "recent",
 	}
+	require("obsidian-tasks.query_registry").add_recent(source)
 	return run_source(source, opts)
 end
 
 local function source_index(sources, id)
 	for index, source in ipairs(sources) do
-		if source.id == id or source.name == id then
+		if source.qualified_id == id or source.id == id or source.name == id then
 			return index
 		end
 	end
@@ -193,7 +142,7 @@ function M.select_query(opts)
 	vim.ui.select(sources, {
 		prompt = "Obsidian Tasks query",
 		format_item = function(source)
-			return string.format("%s    %s", source.name, source.source_type or "config")
+			return require("obsidian-tasks.query_registry").format_source(source)
 		end,
 	}, function(source)
 		if not source then
@@ -218,7 +167,9 @@ local function cycle_query(direction, opts)
 		return
 	end
 
-	local current = finder_opts.query_source and finder_opts.query_source.id or M.last_query_name
+	local current = finder_opts.query_source
+			and (finder_opts.query_source.qualified_id or finder_opts.query_source.id)
+		or M.last_query_name
 	local index = source_index(sources, current)
 	index = index + direction
 	if index > #sources then
@@ -259,6 +210,29 @@ function M.go_to_query_source(opts)
 	vim.notify("Query source: " .. (source.source_type or "manual"), vim.log.levels.INFO)
 end
 
+function M.refresh_queries(opts)
+	opts = opts or {}
+	local sources = require("obsidian-tasks.query_registry").refresh({
+		vault_path = opts.vault_path,
+	})
+	vim.notify(string.format("Refreshed %d tasks query block(s)", #sources), vim.log.levels.INFO)
+	return sources
+end
+
+function M.run_query_at_cursor(opts)
+	opts = opts or {}
+	local source = require("obsidian-tasks.query_block").find_at_cursor(opts.buffer, opts.row)
+	if not source then
+		vim.notify("obsidian-tasks.nvim: cursor is not inside a tasks query block", vim.log.levels.WARN)
+		return
+	end
+
+	return run_source(source, {
+		pinned = opts.pinned or false,
+		float = opts.float or false,
+	})
+end
+
 function M.setup_commands()
 	vim.api.nvim_create_user_command("ObsidianTasks", function(command)
 		M.open_query(command.args ~= "" and command.args or nil, {
@@ -290,6 +264,33 @@ function M.setup_commands()
 		end)
 	end, {
 		nargs = "*",
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksRefreshQueries", function()
+		M.refresh_queries()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksRunBlock", function(command)
+		M.run_query_at_cursor({
+			pinned = command.bang,
+		})
+	end, {
+		bang = true,
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksPreviewToggle", function()
+		require("obsidian-tasks.preview").toggle()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksPreviewRefresh", function()
+		require("obsidian-tasks.preview").refresh_buffer()
+	end, {
 		force = true,
 	})
 end

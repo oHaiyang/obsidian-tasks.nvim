@@ -64,7 +64,12 @@ local function build_header_lines(opts)
 	end
 
 	local source = "Source: "
-	if opts.query_source and opts.query_source.source_type then
+	if opts.query_source and opts.query_source.source_label then
+		source = source .. opts.query_source.source_type .. " " .. opts.query_source.source_label
+	elseif opts.query_source and opts.query_source.source_path and opts.query_source.source_line then
+		local filename = opts.query_source.source_path:match("([^/]+)$") or opts.query_source.source_path
+		source = source .. (opts.query_source.source_type or "block") .. " " .. filename .. "#L" .. opts.query_source.source_line
+	elseif opts.query_source and opts.query_source.source_type then
 		source = source .. opts.query_source.source_type
 	elseif opts.query_source then
 		source = source .. tostring(opts.query_source)

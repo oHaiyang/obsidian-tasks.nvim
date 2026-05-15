@@ -105,6 +105,14 @@ nvim -u /private/tmp/obsidian-tasks-phase2-init.lua /private/tmp/obsidian-tasks-
 
 预期能看到 `due_soon`、`inbox`、`recurring`、`dependencies`、`by_happens`。
 
+确认命令：
+
+```vim
+:lua print(vim.inspect(vim.api.nvim_get_commands({}).ObsidianTasks ~= nil))
+```
+
+预期输出 `true`。如果这里是 `false`，说明当前 Neovim 没有加载到这个插件目录，或者临时 init 没有执行到 `tasks.setup()`。
+
 ## 4. 测试默认 Tasks panel
 
 执行：
@@ -271,3 +279,38 @@ sh /Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim/scripts/smoke_phase2.sh
 - `:ObsidianTasksRunBlock` 和 inline preview 放到 Phase 3。
 - Boolean / regex / function query 暂未支持。
 - custom status registry、recurrence 完成生成下一次任务、done date 自动写回仍未实现。
+
+## 15. 常见问题
+
+### 没有 `:ObsidianTasks` 命令
+
+先检查当前是否加载到了正确插件：
+
+```vim
+:lua print(vim.inspect(package.loaded["obsidian-tasks"] ~= nil))
+:lua print(vim.inspect(require("obsidian-tasks").config))
+```
+
+再检查 runtimepath 是否包含当前工程目录：
+
+```vim
+:set runtimepath?
+```
+
+需要能看到：
+
+```text
+/Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim
+```
+
+如果你是在已经打开的 Neovim 里临时执行了 `:set rtp+=...`，`plugin/` 目录下的自动加载脚本可能不会补跑。可以手动执行一次：
+
+```vim
+:lua require("obsidian-tasks").setup({ vault_path = "/private/tmp/obsidian-tasks-nvim-phase2-vault", global_filter = "#task", default_query = "due_soon", queries = { due_soon = "not done\nsort by due" } })
+```
+
+然后再检查：
+
+```vim
+:command ObsidianTasks
+```

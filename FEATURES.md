@@ -41,7 +41,7 @@
 | 结果视图 | 普通 buffer 或 floating window，任务行带 `[[path#Lline]]` 元数据；支持 active/pinned Tasks panel。 |
 | 编辑保存 | 可在结果 buffer 改状态并写回源文件；目前只替换 checkbox 状态。 |
 | 快捷键 | `q` 关闭、`<c-s>` 保存、`<c-r>` 刷新、`<space>` toggle、`gd/gf` 跳源文件、`J/K` 跳任务、`o` query picker、`]q/[q` 切 query。 |
-| 主要缺口 | named `tasks` block 自动发现、完整查询语言、循环任务、状态机、代码块 preview、编辑 UI 还没有系统实现。 |
+| 主要缺口 | 完整查询语言、循环任务、状态机、编辑 UI 还没有系统实现。 |
 
 ## 1. 任务识别与数据模型
 
@@ -101,7 +101,7 @@
 
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
-| F201 | `tasks` code block | 在 Markdown 中写 ```tasks 查询并渲染结果。 | Todo。 | P0 |
+| F201 | `tasks` code block | 在 Markdown 中写 ```tasks 查询并渲染结果。 | Partial：已可作为 named query definition 被发现和运行；未做 Obsidian-style 原地替换。 | P0 |
 | F202 | 直接查询 API | 能把查询文本解析成 filters/sort/group/layout。 | Partial：已支持 Query Language MVP。 | P0 |
 | F203 | Query 组合顺序 | Global Query -> Query File Defaults -> code block source。 | Todo。 | P1 |
 | F204 | `ignore global query` | 单个查询可跳过全局查询。 | Todo。 | P1 |
@@ -180,10 +180,10 @@
 | F313 | Styling hooks | HTML/CSS class 和 data attributes 支持自定义样式。 | Obsidian-only；nvim 可映射 highlights/extmarks。 | P3 |
 | F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Todo。 | P1 |
 | F315 | Global Tasks panel | 在任意 buffer 打开任务面板，不需要先定位到 query block。 | Done：`:ObsidianTasks` 已支持。 | P0 |
-| F316 | Query picker | 在任务面板中选择 config query、block query、recent query。 | Partial：Phase 2 已支持 config query。 | P0 |
+| F316 | Query picker | 在任务面板中选择 config query、block query、recent query。 | Done：Phase 3 已支持三类 source。 | P0 |
 | F317 | Pinned query results | 同时保留多个查询结果 buffer，例如 `:ObsidianTasks! due_soon`。 | Done：已支持 pinned result buffer。 | P1 |
-| F318 | Query source jump | 从结果 buffer 跳回 query 定义来源。 | Todo；Phase 3 对 named block 完整支持。 | P1 |
-| F319 | Inline query preview | 用 virtual lines 在 `tasks` block 附近显示只读摘要。 | Todo；Phase 3 可选增强。 | P2 |
+| F318 | Query source jump | 从结果 buffer 跳回 query 定义来源。 | Done：block query 可用 `gq` 跳回 source line。 | P1 |
+| F319 | Inline query preview | 用 virtual lines 在 `tasks` block 附近显示只读摘要。 | Partial：已支持只读 summary preview。 | P2 |
 
 ## 5. 编辑与命令
 
@@ -277,7 +277,7 @@
 
 ### Phase 3: Named Query Blocks + Preview UX
 
-详见 `PHASE_3.md`。
+状态：已实现第一版，详见 `PHASE_3.md` 和 `PHASE_3_TEST.md`。
 
 目标是保留 Obsidian 的 `tasks` code block 心智，但让 Neovim 用户不需要手动定位 block 才能打开查询。
 

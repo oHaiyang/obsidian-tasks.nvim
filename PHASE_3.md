@@ -4,6 +4,26 @@
 
 Phase 2 解决“我在任意位置怎么快速打开任务面板”；Phase 3 解决“我的查询定义怎么跟 note 一起存在，并且不用每次手动定位 block”。
 
+## 当前实现状态
+
+状态：已实现第一版，手动测试步骤见 `PHASE_3_TEST.md`，headless smoke 见 `scripts/smoke_phase3.sh`。
+
+已覆盖：
+
+- `query_block.lua`：扫描 `tasks` fenced block，支持 backticks/tildes，解析 `# name:` / `# id:`。
+- `query_registry.lua`：合并 config query、block query、recent query，并做轻量缓存。
+- picker 展示 config/block/recent query source。
+- `gq` 跳回 block query 的 source line。
+- `:ObsidianTasksRefreshQueries`。
+- `run_query_at_cursor()` 和 `:ObsidianTasksRunBlock`。
+- 只读 inline preview：`:ObsidianTasksPreviewToggle` / `:ObsidianTasksPreviewRefresh`。
+
+仍留到后续打磨：
+
+- 更完整的冲突提示和 source-qualified id 交互。
+- 保存 Markdown 文件后 debounce 刷新当前文件中的 query blocks。
+- preview 样式和可配置字段继续打磨。
+
 ## 核心交互模型
 
 用户可以在任意 Markdown 文件里写 named query block：
