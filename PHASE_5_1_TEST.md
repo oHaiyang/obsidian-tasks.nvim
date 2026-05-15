@@ -124,4 +124,4 @@ sh /Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim/scripts/smoke_phase5_1.s
 
 - 暂不支持 `XOR`。
 - 暂不支持原版的 bracket / quote delimiters。
-- `preset name` 作为完整 query line 可用；`{{preset.name}}` 在 Boolean 表达式内展开放到 Phase 5.2。
+- `preset name` 作为完整 query line 可用；单行 `{{preset.name}}` 在 Boolean 表达式内展开已在 Phase 5.2 支持。

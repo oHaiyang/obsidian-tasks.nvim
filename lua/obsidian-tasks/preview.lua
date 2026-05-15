@@ -29,6 +29,8 @@ local function preview_lines_for(source, opts)
 
 	local plan = query.parse(source.query, {
 		today = opts.today,
+		config = config,
+		query_source = source,
 	})
 
 	if #plan.errors > 0 then

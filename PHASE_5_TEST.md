@@ -207,8 +207,8 @@ sh /Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim/scripts/smoke_phase5.sh
 
 ## 12. 已知限制
 
-- Boolean 只实现了独立一行 `OR` 的 group 组合，还没有完整括号表达式。
+- Boolean 括号表达式已在 Phase 5.1 支持。
 - Regex 当前基于 Neovim `vim.regex()`，不是完整 JavaScript Regex。
 - Function filter 是 Lua 表达式，并需要显式开启。
 - 表单是普通 buffer MVP，不是完整 modal，也没有 auto-suggest。
-- Dataview 格式、placeholders、Query File Defaults、frontmatter/links 暂未实现。
+- Placeholders 已在 Phase 5.2 支持；Dataview 格式、Query File Defaults、frontmatter/links 暂未实现。

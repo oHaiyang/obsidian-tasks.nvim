@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`。
 
 已覆盖：
 
@@ -21,6 +21,10 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 - Presets：
   - `setup({ presets = { name = "..." } })`
   - query 中 `preset name` 展开为完整 instruction lines。
+  - Phase 5.2 已支持 `{{preset.name}}` 行内展开。
+- Placeholders：
+  - Phase 5.2 已支持 `{{query.file.*}}`。
+  - function filter 中可读取 `query.file`。
 - Function filter：
   - `filter by function <lua expression>`
   - `filter by lua <lua expression>`
@@ -32,7 +36,6 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 仍留到后续打磨：
 
-- `{{preset.name}}`、`{{query.file.*}}` placeholders。
 - Query File Defaults。
 - Auto-suggest popup。
 - Dataview inline field 格式读写。
@@ -126,7 +129,24 @@ preset open_work
 sort by due
 ```
 
-`preset name` 必须展开成完整 query instruction lines。Phase 5 还不支持在一行内部用 `{{preset.name}}`。
+`preset name` 会展开成完整 query instruction lines。Phase 5.2 也支持单行 preset 在行内用 `{{preset.name}}`：
+
+```tasks
+({{preset.alpha_filter}}) OR (description includes Inbox)
+```
+
+如果 preset 展开成多行 filter，更适合继续使用完整行 `preset name` 或普通多行 query。
+
+### Placeholders
+
+Phase 5.2 支持 query source 文件相关 placeholder：
+
+```tasks
+path includes {{query.file.path}}
+folder includes {{query.file.folder}}
+```
+
+支持字段见 `PHASE_5_2.md`。这些 placeholder 会按 query block 或 config query 的 `source_path` 展开；纯手写 `:ObsidianTasksQuery ...` 默认没有 query file context。
 
 ### Function Filter
 
@@ -147,6 +167,9 @@ filter by function task.description:find("review", 1, true) ~= nil
 - `task`
 - `query.all_tasks`
 - `query.allTasks`
+- `query.file`
+- `query.query_file`
+- `query.queryFile`
 
 如果未启用 `enable_lua_filters`，query 会显示错误。
 
@@ -214,6 +237,7 @@ on_completion:
 - Regex filters 可以匹配 description/tag/path/id/recurrence/status 等字段。
 - `OR` 可以组合两个或多个 AND group。
 - `preset name` 可以展开 config presets。
+- `{{preset.name}}` 和 `{{query.file.*}}` 可以按 query source 展开。
 - `filter by function` 默认禁用，开启后可执行 Lua 表达式。
 - `:ObsidianTasksEdit` 可以编辑当前任务并写回源行。
 - `:ObsidianTasksCreate` 可以创建新任务。

@@ -31,7 +31,10 @@ sort by due
 - `XOR`
 - bracket / quote delimiters
 - 更完整的错误 explain
-- `{{preset.name}}` 在 Boolean 内展开
+
+已在 Phase 5.2 补上：
+
+- 单行 `{{preset.name}}` 在 Boolean 内展开
 
 ## 语法
 

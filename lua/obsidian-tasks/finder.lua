@@ -113,6 +113,9 @@ function M.find_tasks(opts)
 			today = opts.today,
 			config = require("obsidian-tasks").config or {},
 			enable_lua_filters = opts.enable_lua_filters or opts.enableLuaFilters,
+			query_source = opts.query_source,
+			query_file_path = opts.query_file_path or opts.queryFilePath,
+			source_path = opts.source_path or opts.sourcePath,
 		})
 		if #query_plan.errors > 0 then
 			display.last_finder_opts = {
@@ -125,6 +128,8 @@ function M.find_tasks(opts)
 				query = query_text,
 				query_name = opts.query_name,
 				query_source = opts.query_source,
+				query_file_path = opts.query_file_path or opts.queryFilePath,
+				source_path = opts.source_path or opts.sourcePath,
 				buffer_name = opts.buffer_name,
 				reuse_buffer = opts.reuse_buffer,
 				pinned = opts.pinned,
@@ -166,6 +171,8 @@ function M.find_tasks(opts)
 		query = query_text,
 		query_name = opts.query_name,
 		query_source = opts.query_source,
+		query_file_path = opts.query_file_path or opts.queryFilePath,
+		source_path = opts.source_path or opts.sourcePath,
 		buffer_name = opts.buffer_name,
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,

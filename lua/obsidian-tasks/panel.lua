@@ -69,6 +69,8 @@ local function run_source(source, opts)
 		query = source.query,
 		query_name = source.name,
 		query_source = source,
+		query_file_path = opts.query_file_path or opts.queryFilePath,
+		source_path = opts.source_path or opts.sourcePath,
 		buffer_name = buffer_name,
 		reuse_buffer = reuse_buffer,
 		pinned = opts.pinned or false,
@@ -111,6 +113,8 @@ function M.run_query(query_text, opts)
 		name = opts.name or "manual",
 		query = query_text,
 		source_type = "recent",
+		source_path = opts.source_path or opts.sourcePath or opts.query_file_path or opts.queryFilePath,
+		source_line = opts.source_line or opts.sourceLine,
 	}
 	require("obsidian-tasks.query_registry").add_recent(source)
 	return run_source(source, opts)

@@ -5,6 +5,12 @@ local dependencies = require("obsidian-tasks.dependencies")
 local sort = require("obsidian-tasks.sort")
 local status = require("obsidian-tasks.status")
 
+M.DEFAULT_PRESETS = {
+	this_file = "path includes {{query.file.path}}",
+	this_folder = "folder includes {{query.file.folder}}",
+	this_root = "root includes {{query.file.root}}",
+}
+
 local PRIORITIES = {
 	highest = true,
 	high = true,
@@ -63,6 +69,27 @@ local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
 end
 
+local function basename(path)
+	return (path or ""):match("([^/]+)$") or path or ""
+end
+
+local function dirname(path)
+	local dir = (path or ""):match("^(.*[/])[^/]*$")
+	if dir == nil or dir == "" then
+		return "/"
+	end
+	return dir
+end
+
+local function rootname(path)
+	local root = (path or ""):match("^([^/]+/)")
+	return root or "/"
+end
+
+local function without_extension(path)
+	return (path or ""):gsub("%.[^%.%/]+$", "")
+end
+
 local function lower(value)
 	return trim(value):lower()
 end
@@ -109,7 +136,95 @@ local function preset_map(opts)
 		local ok, plugin = pcall(require, "obsidian-tasks")
 		config = ok and plugin.config or {}
 	end
-	return (config and (config.presets or config.query_presets or config.queryPresets)) or {}
+	local presets = vim.tbl_extend("force", M.DEFAULT_PRESETS, {})
+	for key, value in pairs((config and (config.presets or config.query_presets or config.queryPresets)) or {}) do
+		presets[key] = value
+	end
+	return presets
+end
+
+local function query_file_path(opts)
+	opts = opts or {}
+	local source = opts.query_source or opts.querySource
+	return opts.query_file_path
+		or opts.queryFilePath
+		or opts.source_path
+		or opts.sourcePath
+		or (source and source.source_path)
+end
+
+local function query_file_context(opts)
+	local path = query_file_path(opts)
+	if not path or path == "" then
+		return nil
+	end
+
+	local filename = basename(path)
+	return {
+		path = path,
+		path_without_extension = without_extension(path),
+		pathWithoutExtension = without_extension(path),
+		root = rootname(path),
+		folder = dirname(path),
+		filename = filename,
+		filename_without_extension = without_extension(filename),
+		filenameWithoutExtension = without_extension(filename),
+	}
+end
+
+local function placeholder_value(name, opts, query_file)
+	name = trim(name)
+	local preset_name = name:match("^preset%.(.+)$")
+	if preset_name then
+		local preset = preset_map(opts)[preset_name]
+		if not preset then
+			return nil, "Unknown preset placeholder: " .. preset_name
+		end
+		return tostring(preset)
+	end
+
+	local file_field = name:match("^query%.file%.(.+)$")
+	if file_field then
+		if not query_file then
+			return nil, "The query uses " .. name .. " but no query file path is available"
+		end
+		local value = query_file[file_field]
+		if value == nil then
+			return nil, "Unknown query file placeholder: " .. name
+		end
+		return tostring(value)
+	end
+
+	return nil, "Unknown placeholder: " .. name
+end
+
+local function expand_placeholders(source, opts, query_file)
+	local expanded = tostring(source or "")
+	local errors = {}
+
+	for _ = 1, 10 do
+		local changed = false
+		local next_value = expanded:gsub("{{%s*([^{}]+)%s*}}", function(name)
+			local value, err = placeholder_value(name, opts, query_file)
+			if not value then
+				table.insert(errors, err)
+				return "{{" .. name .. "}}"
+			end
+			changed = true
+			return value
+		end)
+
+		expanded = next_value
+		if #errors > 0 then
+			return expanded, errors
+		end
+		if not changed then
+			return expanded, errors
+		end
+	end
+
+	table.insert(errors, "Placeholder expansion did not converge")
+	return expanded, errors
 end
 
 local function add_preset(plan, line_number, original_line, name, opts)
@@ -131,7 +246,15 @@ local function add_preset(plan, line_number, original_line, name, opts)
 	end
 
 	local source = tostring(preset or "")
-	for line in (source .. "\n"):gmatch("(.-)\n") do
+	local expanded, placeholder_errors = expand_placeholders(source, opts, query_file_context(opts))
+	if #placeholder_errors > 0 then
+		for _, err in ipairs(placeholder_errors) do
+			add_error(plan, line_number, original_line, err)
+		end
+		return
+	end
+
+	for line in (expanded .. "\n"):gmatch("(.-)\n") do
 		parse_line(plan, line_number, line, opts)
 	end
 end
@@ -747,8 +870,14 @@ end
 
 function M.parse(query, opts)
 	opts = opts or {}
+	local source = tostring(query or "")
+	local query_file = query_file_context(opts)
+	local expanded, placeholder_errors = expand_placeholders(source, opts, query_file)
 	local plan = {
 		raw = query or "",
+		expanded = expanded,
+		query_file = query_file,
+		queryFile = query_file,
 		filters = {},
 		sorts = {},
 		group_by = {},
@@ -757,9 +886,15 @@ function M.parse(query, opts)
 		warnings = {},
 	}
 
-	local source = tostring(query or "")
+	if #placeholder_errors > 0 then
+		for _, err in ipairs(placeholder_errors) do
+			add_error(plan, 0, source, err)
+		end
+		return plan
+	end
+
 	local line_number = 0
-	for line in (source .. "\n"):gmatch("(.-)\n") do
+	for line in (expanded .. "\n"):gmatch("(.-)\n") do
 		line_number = line_number + 1
 		parse_line(plan, line_number, line, opts)
 	end
@@ -978,9 +1113,14 @@ function M.filter_tasks(tasks, plan)
 	local context = {
 		tasks = tasks or {},
 		status_config = require("obsidian-tasks").config or {},
+		query_file = plan and plan.query_file or nil,
+		queryFile = plan and plan.query_file or nil,
 		query = {
 			all_tasks = tasks or {},
 			allTasks = tasks or {},
+			file = plan and plan.query_file or nil,
+			query_file = plan and plan.query_file or nil,
+			queryFile = plan and plan.query_file or nil,
 		},
 	}
 	for _, task in ipairs(tasks or {}) do

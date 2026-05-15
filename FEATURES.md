@@ -109,8 +109,8 @@
 | F206 | Line continuations | 反斜杠续行，便于长表达式。 | Todo。 | P2 |
 | F207 | Limit | `limit <n>`、`limit groups <n>`。 | Partial：已支持 `limit <n>`。 | P0 |
 | F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Todo。 | P2 |
-| F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Partial：Phase 5 支持 `preset name`。 | P2 |
-| F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Todo。 | P2 |
+| F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Done：Phase 5 支持 `preset name`；Phase 5.2 支持单行 `{{preset.name}}`。 | P2 |
+| F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Partial：Phase 5.2 支持 `query.file.*` 和 `preset.*`；其它 placeholder 待补。 | P2 |
 | F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Todo。 | P2 |
 | F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5.1 支持括号 AND/OR/NOT；XOR 和其它 delimiter 待补。 | P1 |
 | F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Partial：Phase 5 基于 `vim.regex()` 支持常用字段。 | P1 |
@@ -235,7 +235,7 @@
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | F601 | Task properties | `task.*` 暴露 status、dates、dependencies、description、priority、file、frontmatter、links 等。 | Todo。 | P2 |
-| F602 | Query properties | `query.file.*` 和 `query.allTasks`。 | Todo。 | P2 |
+| F602 | Query properties | `query.file.*` 和 `query.allTasks`。 | Partial：Phase 5/5.2 在 Lua function filter 中提供 `query.allTasks`、`query.all_tasks`、`query.file`。 | P2 |
 | F603 | JavaScript expressions | custom filter/sort/group 运行 JS，需要显式启用。 | Obsidian-only；nvim 建议 Lua 表达式。 | P2 |
 | F604 | TasksDate helper | 日期对象支持 `format()`、`category`、`fromNow` 等。 | Todo。 | P2 |
 | F605 | API v1 | `createTaskLineModal()`、`editTaskLineModal()`、`executeToggleTaskDoneCommand()`。 | Todo；nvim 可提供 Lua API。 | P2 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，详见 `PHASE_5.md` 和 `PHASE_5_TEST.md`。
+状态：已实现第一版，Phase 5.1/5.2 已继续补 Boolean 和 placeholder，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -316,13 +316,14 @@
 
 1. Create/Edit task floating form。
 2. Boolean / regex / function query MVP。
-3. `preset name` query expansion。
+3. `preset name` 和单行 `{{preset.name}}` query expansion。
+4. `{{query.file.*}}` placeholders。
 
 后续继续补：
 
 1. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
 2. XOR / bracket / quote Boolean delimiters。
-3. Placeholders、query file defaults。
+3. Query File Defaults。
 4. Dataview task format。
 5. Frontmatter properties 和 links。
 
