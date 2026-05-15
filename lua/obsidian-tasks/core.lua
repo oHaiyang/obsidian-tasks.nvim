@@ -93,6 +93,7 @@ function M.save_tasks_changes(buf, tasks)
 	local current_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	local updated_count = 0
 	local failed_count = 0
+	local index_map = M.task_index_map[buf] or {}
 
 	for _, line in ipairs(current_lines) do
 		-- require('plenary.log').info('[xxxhhh][try saving line]', line);
@@ -101,10 +102,8 @@ function M.save_tasks_changes(buf, tasks)
 			---@type ObsidianTask|nil
 			local parsed = parser.parse_display_line(line)
 			-- require('plenary.log').info('[xxxhhh][parsed line]', parsed);
-			if parsed and parsed.index and tasks[parsed.index] then
-				---@type ObsidianTask
-				local original_task = tasks[parsed.index]
-
+			local original_task = parsed and parsed.index and (index_map[parsed.index] or tasks[parsed.index])
+			if parsed and parsed.index and original_task then
 				-- require('plenary.log').info('[xxxhhh][compare task]', original_task.status ~= parsed.status);
 				-- Check if there are changes
 				if original_task.status ~= parsed.status then

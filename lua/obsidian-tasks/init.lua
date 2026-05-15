@@ -15,12 +15,15 @@ function M.setup(config)
 	config.display = config.display or {}
 	config.display.hierarchical_headings = config.display.hierarchical_headings or false
 	config.global_filter = config.global_filter or config.globalFilter or ""
+	config.queries = config.queries or {}
+	config.default_query = config.default_query or config.defaultQuery
 
 	-- Register tree-sitter parser
 	vim.treesitter.language.register("markdown", "obstasks")
 
 	-- Store config for other modules to access
 	M.config = config
+	require("obsidian-tasks.panel").setup_commands()
 
 	return M
 end
@@ -56,6 +59,18 @@ end
 ---@return boolean success
 function M.toggle_task_at_cursor()
 	return require("obsidian-tasks.core").toggle_task_at_cursor()
+end
+
+function M.open(opts)
+	return require("obsidian-tasks.panel").open(opts)
+end
+
+function M.open_query(name, opts)
+	return require("obsidian-tasks.panel").open_query(name, opts)
+end
+
+function M.run_query(query, opts)
+	return require("obsidian-tasks.panel").run_query(query, opts)
 end
 
 return M

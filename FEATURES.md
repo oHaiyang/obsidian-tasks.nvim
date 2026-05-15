@@ -15,6 +15,8 @@
 - `../obsidian-tasks/src/Renderer`
 - `../obsidian-tasks/src/Commands`
 - 本插件第一阶段计划见 `PHASE_1.md`
+- 本插件第二阶段计划见 `PHASE_2.md`
+- 本插件第三阶段计划见 `PHASE_3.md`
 
 ## 图例
 
@@ -31,15 +33,15 @@
 
 | 能力 | 当前状态 |
 | --- | --- |
-| 插件入口 | `setup(config)`，保存 `vault_path` 和 `display.hierarchical_headings`。 |
-| 查找任务 | `find_tasks(opts)` 通过 scanner 递归扫描 `.md` 文件，并支持可配置 global filter。 |
+| 插件入口 | `setup(config)`，保存 `vault_path`、`display.hierarchical_headings`、`queries`、`default_query`。 |
+| 查找任务 | `find_tasks(opts)` 通过 scanner 递归扫描 `.md` 文件，并支持可配置 global filter 和 query text。 |
 | 任务字段 | 解析 `status`、`text`、`file_path`、`line_number`、`heading`、priority、常用日期、tags、recurrence/id/dependsOn/onCompletion 等字段。 |
-| 过滤 | 支持 include/exclude file pattern、status、custom Lua function。 |
-| 分组 | 支持 `status`、`priority`、`file`，可用扁平标题或层级标题显示。 |
-| 结果视图 | 普通 buffer 或 floating window，任务行带 `[[path#Lline]]` 元数据。 |
+| 过滤 | 支持 include/exclude file pattern、status、custom Lua function，以及 query filters。 |
+| 分组 | 支持 `status`、`priority`、`file/filename`、`heading`、常用 date fields，可用扁平标题或层级标题显示。 |
+| 结果视图 | 普通 buffer 或 floating window，任务行带 `[[path#Lline]]` 元数据；支持 active/pinned Tasks panel。 |
 | 编辑保存 | 可在结果 buffer 改状态并写回源文件；目前只替换 checkbox 状态。 |
-| 快捷键 | `q` 关闭、`<c-s>` 保存、`<c-r>` 刷新、`<space>` toggle、`gd/gf` 跳源文件、`J/K` 跳任务。 |
-| 主要缺口 | 完整查询语言、日期行为、循环任务、状态机、代码块渲染、编辑 UI 都还没有系统实现。 |
+| 快捷键 | `q` 关闭、`<c-s>` 保存、`<c-r>` 刷新、`<space>` toggle、`gd/gf` 跳源文件、`J/K` 跳任务、`o` query picker、`]q/[q` 切 query。 |
+| 主要缺口 | named `tasks` block 自动发现、完整查询语言、循环任务、状态机、代码块 preview、编辑 UI 还没有系统实现。 |
 
 ## 1. 任务识别与数据模型
 
@@ -100,12 +102,12 @@
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | F201 | `tasks` code block | 在 Markdown 中写 ```tasks 查询并渲染结果。 | Todo。 | P0 |
-| F202 | 直接查询 API | 能把查询文本解析成 filters/sort/group/layout。 | Todo。 | P0 |
+| F202 | 直接查询 API | 能把查询文本解析成 filters/sort/group/layout。 | Partial：已支持 Query Language MVP。 | P0 |
 | F203 | Query 组合顺序 | Global Query -> Query File Defaults -> code block source。 | Todo。 | P1 |
 | F204 | `ignore global query` | 单个查询可跳过全局查询。 | Todo。 | P1 |
-| F205 | Comments | `# ...` 查询行作为注释忽略。 | Todo。 | P0 |
+| F205 | Comments | `# ...` 查询行作为注释忽略。 | Done：query parser 已忽略注释行。 | P0 |
 | F206 | Line continuations | 反斜杠续行，便于长表达式。 | Todo。 | P2 |
-| F207 | Limit | `limit <n>`、`limit groups <n>`。 | Todo。 | P0 |
+| F207 | Limit | `limit <n>`、`limit groups <n>`。 | Partial：已支持 `limit <n>`。 | P0 |
 | F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Todo。 | P2 |
 | F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Todo。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Todo。 | P2 |
@@ -177,6 +179,11 @@
 | F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Todo。 | P1 |
 | F313 | Styling hooks | HTML/CSS class 和 data attributes 支持自定义样式。 | Obsidian-only；nvim 可映射 highlights/extmarks。 | P3 |
 | F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Todo。 | P1 |
+| F315 | Global Tasks panel | 在任意 buffer 打开任务面板，不需要先定位到 query block。 | Done：`:ObsidianTasks` 已支持。 | P0 |
+| F316 | Query picker | 在任务面板中选择 config query、block query、recent query。 | Partial：Phase 2 已支持 config query。 | P0 |
+| F317 | Pinned query results | 同时保留多个查询结果 buffer，例如 `:ObsidianTasks! due_soon`。 | Done：已支持 pinned result buffer。 | P1 |
+| F318 | Query source jump | 从结果 buffer 跳回 query 定义来源。 | Todo；Phase 3 对 named block 完整支持。 | P1 |
+| F319 | Inline query preview | 用 virtual lines 在 `tasks` block 附近显示只读摘要。 | Todo；Phase 3 可选增强。 | P2 |
 
 ## 5. 编辑与命令
 
@@ -220,6 +227,8 @@
 | F514 | `statusSettings` | 自定义 status registry。 | Todo。 | P1 |
 | F515 | edit modal field visibility | 控制 modal 中显示哪些字段。 | Todo。 | P3 |
 | F516 | debug/logging/options | 控制日志、调试行为、部分 feature flag。 | Todo。 | P3 |
+| F517 | `queries` | 在 Neovim config 中定义 named queries。 | Done：Phase 2 已支持。 | P0 |
+| F518 | `default_query` | `:ObsidianTasks` 不带参数时打开的默认 query。 | Done：Phase 2 已支持。 | P0 |
 
 ## 7. Scripting / API / 生态集成
 
@@ -235,38 +244,84 @@
 | F608 | Reminder interop | 与 obsidian-reminder 约定 `⏰ YYYY-MM-DD HH:mm`。 | Todo；可作为兼容解析。 | P3 |
 | F609 | i18n | 原插件带多语言 locale。 | Todo。 | P3 |
 
-## 8. 建议的 nvim 实现切片
+## 8. 当前阶段路线图
 
-### P0: 可用核心
+### Phase 1: Task Core MVP
 
-1. 建立完整 Task parser/serializer：list marker、status、description、priority、dates、tags、block link、file location。
-2. 去掉硬编码 `#t`，实现 configurable global filter。
-3. 做 query parser 的第一层：comments、limit、basic filters、sort、group。
-4. 支持 `tasks` code block 或至少 `:ObsidianTasksQuery` 直接执行查询文本。
-5. 加强写回：保留原缩进/list marker，只改目标字段。
-6. 支持在源 Markdown buffer 直接 toggle 当前任务。
+状态：已手测通过，详见 `PHASE_1.md` 和 `PHASE_1_TEST.md`。
 
-### P1: 日常体验接近 Obsidian Tasks
+已覆盖：
 
-1. Date filters/sorting/grouping：due/start/scheduled/done/created/cancelled/happens。
-2. Status registry：custom status、status types、next status。
-3. 完成任务时处理 done/cancelled date 和 recurring task。
-4. 查询结果 layout：hide/show、task count、backlink、show tree。
-5. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
-6. Postpone action。
+1. Task parser / serializer。
+2. configurable global filter。
+3. Markdown scanner。
+4. 查询结果 buffer toggle/save/jump/refresh。
+5. 普通 Markdown buffer 当前行 toggle。
 
-### P2: 高级能力
+### Phase 2: Query Language + Tasks Panel MVP
 
-1. Dependencies：id/dependsOn、blocked/blocking、dependency picker。
-2. Presets、placeholders、query file defaults。
-3. Dataview task format。
-4. Lua custom filter/sort/group，替代原插件 JS scripting。
-5. Frontmatter properties 和 link properties。
-6. Create/Edit task floating form。
+状态：已实现第一版，详见 `PHASE_2.md` 和 `PHASE_2_TEST.md`。
 
-### P3: 生态和抛光
+目标是让用户在任意位置打开 Tasks panel，而不是必须先找到某个 `tasks` code block。
 
-1. 高级 UI：date picker、status picker、toolbar filter/copy。
+核心需求：
+
+1. Query parser MVP：comments、limit、basic filters、date filters、sort、group。
+2. Date helper：`YYYY-MM-DD`、`today/tomorrow/yesterday`、`happens`。
+3. `find_tasks({ query = ... })`。
+4. `setup({ queries = ..., default_query = ... })`。
+5. `:ObsidianTasks` 全局面板。
+6. `:ObsidianTasks! name` pinned 多查询结果。
+7. Query picker：`o`、`]q`、`[q`。
+8. Result buffer count、空结果、query error buffer。
+
+### Phase 3: Named Query Blocks + Preview UX
+
+详见 `PHASE_3.md`。
+
+目标是保留 Obsidian 的 `tasks` code block 心智，但让 Neovim 用户不需要手动定位 block 才能打开查询。
+
+核心需求：
+
+1. 扫描 vault 中的 named `tasks` code block。
+2. 支持 `# name:` 和 `# id:` metadata。
+3. Query registry 合并 config query、block query、recent query。
+4. Picker 展示所有 query source。
+5. `gq` 从结果 buffer 跳回 query block。
+6. `:ObsidianTasksRefreshQueries`。
+7. `run_query_at_cursor()` 和 `:ObsidianTasksRunBlock`。
+8. 只读 inline preview MVP。
+
+### Phase 4: Task Semantics
+
+目标是补上会改变任务语义和源文件写回行为的能力。
+
+建议范围：
+
+1. Status registry：custom status、status type、next status。
+2. Done/cancelled date 自动写回。
+3. Recurring task 完成后生成下一次任务。
+4. Dependencies：blocked/blocking、dependency picker。
+5. Postpone action。
+
+### Phase 5: Editing and Advanced Query
+
+目标是接近 Obsidian Tasks 的高级使用体验。
+
+建议范围：
+
+1. Create/Edit task floating form。
+2. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
+3. Boolean / regex / function query。
+4. Presets、placeholders、query file defaults。
+5. Dataview task format。
+6. Frontmatter properties 和 links。
+
+### Phase 6: Polish and Ecosystem
+
+建议范围：
+
+1. Date picker、status picker、toolbar filter/copy。
 2. Highlight/extmark 样式系统。
 3. Reminder 兼容字段。
 4. i18n、debug logging、文档和 demo vault。

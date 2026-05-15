@@ -8,6 +8,7 @@
 ---@field group_tasks fun(tasks: ObsidianTask[], group_by: string[]): {[string]: ObsidianTask[]}, string[] # Groups tasks by given criteria
 local M = {}
 local task_model = require("obsidian-tasks.task")
+local date = require("obsidian-tasks.date")
 
 -- Store priority emoji mappings
 ---@type table<string, string>
@@ -165,13 +166,18 @@ function M.group_tasks(tasks, group_by)
 			if current_group == "status" then
 				group_value = (task.status_symbol == " " or task.status == "[ ]") and "Pending" or "Completed"
 			elseif current_group == "priority" then
-				group_value = task.priority:sub(1, 1):upper() .. task.priority:sub(2)
-			elseif current_group == "file" then
+				local priority = task.priority or "normal"
+				group_value = priority:sub(1, 1):upper() .. priority:sub(2)
+			elseif current_group == "file" or current_group == "filename" then
 				-- Extract filename from file_path (without extension)
-				local filename = task.file_path:match("([^/]+)%.%w+$") or task.file_path
+				local filename = (task.file_path or ""):match("([^/]+)%.%w+$") or task.file_path or ""
 				-- Remove extension if present
 				filename = filename:gsub("%.%w+$", "")
 				group_value = filename
+			elseif current_group == "heading" then
+				group_value = task.heading or "No heading"
+			elseif date.normalize_field(current_group) then
+				group_value = date.get_task_date(task, current_group) or ("No " .. current_group .. " date")
 			else
 				group_value = "Other"
 			end
