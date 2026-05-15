@@ -174,4 +174,4 @@ sh /Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim/scripts/smoke_phase5_2.s
 
 - `:ObsidianTasksQuery` 这种纯手写命令默认没有 query file context。
 - `this_root` 复用当前 task file model 的 `root` 字段；在绝对路径下通常是 `/`，实际使用中 `this_file` 和 `this_folder` 更有价值。
-- 暂未实现 Query File Defaults，也就是 frontmatter 中的 `TQ_*` 自动注入。
+- Query File Defaults 已在 Phase 5.3 实现；本测试仍只覆盖 Phase 5.2 的 placeholder 能力。

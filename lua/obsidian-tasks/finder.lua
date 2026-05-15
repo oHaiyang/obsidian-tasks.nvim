@@ -107,16 +107,21 @@ function M.find_tasks(opts)
 	local global_filter = opts.global_filter or opts.globalFilter or ""
 	local query_text = opts.query
 	local query_plan = nil
+	local composition = nil
 
 	if query_text and query_text ~= "" then
-		query_plan = query.parse(query_text, {
+		local query_opts = {
 			today = opts.today,
 			config = require("obsidian-tasks").config or {},
 			enable_lua_filters = opts.enable_lua_filters or opts.enableLuaFilters,
 			query_source = opts.query_source,
 			query_file_path = opts.query_file_path or opts.queryFilePath,
 			source_path = opts.source_path or opts.sourcePath,
-		})
+		}
+		composition = query.compose(query_text, query_opts)
+		query_plan = query.parse(composition.source, query_opts)
+		query_plan.composition = composition
+		query_plan.original_query = query_text
 		if #query_plan.errors > 0 then
 			display.last_finder_opts = {
 				filter = filter,
@@ -134,10 +139,12 @@ function M.find_tasks(opts)
 				reuse_buffer = opts.reuse_buffer,
 				pinned = opts.pinned,
 				today = opts.today,
+				composition = composition,
 			}
 			local error_opts = {
 				query_name = opts.query_name,
 				query_source = opts.query_source,
+				composition = composition,
 				buffer_name = opts.buffer_name,
 				reuse_buffer = opts.reuse_buffer,
 				float = use_float,
@@ -159,6 +166,7 @@ function M.find_tasks(opts)
 		buffer_name = opts.buffer_name,
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,
+		composition = composition,
 	}
 
 	display.last_finder_opts = {
@@ -177,6 +185,7 @@ function M.find_tasks(opts)
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,
 		today = opts.today,
+		composition = composition,
 	}
 	display_opts.finder_opts = display.last_finder_opts
 

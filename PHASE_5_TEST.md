@@ -211,4 +211,4 @@ sh /Users/haiyang/Coding/nvim-tasks/obsidian-tasks.nvim/scripts/smoke_phase5.sh
 - Regex 当前基于 Neovim `vim.regex()`，不是完整 JavaScript Regex。
 - Function filter 是 Lua 表达式，并需要显式开启。
 - 表单是普通 buffer MVP，不是完整 modal，也没有 auto-suggest。
-- Placeholders 已在 Phase 5.2 支持；Dataview 格式、Query File Defaults、frontmatter/links 暂未实现。
+- Placeholders 已在 Phase 5.2 支持；Query File Defaults 已在 Phase 5.3 支持；Dataview 格式、frontmatter/links 暂未实现。

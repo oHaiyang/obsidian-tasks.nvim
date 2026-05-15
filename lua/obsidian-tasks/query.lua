@@ -127,15 +127,28 @@ local function add_filter(plan, filter)
 	table.insert(plan.filters, filter)
 end
 
+local function normalize_layout_field(field)
+	field = lower(field):gsub("%s+", " ")
+	if field == "backlinks" then
+		return "backlink"
+	end
+	return field
+end
+
 local parse_line
+
+local function config_from_opts(opts)
+	opts = opts or {}
+	if opts.config then
+		return opts.config
+	end
+	local ok, plugin = pcall(require, "obsidian-tasks")
+	return ok and plugin.config or {}
+end
 
 local function preset_map(opts)
 	opts = opts or {}
-	local config = opts.config
-	if not config then
-		local ok, plugin = pcall(require, "obsidian-tasks")
-		config = ok and plugin.config or {}
-	end
+	local config = config_from_opts(opts)
 	local presets = vim.tbl_extend("force", M.DEFAULT_PRESETS, {})
 	for key, value in pairs((config and (config.presets or config.query_presets or config.queryPresets)) or {}) do
 		presets[key] = value
@@ -225,6 +238,32 @@ local function expand_placeholders(source, opts, query_file)
 
 	table.insert(errors, "Placeholder expansion did not converge")
 	return expanded, errors
+end
+
+local function global_query_source(opts)
+	local config = config_from_opts(opts)
+	return tostring((config and (config.global_query or config.globalQuery)) or "")
+end
+
+local function strip_ignore_global_query(source)
+	local lines = {}
+	for line in (tostring(source or "") .. "\n"):gmatch("(.-)\n") do
+		if not trim(line):lower():match("^ignore%s+global%s+query") then
+			table.insert(lines, line)
+		end
+	end
+	return table.concat(lines, "\n")
+end
+
+local function join_sources(sources)
+	local result = {}
+	for _, source in ipairs(sources or {}) do
+		source = tostring(source or "")
+		if trim(source) ~= "" then
+			table.insert(result, source)
+		end
+	end
+	return table.concat(result, "\n")
 end
 
 local function add_preset(plan, line_number, original_line, name, opts)
@@ -471,6 +510,13 @@ local function parse_subfilter(value, opts)
 		sorts = {},
 		group_by = {},
 		limit = nil,
+		group_limit = nil,
+		ignore_global_query = false,
+		explain = false,
+		layout = {
+			show = {},
+		},
+		layout_statements = {},
 		errors = {},
 		warnings = {},
 	}
@@ -581,6 +627,9 @@ end
 
 function parse_line(plan, line_number, line, opts)
 	opts = opts or {}
+	plan.layout = plan.layout or { show = {} }
+	plan.layout.show = plan.layout.show or {}
+	plan.layout_statements = plan.layout_statements or {}
 	local original_line = line
 	line = trim(line)
 	if line == "" or line:match("^#") then
@@ -588,6 +637,43 @@ function parse_line(plan, line_number, line, opts)
 	end
 
 	local line_lower = line:lower()
+
+	if line_lower:match("^ignore%s+global%s+query") then
+		plan.ignore_global_query = true
+		return
+	end
+
+	if line_lower:match("^explain") then
+		plan.explain = true
+		plan.layout.explain = true
+		return
+	end
+
+	if line_lower:match("^short") then
+		plan.layout.short_mode = true
+		table.insert(plan.layout_statements, { type = "short_mode", value = true, line = original_line })
+		return
+	elseif line_lower:match("^full") then
+		plan.layout.short_mode = false
+		table.insert(plan.layout_statements, { type = "short_mode", value = false, line = original_line })
+		return
+	end
+
+	local visibility, layout_field = line_lower:match("^(show)%s+(.+)$")
+	if not visibility then
+		visibility, layout_field = line_lower:match("^(hide)%s+(.+)$")
+	end
+	if visibility and layout_field then
+		layout_field = normalize_layout_field(layout_field)
+		plan.layout.show[layout_field] = visibility == "show"
+		table.insert(plan.layout_statements, {
+			type = "visibility",
+			field = layout_field,
+			value = visibility == "show",
+			line = original_line,
+		})
+		return
+	end
 
 	if line == "OR" then
 		add_filter(plan, { type = "or" })
@@ -859,7 +945,15 @@ function parse_line(plan, line_number, line, opts)
 		return
 	end
 
-	value = line_lower:match("^limit%s+(%d+)$")
+	value = line_lower:match("^limit%s+groups%s+to%s+(%d+)")
+		or line_lower:match("^limit%s+groups%s+(%d+)")
+	if value then
+		plan.group_limit = tonumber(value)
+		return
+	end
+
+	value = line_lower:match("^limit%s+to%s+(%d+)")
+		or line_lower:match("^limit%s+(%d+)")
 	if value then
 		plan.limit = tonumber(value)
 		return
@@ -900,6 +994,39 @@ function M.parse(query, opts)
 	end
 
 	return plan
+end
+
+function M.compose(query, opts)
+	opts = opts or {}
+	local query_file_defaults = ""
+	if opts.apply_query_file_defaults ~= false and opts.applyQueryFileDefaults ~= false then
+		query_file_defaults = require("obsidian-tasks.query_file_defaults").source(opts)
+	end
+
+	local local_source = join_sources({
+		query_file_defaults,
+		query or "",
+	})
+	local local_plan = M.parse(local_source, opts)
+	local global_source = ""
+	if not local_plan.ignore_global_query then
+		global_source = strip_ignore_global_query(global_query_source(opts))
+	end
+
+	return {
+		source = join_sources({
+			global_source,
+			local_source,
+		}),
+		original_source = query or "",
+		global_query = global_source,
+		query_file_defaults = query_file_defaults,
+		local_source = local_source,
+		ignore_global_query = local_plan.ignore_global_query,
+		applied_global_query = trim(global_source) ~= "",
+		applied_query_file_defaults = trim(query_file_defaults) ~= "",
+		preflight_errors = local_plan.errors,
+	}
 end
 
 local function task_done(task, opts)

@@ -15,6 +15,7 @@ function M.setup(config)
 	config.display = config.display or {}
 	config.display.hierarchical_headings = config.display.hierarchical_headings or false
 	config.global_filter = config.global_filter or config.globalFilter or ""
+	config.global_query = config.global_query or config.globalQuery or ""
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
 	config.presets = config.presets or config.query_presets or config.queryPresets or {}

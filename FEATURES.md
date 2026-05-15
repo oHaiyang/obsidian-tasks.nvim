@@ -103,15 +103,15 @@
 | --- | --- | --- | --- | --- |
 | F201 | `tasks` code block | 在 Markdown 中写 ```tasks 查询并渲染结果。 | Partial：已可作为 named query definition 被发现和运行；未做 Obsidian-style 原地替换。 | P0 |
 | F202 | 直接查询 API | 能把查询文本解析成 filters/sort/group/layout。 | Partial：已支持 Query Language MVP。 | P0 |
-| F203 | Query 组合顺序 | Global Query -> Query File Defaults -> code block source。 | Todo。 | P1 |
-| F204 | `ignore global query` | 单个查询可跳过全局查询。 | Todo。 | P1 |
+| F203 | Query 组合顺序 | Global Query -> Query File Defaults -> code block source。 | Done：Phase 5.3 已支持。 | P1 |
+| F204 | `ignore global query` | 单个查询可跳过全局查询。 | Done：Phase 5.3 已支持 block query 和 `TQ_extra_instructions`。 | P1 |
 | F205 | Comments | `# ...` 查询行作为注释忽略。 | Done：query parser 已忽略注释行。 | P0 |
 | F206 | Line continuations | 反斜杠续行，便于长表达式。 | Todo。 | P2 |
 | F207 | Limit | `limit <n>`、`limit groups <n>`。 | Partial：已支持 `limit <n>`。 | P0 |
 | F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Todo。 | P2 |
 | F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Done：Phase 5 支持 `preset name`；Phase 5.2 支持单行 `{{preset.name}}`。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Partial：Phase 5.2 支持 `query.file.*` 和 `preset.*`；其它 placeholder 待补。 | P2 |
-| F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Todo。 | P2 |
+| F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Partial：Phase 5.3 支持读取并注入；属性写入命令待补。 | P2 |
 | F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5.1 支持括号 AND/OR/NOT；XOR 和其它 delimiter 待补。 | P1 |
 | F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Partial：Phase 5 基于 `vim.regex()` 支持常用字段。 | P1 |
 | F214 | Custom filters | `filter by function ...` 执行 JavaScript 表达式。 | Partial：Phase 5 支持 opt-in Lua 表达式。 | P2 |
@@ -213,7 +213,7 @@
 | --- | --- | --- | --- | --- |
 | F501 | `globalFilter` | 只追踪包含指定字符串的 checklist item。 | Partial。 | P0 |
 | F502 | `removeGlobalFilter` | 从描述和 tags 中隐藏/移除 global filter。 | Todo。 | P1 |
-| F503 | `globalQuery` | 注入每个 tasks query 前面。 | Todo。 | P1 |
+| F503 | `globalQuery` | 注入每个 tasks query 前面。 | Done：Phase 5.3 支持 `global_query` / `globalQuery`。 | P1 |
 | F504 | `taskFormat` | `tasksPluginEmoji` 或 `dataview`。 | Todo。 | P2 |
 | F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Partial：new recurrence 可写 created date。 | P1 |
 | F506 | `setDoneDate` | 完成任务时添加 done date。 | Done。 | P1 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，Phase 5.1/5.2 已继续补 Boolean 和 placeholder，详见 `PHASE_5.md`。
+状态：已实现第一版，Phase 5.1/5.2/5.3 已继续补 Boolean、placeholder 和 query composition，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -318,12 +318,13 @@
 2. Boolean / regex / function query MVP。
 3. `preset name` 和单行 `{{preset.name}}` query expansion。
 4. `{{query.file.*}}` placeholders。
+5. Global Query、`ignore global query`、Query File Defaults。
 
 后续继续补：
 
 1. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
 2. XOR / bracket / quote Boolean delimiters。
-3. Query File Defaults。
+3. Query File Defaults 属性写入命令。
 4. Dataview task format。
 5. Frontmatter properties 和 links。
 

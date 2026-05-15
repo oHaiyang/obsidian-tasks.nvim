@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`。
 
 已覆盖：
 
@@ -25,6 +25,10 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 - Placeholders：
   - Phase 5.2 已支持 `{{query.file.*}}`。
   - function filter 中可读取 `query.file`。
+- Query composition：
+  - Phase 5.3 已支持 `global_query` / `globalQuery`。
+  - 已支持 `ignore global query`。
+  - 已支持 Query File Defaults 的 `TQ_*` frontmatter 注入。
 - Function filter：
   - `filter by function <lua expression>`
   - `filter by lua <lua expression>`
@@ -36,8 +40,8 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 仍留到后续打磨：
 
-- Query File Defaults。
 - Auto-suggest popup。
+- Query File Defaults 的属性写入命令。
 - Dataview inline field 格式读写。
 - Frontmatter properties 和 links。
 
@@ -55,6 +59,7 @@ priority is above normal
   },
 
   enable_lua_filters = true,
+  global_query = "not done",
   inbox_file = "/path/to/vault/Inbox.md",
 })
 ```
@@ -63,6 +68,7 @@ priority is above normal
 
 - `queryPresets`
 - `enableLuaFilters`
+- `globalQuery`
 - `inboxFile`
 
 ## Advanced Query
@@ -147,6 +153,35 @@ folder includes {{query.file.folder}}
 ```
 
 支持字段见 `PHASE_5_2.md`。这些 placeholder 会按 query block 或 config query 的 `source_path` 展开；纯手写 `:ObsidianTasksQuery ...` 默认没有 query file context。
+
+### Query Composition
+
+Phase 5.3 会按原版顺序合成最终 query：
+
+1. `global_query` / `globalQuery`
+2. Query File Defaults，也就是 query 所在 Markdown 文件 frontmatter 里的 `TQ_*`
+3. 当前 tasks code block 或 config query source
+
+如果 Query File Defaults 或当前 query source 中出现：
+
+```tasks
+ignore global query
+```
+
+则跳过 `global_query`。
+
+Query File Defaults 示例：
+
+```yaml
+---
+TQ_extra_instructions: |-
+  folder includes {{query.file.folder}}
+TQ_short_mode: true
+TQ_show_task_count: true
+---
+```
+
+显示相关 directives 已解析到 `plan.layout`，真正影响结果视图放到 Phase 5.4。
 
 ### Function Filter
 
@@ -238,6 +273,7 @@ on_completion:
 - `OR` 可以组合两个或多个 AND group。
 - `preset name` 可以展开 config presets。
 - `{{preset.name}}` 和 `{{query.file.*}}` 可以按 query source 展开。
+- `global_query`、`ignore global query` 和 Query File Defaults 可以按顺序组合。
 - `filter by function` 默认禁用，开启后可执行 Lua 表达式。
 - `:ObsidianTasksEdit` 可以编辑当前任务并写回源行。
 - `:ObsidianTasksCreate` 可以创建新任务。

@@ -27,11 +27,15 @@ local function preview_lines_for(source, opts)
 	local scanner = require("obsidian-tasks.scanner")
 	local sorter = require("obsidian-tasks.sort")
 
-	local plan = query.parse(source.query, {
+	local query_opts = {
 		today = opts.today,
 		config = config,
 		query_source = source,
-	})
+	}
+	local composition = query.compose(source.query, query_opts)
+	local plan = query.parse(composition.source, query_opts)
+	plan.composition = composition
+	plan.original_query = source.query
 
 	if #plan.errors > 0 then
 		return {

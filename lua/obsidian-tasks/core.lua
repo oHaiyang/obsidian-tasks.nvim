@@ -30,6 +30,8 @@
 ---@field hierarchical_headings? boolean # Whether to display headings hierarchically
 ---@field global_filter? string # Optional global filter string
 ---@field globalFilter? string # Optional global filter string, camelCase compatibility
+---@field global_query? string # Optional global query prepended to each tasks query
+---@field globalQuery? string # Optional global query, camelCase compatibility
 
 ---@class ObsidianTasksFinder
 ---@field find_tasks fun(opts?: ObsidianTaskFinderOptions): nil # Find tasks matching criteria
