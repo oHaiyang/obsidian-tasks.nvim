@@ -4,6 +4,33 @@ local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
 end
 
+local MONTHS = {
+	jan = 1,
+	january = 1,
+	feb = 2,
+	february = 2,
+	mar = 3,
+	march = 3,
+	apr = 4,
+	april = 4,
+	may = 5,
+	jun = 6,
+	june = 6,
+	jul = 7,
+	july = 7,
+	aug = 8,
+	august = 8,
+	sep = 9,
+	sept = 9,
+	september = 9,
+	oct = 10,
+	october = 10,
+	nov = 11,
+	november = 11,
+	dec = 12,
+	december = 12,
+}
+
 local function parse_ymd(value)
 	local year, month, day = tostring(value or ""):match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
 	if not year then
@@ -81,6 +108,51 @@ function M.add_months(value, months)
 	return string.format("%04d-%02d-%02d", year, month, day)
 end
 
+local function add_units(today, amount, unit)
+	amount = tonumber(amount)
+	if not amount then
+		return nil
+	end
+
+	unit = (unit or ""):lower()
+	if unit:match("^days?$") or unit == "d" then
+		return M.add_days(today, amount)
+	elseif unit:match("^weeks?$") or unit == "w" then
+		return M.add_days(today, amount * 7)
+	elseif unit:match("^months?$") or unit == "mo" then
+		return M.add_months(today, amount)
+	elseif unit:match("^years?$") or unit == "y" then
+		return M.add_months(today, amount * 12)
+	end
+	return nil
+end
+
+local function parse_named_month(expr, today)
+	local today_year = parse_ymd(today)
+	local day, month_name, year = expr:match("^(%d+)%s+([%a]+)%s*(%d*)$")
+	if not day then
+		month_name, day, year = expr:match("^([%a]+)%s+(%d+)%s*(%d*)$")
+	end
+	if not day then
+		return nil
+	end
+
+	local month = MONTHS[(month_name or ""):lower()]
+	if not month then
+		return nil
+	end
+	year = tonumber(year ~= "" and year or nil) or today_year
+	if not year then
+		return nil
+	end
+
+	local value = string.format("%04d-%02d-%02d", year, month, tonumber(day))
+	if M.is_valid(value) then
+		return value
+	end
+	return nil
+end
+
 function M.parse_date_expr(value, opts)
 	opts = opts or {}
 	local expr = trim(value):lower()
@@ -99,6 +171,47 @@ function M.parse_date_expr(value, opts)
 
 	if M.is_valid(expr) then
 		return expr
+	end
+
+	local amount, unit = expr:match("^in%s+([%+%-]?%d+)%s*([%a]+)$")
+	if amount and unit then
+		local parsed = add_units(today, amount, unit)
+		if parsed then
+			return parsed
+		end
+	end
+
+	amount, unit = expr:match("^([%+%-]?%d+)%s*([%a]+)$")
+	if amount and unit then
+		local parsed = add_units(today, amount, unit)
+		if parsed then
+			return parsed
+		end
+	end
+
+	amount = expr:match("^%+(%d+)$")
+	if amount then
+		return M.add_days(today, tonumber(amount))
+	end
+
+	amount = expr:match("^%-(%d+)$")
+	if amount then
+		return M.add_days(today, -tonumber(amount))
+	end
+
+	unit = expr:match("^next%s+([%a]+)$")
+	if unit then
+		return add_units(today, 1, unit)
+	end
+
+	unit = expr:match("^last%s+([%a]+)$")
+	if unit then
+		return add_units(today, -1, unit)
+	end
+
+	local named_month = parse_named_month(expr, today)
+	if named_month then
+		return named_month
 	end
 
 	return nil

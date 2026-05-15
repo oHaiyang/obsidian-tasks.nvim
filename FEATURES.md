@@ -195,13 +195,13 @@
 | F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 已支持，规则 parser 待补全。 | P1 |
 | F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Done：`ObsidianTasksChangeStatus` 和 `ObsidianTasksStatus*`。 | P1 |
 | F406 | Status context menu | 右键 checkbox 可选择任意 status。 | Obsidian-only；nvim 可做 picker。 | P2 |
-| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP。 | P1 |
+| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP；Phase 5.5 补日期解析和轻量 picker。 | P1 |
 | F408 | Modal field visibility | 可隐藏不用字段。 | Todo。 | P3 |
-| F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Todo。 | P1 |
-| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Obsidian-only；nvim 可做 calendar/picker。 | P2 |
+| F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Done：Phase 5.5 支持常用自然日期并正规化保存。 | P1 |
+| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.5 提供 form 内 `gd` 常用日期 picker；calendar 待补。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
-| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Todo。 | P1 |
+| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.5 提供 status/date picker；continuous suggest 待补。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Todo。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Todo。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，Phase 5.1/5.2/5.3/5.4 已继续补 Boolean、placeholder、query composition 和 layout directives，详见 `PHASE_5.md`。
+状态：已实现第一版，Phase 5.1/5.2/5.3/5.4/5.5 已继续补 Boolean、placeholder、query composition、layout directives 和 edit form ergonomics，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -320,10 +320,11 @@
 4. `{{query.file.*}}` placeholders。
 5. Global Query、`ignore global query`、Query File Defaults。
 6. Result view layout directives。
+7. Edit form natural dates and lightweight pickers。
 
 后续继续补：
 
-1. Auto-suggest MVP：priority、date emoji、common dates、recurrence snippets。
+1. Continuous auto-suggest MVP：priority、recurrence snippets、id/dependsOn。
 2. XOR / bracket / quote Boolean delimiters。
 3. Query File Defaults 属性写入命令。
 4. Dataview task format。

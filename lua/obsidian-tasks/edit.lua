@@ -48,12 +48,27 @@ local DATE_SYMBOLS = {
 	cancelled = "❌",
 }
 
+local DATE_FIELDS = {
+	"created",
+	"start",
+	"scheduled",
+	"due",
+	"done",
+	"cancelled",
+}
+
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
 end
 
 local function get_config()
 	return require("obsidian-tasks").config or {}
+end
+
+local function date_opts(state)
+	return {
+		today = (state and state.today) or get_config().today,
+	}
 end
 
 local function read_file_lines(file_path)
@@ -119,7 +134,8 @@ local function task_to_fields(task)
 	}
 end
 
-local function empty_fields()
+local function empty_fields(opts)
+	opts = opts or {}
 	local fields = {
 		description = "",
 		status = "Todo",
@@ -137,7 +153,7 @@ local function empty_fields()
 	}
 
 	if get_config().set_created_date then
-		fields.created = date.today()
+		fields.created = date.parse_date_expr("today", { today = opts.today or get_config().today }) or date.today()
 	end
 	return fields
 end
@@ -145,7 +161,8 @@ end
 local function form_lines(fields, mode)
 	local lines = {
 		"# Obsidian Tasks " .. (mode == "create" and "Create Task" or "Edit Task"),
-		"# Edit values after ':' and save with <C-S> or :write. Empty optional fields are ignored.",
+		"# Edit values after ':' and save with <C-S> or :write. Date fields accept today/tomorrow/+N/2 weeks/6 oct.",
+		"# Shortcuts: gs pick status, gd pick date on a date field, q close.",
 		"",
 	}
 	for _, key in ipairs(FIELD_ORDER) do
@@ -165,6 +182,88 @@ local function parse_form_lines(lines)
 		end
 	end
 	return fields
+end
+
+local function normalize_date_fields(fields, state)
+	for _, field in ipairs(DATE_FIELDS) do
+		local value = trim(fields[field])
+		if value ~= "" then
+			local parsed = date.parse_date_expr(value, date_opts(state))
+			if not parsed then
+				return false, "Invalid " .. field .. " date: " .. value
+			end
+			fields[field] = parsed
+		end
+	end
+	return true
+end
+
+local function current_field(buf)
+	local row = vim.api.nvim_win_get_cursor(0)[1]
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
+	return line:match("^([%w_]+):")
+end
+
+local function set_form_field(buf, key, value)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	for index, line in ipairs(lines) do
+		if line:match("^" .. key .. ":") then
+			lines[index] = key .. ": " .. (value or "")
+			vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+			vim.api.nvim_set_option_value("modified", true, { buf = buf })
+			return true
+		end
+	end
+	return false
+end
+
+function M.pick_status(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local entries = status.registry(get_config())
+	vim.ui.select(entries, {
+		prompt = "Task status",
+		format_item = function(entry)
+			return string.format("[%s] %s (%s)", entry.symbol, entry.name, entry.type)
+		end,
+	}, function(entry)
+		if entry then
+			set_form_field(buf, "status", entry.name)
+		end
+	end)
+end
+
+function M.pick_date(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local field = current_field(buf)
+	if not field or not DATE_SYMBOLS[field] then
+		vim.notify("Move cursor to a date field first", vim.log.levels.WARN)
+		return
+	end
+
+	local state = M.form_state[buf] or {}
+	local choices = {
+		{ label = "Clear", value = "" },
+		{ label = "Today", expr = "today" },
+		{ label = "Tomorrow", expr = "tomorrow" },
+		{ label = "In 1 week", expr = "1 week" },
+		{ label = "In 2 weeks", expr = "2 weeks" },
+		{ label = "In 1 month", expr = "1 month" },
+	}
+	vim.ui.select(choices, {
+		prompt = field .. " date",
+		format_item = function(item)
+			return item.label
+		end,
+	}, function(item)
+		if not item then
+			return
+		end
+		local value = item.value
+		if value == nil then
+			value = date.parse_date_expr(item.expr, date_opts(state)) or item.expr
+		end
+		set_form_field(buf, field, value)
+	end)
 end
 
 local function append_part(parts, value)
@@ -254,6 +353,12 @@ local function open_form(fields, state)
 		M.save_form(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Save task form" })
 	vim.keymap.set("n", "q", ":bd!<CR>", { buffer = buf, noremap = true, silent = true, desc = "Close task form" })
+	vim.keymap.set("n", "gs", function()
+		M.pick_status(buf)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Pick task status" })
+	vim.keymap.set("n", "gd", function()
+		M.pick_date(buf)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Pick date" })
 
 	vim.api.nvim_set_current_buf(buf)
 	return buf
@@ -306,6 +411,11 @@ function M.save_form(buf)
 		vim.notify("Task description is required", vim.log.levels.ERROR)
 		return false
 	end
+	local dates_ok, date_err = normalize_date_fields(fields, state)
+	if not dates_ok then
+		vim.notify(date_err, vim.log.levels.ERROR)
+		return false
+	end
 
 	local line = build_task_line(fields, state)
 	local ok, err
@@ -346,6 +456,7 @@ function M.edit_current_task()
 			line_number = row,
 			indentation = task.indentation,
 			list_marker = task.list_marker,
+			today = get_config().today,
 		}
 	else
 		task = current_display_task(buf)
@@ -359,6 +470,7 @@ function M.edit_current_task()
 			line_number = task.line_number,
 			indentation = task.indentation,
 			list_marker = task.list_marker,
+			today = get_config().today,
 		}
 	end
 
@@ -382,13 +494,14 @@ function M.create_task(opts)
 		return nil
 	end
 
-	return open_form(empty_fields(), {
+	return open_form(empty_fields({ today = opts.today }), {
 		mode = "create",
 		source_buf = source_buf,
 		file_path = file_path,
 		line_number = source_buf and row or nil,
 		indentation = "",
 		list_marker = "-",
+		today = opts.today,
 	})
 end
 
