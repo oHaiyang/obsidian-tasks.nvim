@@ -177,7 +177,12 @@ end
 local function update_display_status_line(buf, row, parsed, next_symbol)
 	parsed.status_symbol = status_model.normalize_symbol(next_symbol)
 	parsed.status = status_model.status_text(parsed.status_symbol)
-	vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { format_display_line(parsed) })
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
+	local updated = line:gsub("^(%d+%. )%[.?%]", "%1" .. parsed.status, 1)
+	if updated == line then
+		updated = format_display_line(parsed)
+	end
+	vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { updated })
 	vim.api.nvim_set_option_value("modified", true, { buf = buf })
 	return true
 end

@@ -163,6 +163,8 @@ function M.find_tasks(opts)
 		hierarchical_headings = opts.hierarchical_headings or false,
 		query_name = opts.query_name,
 		query_source = opts.query_source,
+		query_plan = query_plan,
+		layout = query_plan and query_plan.layout or nil,
 		buffer_name = opts.buffer_name,
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,

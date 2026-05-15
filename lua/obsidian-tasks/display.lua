@@ -9,11 +9,116 @@ M.TASK_VIEW_HELP_LINES = {
 
 local core = require("obsidian-tasks.core")
 local parser = require("obsidian-tasks.parser")
+local task_model = require("obsidian-tasks.task")
 
 -- Store the last used options for refresh functionality
 M.last_finder_opts = {}
 M.buffer_finder_opts = {}
 M.buffer_header_line_count = {}
+
+local DATE_DISPLAY = {
+	{ field = "created date", key = "created_date", symbol = "➕" },
+	{ field = "start date", key = "start_date", symbol = "🛫" },
+	{ field = "scheduled date", key = "scheduled_date", symbol = "⏳" },
+	{ field = "due date", key = "due_date", symbol = "📅" },
+	{ field = "cancelled date", key = "cancelled_date", symbol = "❌" },
+	{ field = "done date", key = "done_date", symbol = "✅" },
+}
+
+local FIELD_ALIASES = {
+	backlinks = "backlink",
+	priority = "priority",
+	tags = "tags",
+	id = "id",
+	["depends on"] = "depends on",
+	depends_on = "depends on",
+	recurrence = "recurrence rule",
+	["recurrence rule"] = "recurrence rule",
+	["on completion"] = "on completion",
+	["task count"] = "task count",
+	toolbar = "toolbar",
+	tree = "tree",
+	urgency = "urgency",
+	["edit button"] = "edit button",
+	["postpone button"] = "postpone button",
+	["created date"] = "created date",
+	created = "created date",
+	["start date"] = "start date",
+	start = "start date",
+	starts = "start date",
+	["scheduled date"] = "scheduled date",
+	scheduled = "scheduled date",
+	["due date"] = "due date",
+	due = "due date",
+	["cancelled date"] = "cancelled date",
+	cancelled = "cancelled date",
+	canceled = "cancelled date",
+	["done date"] = "done date",
+	done = "done date",
+}
+
+local function trim(value)
+	return (value or ""):match("^%s*(.-)%s*$")
+end
+
+local function pattern_escape(value)
+	return (value or ""):gsub("([^%w])", "%%%1")
+end
+
+local function layout(opts)
+	opts = opts or {}
+	return opts.layout or (opts.query_plan and opts.query_plan.layout) or {}
+end
+
+local function normalize_field(field)
+	field = trim(field):lower():gsub("%s+", " ")
+	return FIELD_ALIASES[field] or field
+end
+
+function M.should_show(opts, field, default)
+	local show = layout(opts).show or {}
+	local value = show[normalize_field(field)]
+	if value == nil then
+		return default
+	end
+	return value == true
+end
+
+local function short_mode(opts)
+	return layout(opts).short_mode == true
+end
+
+local function has_layout_directives(opts)
+	local current_layout = layout(opts)
+	return current_layout.short_mode ~= nil or (current_layout.show and next(current_layout.show) ~= nil)
+end
+
+local function append_part(parts, value)
+	value = trim(value)
+	if value ~= "" then
+		table.insert(parts, value)
+	end
+end
+
+local function metadata_part(symbol, value, opts)
+	if trim(value) == "" then
+		return ""
+	end
+	if short_mode(opts) then
+		return symbol
+	end
+	return symbol .. " " .. trim(value)
+end
+
+local function description_without_tags(task)
+	local description = task.description or task.text or task.body or ""
+	for _, tag in ipairs(task.tags or {}) do
+		description = description:gsub("%s*" .. pattern_escape(tag), "")
+	end
+	description = description:gsub("^#[%w_/%-]+%s*", "")
+	description = description:gsub("%s+#[%w_/%-]+", "")
+	return trim(description)
+end
 
 local function buffer_name_exists(name)
 	if not name or name == "" then
@@ -56,7 +161,9 @@ local function build_header_lines(opts)
 	local title = "Tasks: " .. query_name
 
 	if shown ~= nil and total ~= nil then
-		if opts.limit and shown ~= total then
+		if M.should_show(opts, "task count", true) == false then
+			-- Count explicitly hidden by query layout.
+		elseif opts.limit and shown ~= total then
 			title = string.format("%s                          Showing %d of %d tasks", title, shown, total)
 		else
 			title = string.format("%s                          Showing %d tasks", title, shown)
@@ -87,14 +194,51 @@ local function build_header_lines(opts)
 	}
 end
 
+function M.format_task_body(task, opts)
+	if not has_layout_directives(opts) then
+		return task.display_text or task.body or task.text or ""
+	end
+
+	local parts = {}
+	local description = M.should_show(opts, "tags", true) and (task.description or task.text or task.body or "")
+		or description_without_tags(task)
+	append_part(parts, description)
+
+	if M.should_show(opts, "recurrence rule", true) then
+		append_part(parts, metadata_part("🔁", task.recurrence_rule, opts))
+	end
+	if M.should_show(opts, "on completion", true) then
+		append_part(parts, metadata_part("🏁", task.on_completion, opts))
+	end
+	for _, spec in ipairs(DATE_DISPLAY) do
+		if M.should_show(opts, spec.field, true) then
+			append_part(parts, metadata_part(spec.symbol, task[spec.key], opts))
+		end
+	end
+	if M.should_show(opts, "id", true) then
+		append_part(parts, metadata_part("🆔", task.id, opts))
+	end
+	if M.should_show(opts, "depends on", true) then
+		append_part(parts, metadata_part("⛔", table.concat(task.depends_on or {}, ", "), opts))
+	end
+	append_part(parts, task.block_link)
+
+	return table.concat(parts, " ")
+end
+
 -- Format task for display
-function M.format_task_for_display(task, index)
+function M.format_task_for_display(task, index, opts)
+	opts = opts or {}
 	-- Format priority label (if not normal)
 	local priority_text = ""
-	if task.priority and task.priority ~= "normal" then
-		priority_text = "[" .. task.priority:upper() .. "] "
+	if M.should_show(opts, "priority", true) and task.priority and task.priority ~= "normal" then
+		if short_mode(opts) then
+			priority_text = (task_model.PRIORITY_SYMBOLS[task.priority] or "") .. " "
+		else
+			priority_text = "[" .. task.priority:upper() .. "] "
+		end
 	end
-	local task_text = task.display_text or task.body or task.text or ""
+	local task_text = M.format_task_body(task, opts)
 
 	local display_text = string.format(
 		"%d. %s %s%s",
@@ -105,8 +249,11 @@ function M.format_task_for_display(task, index)
 	)
 
 	-- Add file path info as wiki link (for internal tracking and navigation)
-	local metadata = string.format(" [[%s#L%d]]", task.file_path, task.line_number)
-	return display_text .. metadata
+	if M.should_show(opts, "backlink", true) then
+		local metadata = string.format(" [[%s#L%d]]", task.file_path, task.line_number)
+		return display_text .. metadata
+	end
+	return display_text
 end
 
 -- Format grouped tasks for display
@@ -168,7 +315,7 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 
 		-- Process tasks in group
 		for _, task in ipairs(tasks) do
-			local formatted_line = M.format_task_for_display(task, current_index)
+			local formatted_line = M.format_task_for_display(task, current_index, opts)
 			table.insert(display_lines, formatted_line)
 			index_map[current_index] = task
 			current_index = current_index + 1
@@ -338,6 +485,13 @@ function M.setup_editable_buffer(buf, tasks, opts)
 		local line = vim.api.nvim_get_current_line()
 		local file_path, line_number = line:match("%[%[([^#]+)#L(%d+)%]%]")
 
+		if not file_path then
+			local index = tonumber(line:match("^(%d+)%. "))
+			local task = index and (core.task_index_map[buf] or {})[index] or nil
+			file_path = task and task.file_path or nil
+			line_number = task and task.line_number or nil
+		end
+
 		if file_path and line_number then
 			-- Close current buffer
 			vim.cmd("bd")
@@ -425,7 +579,7 @@ function M.display_tasks(tasks, grouped_tasks, group_order, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do
-			table.insert(display_lines, M.format_task_for_display(task, i))
+			table.insert(display_lines, M.format_task_for_display(task, i, opts))
 			index_map[i] = task
 		end
 	end
@@ -476,7 +630,7 @@ function M.display_tasks_float(tasks, grouped_tasks, group_order, opts)
 	else
 		display_lines = {}
 		for i, task in ipairs(tasks) do
-			table.insert(display_lines, M.format_task_for_display(task, i))
+			table.insert(display_lines, M.format_task_for_display(task, i, opts))
 			index_map[i] = task
 		end
 	end

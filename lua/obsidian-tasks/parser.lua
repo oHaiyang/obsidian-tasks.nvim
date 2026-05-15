@@ -65,12 +65,17 @@ function M.parse_display_line(line)
 	end
 	-- require('plenary.log').info('[xxxhhh][priority and text]', priority, text);
 
-	-- Extract file path and line number
+	-- Extract file path and line number when the backlink is visible. Query
+	-- layout can hide backlinks, in which case callers use task_index_map.
 	local file_path, line_number
-	text, file_path, line_number = text:match("(.+) %[%[(.+)#L(%d+)%]%]")
+	local linked_text
+	linked_text, file_path, line_number = text:match("(.+) %[%[(.+)#L(%d+)%]%]")
+	if linked_text then
+		text = linked_text
+	end
 	-- require('plenary.log').info('[xxxhhh][parsing file path]', text, file_path, line_number);
 
-	if not (text and file_path and line_number) then
+	if not text then
 		return nil
 	end
 
@@ -81,7 +86,7 @@ function M.parse_display_line(line)
 		text = text,
 		display_text = text,
 		file_path = file_path,
-		line_number = tonumber(line_number),
+		line_number = line_number and tonumber(line_number) or nil,
 		priority = priority,
 	}
 end

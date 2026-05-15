@@ -11,13 +11,18 @@ local function filename(path)
 	return (path or ""):match("([^/]+)$") or path or ""
 end
 
-local function task_line(task)
-	local text = task.description or task.text or task.body or ""
-	local source = filename(task.file_path)
-	if task.line_number then
-		source = source .. "#L" .. task.line_number
+local function task_line(task, opts)
+	opts = opts or {}
+	local display = require("obsidian-tasks.display")
+	local text = display.format_task_body(task, opts)
+	if display.should_show(opts, "backlink", true) then
+		local source = filename(task.file_path)
+		if task.line_number then
+			source = source .. "#L" .. task.line_number
+		end
+		return string.format("  %s %s    %s", task.status or "[ ]", text, source)
 	end
-	return string.format("  %s %s    %s", task.status or "[ ]", text, source)
+	return string.format("  %s %s", task.status or "[ ]", text)
 end
 
 local function preview_lines_for(source, opts)
@@ -55,15 +60,27 @@ local function preview_lines_for(source, opts)
 	end
 
 	local limit = opts.limit or config.preview_limit or 5
-	local lines = {
-		{
-			{ string.format("Tasks preview: Showing %d of %d", math.min(#tasks, limit), #tasks), "Comment" },
-		},
+	local display = require("obsidian-tasks.display")
+	local preview_opts = {
+		layout = plan.layout,
+		query_plan = plan,
 	}
+	local lines = {}
+	if display.should_show(preview_opts, "task count", true) then
+		table.insert(lines, {
+			{ string.format("Tasks preview: Showing %d of %d", math.min(#tasks, limit), #tasks), "Comment" },
+		})
+	end
 
 	for index = 1, math.min(#tasks, limit) do
 		table.insert(lines, {
-			{ task_line(tasks[index]), "Comment" },
+			{ task_line(tasks[index], preview_opts), "Comment" },
+		})
+	end
+
+	if #lines == 0 then
+		table.insert(lines, {
+			{ "Tasks preview", "Comment" },
 		})
 	end
 

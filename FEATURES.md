@@ -166,16 +166,16 @@
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
 | F301 | 查询结果列表 | 在 Reading/Live Preview 中渲染 tasks block。 | Partial：有独立结果 buffer。 | P0 |
-| F302 | Backlink | 每条任务显示文件名和 heading，点击跳回源行。 | Partial：`gd/gf` 根据 `[[path#Lline]]` 跳转。 | P0 |
+| F302 | Backlink | 每条任务显示文件名和 heading，点击跳回源行。 | Partial：`gd/gf` 可跳转；Phase 5.4 支持 `show/hide backlink`。 | P0 |
 | F303 | Edit button | 结果里有铅笔按钮打开编辑 modal。 | Todo。 | P2 |
 | F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Partial：`p` / `:ObsidianTasksPostpone` 已支持基础推迟。 | P1 |
 | F305 | Toolbar | 查询结果顶部可临时过滤 description、复制结果为 Markdown。 | Todo。 | P2 |
-| F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Todo。 | P1 |
+| F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Done：Phase 5.4 支持显示和 `show/hide task count`。 | P1 |
 | F307 | Task count location | 全局设置 count 在 top 或 bottom。 | Todo。 | P3 |
-| F308 | Hide/show task fields | `hide/show priority/due date/tags/...`。 | Todo。 | P1 |
-| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Todo。 | P1 |
-| F310 | Full mode | 默认展示字段值，如具体日期、循环规则。 | Partial。 | P1 |
-| F311 | Short mode | 只显示 emoji，具体值靠 tooltip。 | Todo；nvim 可用 virtual text/float。 | P2 |
+| F308 | Hide/show task fields | `hide/show priority/due date/tags/...`。 | Partial：Phase 5.4 支持常用 task 字段。 | P1 |
+| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Partial：Phase 5.4 支持 backlink/task count；按钮/toolbar/tree/urgency 待补。 | P1 |
+| F310 | Full mode | 默认展示字段值，如具体日期、循环规则。 | Partial：默认 full display，Phase 5.4 开始接 layout。 | P1 |
+| F311 | Short mode | 只显示 emoji，具体值靠 tooltip。 | Partial：Phase 5.4 对 metadata 做轻量 short mode；tooltip 待补。 | P2 |
 | F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Todo。 | P1 |
 | F313 | Styling hooks | HTML/CSS class 和 data attributes 支持自定义样式。 | Obsidian-only；nvim 可映射 highlights/extmarks。 | P3 |
 | F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Todo。 | P1 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，Phase 5.1/5.2/5.3 已继续补 Boolean、placeholder 和 query composition，详见 `PHASE_5.md`。
+状态：已实现第一版，Phase 5.1/5.2/5.3/5.4 已继续补 Boolean、placeholder、query composition 和 layout directives，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -319,6 +319,7 @@
 3. `preset name` 和单行 `{{preset.name}}` query expansion。
 4. `{{query.file.*}}` placeholders。
 5. Global Query、`ignore global query`、Query File Defaults。
+6. Result view layout directives。
 
 后续继续补：
 
