@@ -9,6 +9,7 @@
 local M = {}
 local task_model = require("obsidian-tasks.task")
 local date = require("obsidian-tasks.date")
+local status = require("obsidian-tasks.status")
 
 -- Store priority emoji mappings
 ---@type table<string, string>
@@ -164,7 +165,10 @@ function M.group_tasks(tasks, group_by)
 			local group_value
 
 			if current_group == "status" then
-				group_value = (task.status_symbol == " " or task.status == "[ ]") and "Pending" or "Completed"
+				local entry = status.get(task.status_symbol or task.status)
+				group_value = entry.name
+			elseif current_group == "status.type" then
+				group_value = status.type(task.status_symbol or task.status)
 			elseif current_group == "priority" then
 				local priority = task.priority or "normal"
 				group_value = priority:sub(1, 1):upper() .. priority:sub(2)

@@ -66,7 +66,13 @@ M.task_index_map = {}
 
 -- Importing other modules
 local parser = require("obsidian-tasks.parser")
+local mutation = require("obsidian-tasks.mutation")
+local status_model = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
+
+local function get_config()
+	return require("obsidian-tasks").config or {}
+end
 
 local function format_display_line(parsed)
 	local priority_text = ""
@@ -130,9 +136,11 @@ function M.apply_task_changes(original_task, updated_task)
 	-- Read file content
 	---@type string[]
 	local lines = {}
-	local file = io.open(updated_task.file_path, "r")
+	local file_path = original_task.file_path or updated_task.file_path
+	local line_number = original_task.line_number or updated_task.line_number
+	local file = io.open(file_path, "r")
 	if not file then
-		vim.notify("Cannot open file: " .. updated_task.file_path, vim.log.levels.ERROR)
+		vim.notify("Cannot open file: " .. file_path, vim.log.levels.ERROR)
 		return false
 	end
 
@@ -141,42 +149,102 @@ function M.apply_task_changes(original_task, updated_task)
 	end
 	file:close()
 
-	-- Find original line
-	local original_line = lines[updated_task.line_number]
-	if not original_line then
-		vim.notify("Line not found in file", vim.log.levels.ERROR)
-		return false
-	end
-
-	local parsed_source_task = task_model.parse_line({
-		line = original_line,
-		file_path = original_task.file_path,
-		line_number = original_task.line_number,
+	local ok, new_lines_or_err = mutation.apply_status_change_to_lines(lines, line_number, updated_task.status_symbol or updated_task.status, {
+		file_path = file_path,
 	})
-
-	if not parsed_source_task then
-		vim.notify("Line is no longer a valid task: " .. updated_task.file_path, vim.log.levels.ERROR)
+	if not ok then
+		vim.notify(new_lines_or_err .. ": " .. file_path, vim.log.levels.ERROR)
 		return false
 	end
-
-	local new_line = task_model.serialize(task_model.with_status(parsed_source_task, updated_task.status))
 
 	-- Write back to file
-	file = io.open(updated_task.file_path, "w")
+	file = io.open(file_path, "w")
 	if not file then
-		vim.notify("Cannot write to file: " .. updated_task.file_path, vim.log.levels.ERROR)
+		vim.notify("Cannot write to file: " .. file_path, vim.log.levels.ERROR)
 		return false
 	end
 
-	for i, line in ipairs(lines) do
-		if i == updated_task.line_number then
-			file:write(new_line .. "\n")
-		else
-			file:write(line .. "\n")
-		end
+	for _, line in ipairs(new_lines_or_err) do
+		file:write(line .. "\n")
 	end
 	file:close()
 
+	return true
+end
+
+local function update_display_status_line(buf, row, parsed, next_symbol)
+	parsed.status_symbol = status_model.normalize_symbol(next_symbol)
+	parsed.status = status_model.status_text(parsed.status_symbol)
+	vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { format_display_line(parsed) })
+	vim.api.nvim_set_option_value("modified", true, { buf = buf })
+	return true
+end
+
+local function apply_status_change_to_source_buffer(buf, row, next_symbol)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	local ok, new_lines_or_err = mutation.apply_status_change_to_lines(lines, row, next_symbol, {
+		file_path = vim.api.nvim_buf_get_name(buf),
+	})
+	if not ok then
+		vim.notify(new_lines_or_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines_or_err)
+	vim.api.nvim_set_option_value("modified", true, { buf = buf })
+	return true
+end
+
+local function read_file_lines(file_path)
+	local file = io.open(file_path, "r")
+	if not file then
+		return nil, "Cannot open file: " .. file_path
+	end
+
+	local lines = {}
+	for line in file:lines() do
+		table.insert(lines, line)
+	end
+	file:close()
+	return lines
+end
+
+local function write_file_lines(file_path, lines)
+	local file = io.open(file_path, "w")
+	if not file then
+		return false, "Cannot write to file: " .. file_path
+	end
+	for _, line in ipairs(lines) do
+		file:write(line .. "\n")
+	end
+	file:close()
+	return true
+end
+
+function M.apply_postpone_changes(original_task, expr)
+	local file_path = original_task.file_path
+	local line_number = original_task.line_number
+	local lines, read_err = read_file_lines(file_path)
+	if not lines then
+		vim.notify(read_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	local ok, new_lines_or_err, _, field, target = mutation.apply_postpone_to_lines(lines, line_number, expr, {
+		file_path = file_path,
+	})
+	if not ok then
+		vim.notify(new_lines_or_err .. ": " .. file_path, vim.log.levels.ERROR)
+		return false
+	end
+
+	local written, write_err = write_file_lines(file_path, new_lines_or_err)
+	if not written then
+		vim.notify(write_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	vim.notify(string.format("Postponed %s date to %s", field, target), vim.log.levels.INFO)
 	return true
 end
 
@@ -219,14 +287,8 @@ function M.toggle_task_at_cursor()
 	---@type ObsidianTask|nil
 	local parsed = parser.parse_display_line(line)
 	if parsed then
-		-- Toggle status
-		local toggled = task_model.toggle_status(parsed)
-		parsed.status = toggled.status
-		parsed.status_symbol = toggled.status_symbol
-
-		vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { format_display_line(parsed) })
-		vim.api.nvim_set_option_value("modified", true, { buf = buf })
-		return true
+		local next_symbol = status_model.next_symbol(parsed.status_symbol, get_config())
+		return update_display_status_line(buf, row, parsed, next_symbol)
 	end
 
 	local source_task = task_model.parse_line({
@@ -235,13 +297,74 @@ function M.toggle_task_at_cursor()
 		line_number = row,
 	})
 	if source_task then
-		local toggled = task_model.toggle_status(source_task)
-		vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { task_model.serialize(toggled) })
-		vim.api.nvim_set_option_value("modified", true, { buf = buf })
-		return true
+		local next_symbol = status_model.next_symbol(source_task.status_symbol, get_config())
+		return apply_status_change_to_source_buffer(buf, row, next_symbol)
 	end
 
 	return false
+end
+
+function M.change_task_status_at_cursor(status)
+	local next_symbol = status_model.resolve_symbol(status, get_config())
+	if not next_symbol then
+		vim.notify("Unknown task status: " .. tostring(status), vim.log.levels.ERROR)
+		return false
+	end
+
+	local buf = vim.api.nvim_get_current_buf()
+	local row = vim.api.nvim_win_get_cursor(0)[1]
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
+
+	local parsed = parser.parse_display_line(line)
+	if parsed then
+		return update_display_status_line(buf, row, parsed, next_symbol)
+	end
+
+	local source_task = task_model.parse_line({
+		line = line,
+		file_path = vim.api.nvim_buf_get_name(buf),
+		line_number = row,
+	})
+	if source_task then
+		return apply_status_change_to_source_buffer(buf, row, next_symbol)
+	end
+
+	return false
+end
+
+function M.postpone_task_at_cursor(expr)
+	local buf = vim.api.nvim_get_current_buf()
+	local row = vim.api.nvim_win_get_cursor(0)[1]
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
+
+	local parsed = parser.parse_display_line(line)
+	if parsed then
+		local index_map = M.task_index_map[buf] or {}
+		local original_task = parsed.index and index_map[parsed.index]
+		if not original_task then
+			vim.notify("No source task for display line", vim.log.levels.ERROR)
+			return false
+		end
+		if M.apply_postpone_changes(original_task, expr) then
+			require("obsidian-tasks.display").refresh_tasks_view()
+			return true
+		end
+		return false
+	end
+
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	local ok, new_lines_or_err, _, field, target = mutation.apply_postpone_to_lines(lines, row, expr, {
+		file_path = vim.api.nvim_buf_get_name(buf),
+	})
+	if not ok then
+		vim.notify(new_lines_or_err, vim.log.levels.ERROR)
+		return false
+	end
+
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, new_lines_or_err)
+	vim.api.nvim_set_option_value("modified", true, { buf = buf })
+	vim.notify(string.format("Postponed %s date to %s", field, target), vim.log.levels.INFO)
+	return true
 end
 
 return M

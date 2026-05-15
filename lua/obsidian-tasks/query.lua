@@ -1,7 +1,9 @@
 local M = {}
 
 local date = require("obsidian-tasks.date")
+local dependencies = require("obsidian-tasks.dependencies")
 local sort = require("obsidian-tasks.sort")
+local status = require("obsidian-tasks.status")
 
 local PRIORITIES = {
 	highest = true,
@@ -27,6 +29,7 @@ local DATE_FIELDS = {
 
 local SORT_FIELDS = {
 	status = true,
+	["status.type"] = true,
 	priority = true,
 	due = true,
 	scheduled = true,
@@ -44,6 +47,7 @@ local SORT_FIELDS = {
 
 local GROUP_FIELDS = {
 	status = true,
+	["status.type"] = true,
 	priority = true,
 	file = true,
 	filename = true,
@@ -78,6 +82,10 @@ local function normalize_status(value)
 	value = trim(value)
 	local inner = value:match("^%[(.)%]$")
 	return inner or value
+end
+
+local function normalize_status_type(value)
+	return trim(value):upper():gsub("%s+", "_"):gsub("%-", "_")
 end
 
 local function add_error(plan, line_number, line, message)
@@ -149,6 +157,30 @@ local function parse_line(plan, line_number, line, opts)
 	value = line:match("^status%s+is%s+(.+)$")
 	if value then
 		table.insert(plan.filters, { type = "status", op = "is", value = normalize_status(value) })
+		return
+	end
+
+	value = line_lower:match("^status[%.%s]+type%s+is%s+not%s+(.+)$")
+	if value then
+		table.insert(plan.filters, { type = "status_type", op = "is_not", value = normalize_status_type(value) })
+		return
+	end
+
+	value = line_lower:match("^status[%.%s]+type%s+is%s+(.+)$")
+	if value then
+		table.insert(plan.filters, { type = "status_type", op = "is", value = normalize_status_type(value) })
+		return
+	end
+
+	value = line_lower:match("^status[%.%s]+name%s+does%s+not%s+include%s+(.+)$")
+	if value then
+		table.insert(plan.filters, { type = "status_name_includes", value = trim(value), negate = true })
+		return
+	end
+
+	value = line_lower:match("^status[%.%s]+name%s+includes%s+(.+)$")
+	if value then
+		table.insert(plan.filters, { type = "status_name_includes", value = trim(value), negate = false })
 		return
 	end
 
@@ -269,6 +301,18 @@ local function parse_line(plan, line_number, line, opts)
 	elseif line_lower == "no depends on" then
 		table.insert(plan.filters, { type = "depends_on_exists", exists = false })
 		return
+	elseif line_lower == "is blocked" then
+		table.insert(plan.filters, { type = "dependency_state", state = "blocked", value = true })
+		return
+	elseif line_lower == "is not blocked" then
+		table.insert(plan.filters, { type = "dependency_state", state = "blocked", value = false })
+		return
+	elseif line_lower == "is blocking" then
+		table.insert(plan.filters, { type = "dependency_state", state = "blocking", value = true })
+		return
+	elseif line_lower == "is not blocking" then
+		table.insert(plan.filters, { type = "dependency_state", state = "blocking", value = false })
+		return
 	end
 
 	local sort_field = line_lower:match("^sort%s+by%s+(.+)$")
@@ -330,8 +374,8 @@ function M.parse(query, opts)
 	return plan
 end
 
-local function task_done(task)
-	return task.status_symbol ~= nil and task.status_symbol ~= " "
+local function task_done(task, opts)
+	return status.is_complete_symbol(task.status_symbol or task.status, opts)
 end
 
 local function task_status_symbol(task)
@@ -386,12 +430,27 @@ local function priority_order(priority)
 	return sort.PRIORITY_ORDER[priority or "normal"] or sort.PRIORITY_ORDER.normal
 end
 
-local function filter_matches(task, filter)
+local function filter_matches(task, filter, context)
+	context = context or {}
 	if filter.type == "done" then
-		return task_done(task) == filter.value
+		return task_done(task, context.status_config) == filter.value
 	elseif filter.type == "status" then
-		local matches = task_status_symbol(task) == filter.value
+		local expected = status.resolve_symbol(filter.value, context.status_config) or normalize_status(filter.value)
+		local matches = task_status_symbol(task) == expected
 		if filter.op == "is_not" then
+			return not matches
+		end
+		return matches
+	elseif filter.type == "status_type" then
+		local matches = status.type(task_status_symbol(task), context.status_config) == filter.value
+		if filter.op == "is_not" then
+			return not matches
+		end
+		return matches
+	elseif filter.type == "status_name_includes" then
+		local entry = status.get(task_status_symbol(task), context.status_config)
+		local matches = entry.name:lower():find(lower(filter.value), 1, true) ~= nil
+		if filter.negate then
 			return not matches
 		end
 		return matches
@@ -418,14 +477,22 @@ local function filter_matches(task, filter)
 		return ((task.id or "") ~= "") == filter.exists
 	elseif filter.type == "depends_on_exists" then
 		return (#(task.depends_on or {}) > 0) == filter.exists
+	elseif filter.type == "dependency_state" then
+		local matched
+		if filter.state == "blocked" then
+			matched = dependencies.is_blocked(task, context.tasks, context.status_config)
+		else
+			matched = dependencies.is_blocking(task, context.tasks, context.status_config)
+		end
+		return matched == filter.value
 	end
 
 	return true
 end
 
-function M.matches(task, plan)
+function M.matches(task, plan, context)
 	for _, filter in ipairs(plan.filters or {}) do
-		if not filter_matches(task, filter) then
+		if not filter_matches(task, filter, context) then
 			return false
 		end
 	end
@@ -434,8 +501,12 @@ end
 
 function M.filter_tasks(tasks, plan)
 	local filtered = {}
+	local context = {
+		tasks = tasks or {},
+		status_config = require("obsidian-tasks").config or {},
+	}
 	for _, task in ipairs(tasks or {}) do
-		if M.matches(task, plan) then
+		if M.matches(task, plan, context) then
 			table.insert(filtered, task)
 		end
 	end

@@ -293,6 +293,31 @@ function M.setup_commands()
 	end, {
 		force = true,
 	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksToggle", function()
+		require("obsidian-tasks").toggle_task_at_cursor()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksChangeStatus", function(command)
+		require("obsidian-tasks").change_task_status_at_cursor(command.args)
+	end, {
+		nargs = "+",
+		force = true,
+		complete = function()
+			return require("obsidian-tasks.status").complete_statuses()
+		end,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksPostpone", function(command)
+		require("obsidian-tasks").postpone_task_at_cursor(command.args)
+	end, {
+		nargs = "?",
+		force = true,
+	})
+
+	require("obsidian-tasks.status").setup_status_commands()
 end
 
 return M

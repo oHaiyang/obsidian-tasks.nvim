@@ -17,6 +17,14 @@ function M.setup(config)
 	config.global_filter = config.global_filter or config.globalFilter or ""
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
+	config.status_settings = config.status_settings or config.statusSettings or config.statuses
+	config.set_done_date = config.set_done_date or config.setDoneDate or false
+	config.set_cancelled_date = config.set_cancelled_date or config.setCancelledDate or false
+	config.set_created_date = config.set_created_date or config.setCreatedDate or false
+	config.recurrence_on_next_line = config.recurrence_on_next_line or config.recurrenceOnNextLine or false
+	config.remove_scheduled_date_on_recurrence = config.remove_scheduled_date_on_recurrence
+		or config.removeScheduledDateOnRecurrence
+		or false
 
 	-- Store config for other modules to access
 	M.config = config
@@ -62,6 +70,14 @@ end
 ---@return boolean success
 function M.toggle_task_at_cursor()
 	return require("obsidian-tasks.core").toggle_task_at_cursor()
+end
+
+function M.change_task_status_at_cursor(status)
+	return require("obsidian-tasks.core").change_task_status_at_cursor(status)
+end
+
+function M.postpone_task_at_cursor(expr)
+	return require("obsidian-tasks.core").postpone_task_at_cursor(expr)
 end
 
 function M.open(opts)

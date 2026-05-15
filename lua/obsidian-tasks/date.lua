@@ -67,6 +67,20 @@ function M.add_days(value, days)
 	return os.date("%Y-%m-%d", timestamp)
 end
 
+function M.add_months(value, months)
+	if not M.is_valid(value) then
+		return nil
+	end
+
+	local year, month, day = parse_ymd(value)
+	local target_month = month + months
+	year = year + math.floor((target_month - 1) / 12)
+	month = ((target_month - 1) % 12) + 1
+	day = math.min(day, days_in_month(year, month))
+
+	return string.format("%04d-%02d-%02d", year, month, day)
+end
+
 function M.parse_date_expr(value, opts)
 	opts = opts or {}
 	local expr = trim(value):lower()

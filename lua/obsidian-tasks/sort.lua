@@ -1,6 +1,7 @@
 local M = {}
 
 local date = require("obsidian-tasks.date")
+local status = require("obsidian-tasks.status")
 
 M.PRIORITY_ORDER = {
 	highest = 1,
@@ -13,7 +14,7 @@ M.PRIORITY_ORDER = {
 }
 
 local function is_done(task)
-	return task.status_symbol ~= nil and task.status_symbol ~= " "
+	return status.is_complete_symbol(task.status_symbol or task.status)
 end
 
 local function filename_without_extension(task)
@@ -31,6 +32,8 @@ local function value_for(task, field)
 		return M.PRIORITY_ORDER[task.priority or "normal"] or M.PRIORITY_ORDER.normal
 	elseif field == "status" then
 		return is_done(task) and 1 or 0
+	elseif field == "status.type" then
+		return status.type(task.status_symbol or task.status)
 	elseif field == "description" then
 		return task.description or task.text or ""
 	elseif field == "path" then

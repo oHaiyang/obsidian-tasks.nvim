@@ -63,21 +63,21 @@
 | F014 | Tags | 识别 task description 中 tag；支持较 Obsidian 更宽松的 tag 规则。 | Todo。 | P0 |
 | F015 | Block link | 支持行尾 `^block-id`，保存并写回。 | Todo。 | P1 |
 | F016 | Priority | 支持 `🔺` highest、`⏫` high、`🔼` medium、`🔽` low、`⏬` lowest、none。 | Partial：已解析并排序部分 priority。 | P0 |
-| F017 | Date fields | 支持 created `➕`、start `🛫`、scheduled `⏳`、due `📅`、cancelled `❌`、done `✅`。 | Partial：只解析 due。 | P0 |
+| F017 | Date fields | 支持 created `➕`、start `🛫`、scheduled `⏳`、due `📅`、cancelled `❌`、done `✅`。 | Done：emoji format 常用日期已解析。 | P0 |
 | F018 | Invalid date | 日期固定 `YYYY-MM-DD`；无效日期可被查询发现。 | Todo。 | P1 |
-| F019 | Happens date | `happens` 为 start/scheduled/due 中最早的有效日期。 | Todo。 | P1 |
-| F020 | Created/done/cancelled 自动日期 | 新建或状态变化时按设置自动写入日期。 | Todo。 | P1 |
-| F021 | Recurrence | 支持 `🔁 every ...`，基于 rrule 计算下一次任务。 | Todo。 | P1 |
-| F022 | Recurrence `when done` | 可选择基于原日期或完成日期计算下一次。 | Todo。 | P1 |
-| F023 | Recurrence 多日期联动 | due/scheduled/start 的相对偏移会随下一次任务一起平移。 | Todo。 | P2 |
-| F024 | Recurrence 插入位置 | 下一次任务可插入原任务上方或下方。 | Todo。 | P2 |
-| F025 | Recurrence 移除 scheduled | 设置开启时，下次循环可移除 scheduled date。 | Todo。 | P2 |
-| F026 | On Completion | 支持 `🏁 keep` 和 `🏁 delete`；完成时可删除已完成实例。 | Todo。 | P2 |
-| F027 | Dependencies | 支持 `🆔 id` 和 `⛔ dependsOn`，id 可跨 vault 被引用。 | Todo。 | P1 |
-| F028 | Blocked / blocking | 基于未完成任务的 direct dependency 判断 `is blocked` / `is blocking`。 | Todo。 | P1 |
-| F029 | Custom statuses | 每个 status 有 symbol/name/next symbol/type/availableAsCommand。 | Todo。 | P1 |
-| F030 | Unknown status | 未配置的 status 默认为 name `Unknown`、type `TODO`、next `x`。 | Partial：当前只保留 symbol。 | P1 |
-| F031 | Status types | `TODO`、`IN_PROGRESS`、`ON_HOLD`、`DONE`、`CANCELLED`、`NON_TASK` 决定完成语义。 | Todo。 | P1 |
+| F019 | Happens date | `happens` 为 start/scheduled/due 中最早的有效日期。 | Done：query/sort/group 可使用 happens。 | P1 |
+| F020 | Created/done/cancelled 自动日期 | 新建或状态变化时按设置自动写入日期。 | Partial：done/cancelled 已支持；created 支持新 recurrence。 | P1 |
+| F021 | Recurrence | 支持 `🔁 every ...`，基于 rrule 计算下一次任务。 | Partial：覆盖基础 every day/week/month/year。 | P1 |
+| F022 | Recurrence `when done` | 可选择基于原日期或完成日期计算下一次。 | Partial：基础 `when done` 已支持。 | P1 |
+| F023 | Recurrence 多日期联动 | due/scheduled/start 的相对偏移会随下一次任务一起平移。 | Partial：现按每个字段独立推进。 | P2 |
+| F024 | Recurrence 插入位置 | 下一次任务可插入原任务上方或下方。 | Done。 | P2 |
+| F025 | Recurrence 移除 scheduled | 设置开启时，下次循环可移除 scheduled date。 | Done。 | P2 |
+| F026 | On Completion | 支持 `🏁 keep` 和 `🏁 delete`；完成时可删除已完成实例。 | Partial：recurrence 完成路径支持 `delete`。 | P2 |
+| F027 | Dependencies | 支持 `🆔 id` 和 `⛔ dependsOn`，id 可跨 vault 被引用。 | Partial：已解析并用于 direct dependency 查询。 | P1 |
+| F028 | Blocked / blocking | 基于未完成任务的 direct dependency 判断 `is blocked` / `is blocking`。 | Done。 | P1 |
+| F029 | Custom statuses | 每个 status 有 symbol/name/next symbol/type/availableAsCommand。 | Done。 | P1 |
+| F030 | Unknown status | 未配置的 status 默认为 name `Unknown`、type `TODO`、next `x`。 | Done。 | P1 |
+| F031 | Status types | `TODO`、`IN_PROGRESS`、`ON_HOLD`、`DONE`、`CANCELLED`、`NON_TASK` 决定完成语义。 | Done：done/not done、toggle、dependencies 使用 status type。 | P1 |
 | F032 | Urgency | 根据 due、priority、scheduled、start 计算数值分数。 | Todo。 | P1 |
 | F033 | File properties | 暴露 path/root/folder/filename/pathWithoutExtension 等。 | Partial：当前只有 file_path。 | P0 |
 | F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Todo。 | P2 |
@@ -168,7 +168,7 @@
 | F301 | 查询结果列表 | 在 Reading/Live Preview 中渲染 tasks block。 | Partial：有独立结果 buffer。 | P0 |
 | F302 | Backlink | 每条任务显示文件名和 heading，点击跳回源行。 | Partial：`gd/gf` 根据 `[[path#Lline]]` 跳转。 | P0 |
 | F303 | Edit button | 结果里有铅笔按钮打开编辑 modal。 | Todo。 | P2 |
-| F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Todo。 | P1 |
+| F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Partial：`p` / `:ObsidianTasksPostpone` 已支持基础推迟。 | P1 |
 | F305 | Toolbar | 查询结果顶部可临时过滤 description、复制结果为 Markdown。 | Todo。 | P2 |
 | F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Todo。 | P1 |
 | F307 | Task count location | 全局设置 count 在 top 或 bottom。 | Todo。 | P3 |
@@ -189,18 +189,18 @@
 
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
-| F401 | Toggle task done | `Tasks: Toggle task done`，按 status registry 切换 next status。 | Partial：只在结果 buffer `[ ]`/`[x]` 切换。 | P0 |
-| F402 | 源文件 task toggle | 在普通 Markdown buffer 光标所在任务上切换并写回。 | Done：已支持当前行 `[ ]`/`[x]` 简单切换。 | P0 |
-| F403 | Done/cancelled date | 切换到 DONE/CANCELLED type 时自动添加日期，切出时移除。 | Todo。 | P1 |
-| F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Todo。 | P1 |
-| F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Todo。 | P1 |
+| F401 | Toggle task done | `Tasks: Toggle task done`，按 status registry 切换 next status。 | Done：Phase 4 已按 status registry 切换。 | P0 |
+| F402 | 源文件 task toggle | 在普通 Markdown buffer 光标所在任务上切换并写回。 | Done：Phase 4 已支持 status-aware toggle。 | P0 |
+| F403 | Done/cancelled date | 切换到 DONE/CANCELLED type 时自动添加日期，切出时移除。 | Done：`set_done_date` / `set_cancelled_date`。 | P1 |
+| F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 已支持，规则 parser 待补全。 | P1 |
+| F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Done：`ObsidianTasksChangeStatus` 和 `ObsidianTasksStatus*`。 | P1 |
 | F406 | Status context menu | 右键 checkbox 可选择任意 status。 | Obsidian-only；nvim 可做 picker。 | P2 |
 | F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Todo；nvim 可做 float form。 | P1 |
 | F408 | Modal field visibility | 可隐藏不用字段。 | Todo。 | P3 |
 | F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Todo。 | P1 |
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Obsidian-only；nvim 可做 calendar/picker。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
-| F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Todo。 | P1 |
+| F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
 | F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Todo。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Todo。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Todo。 | P3 |
@@ -215,16 +215,16 @@
 | F502 | `removeGlobalFilter` | 从描述和 tags 中隐藏/移除 global filter。 | Todo。 | P1 |
 | F503 | `globalQuery` | 注入每个 tasks query 前面。 | Todo。 | P1 |
 | F504 | `taskFormat` | `tasksPluginEmoji` 或 `dataview`。 | Todo。 | P2 |
-| F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Todo。 | P1 |
-| F506 | `setDoneDate` | 完成任务时添加 done date。 | Todo。 | P1 |
-| F507 | `setCancelledDate` | 取消任务时添加 cancelled date。 | Todo。 | P1 |
+| F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Partial：new recurrence 可写 created date。 | P1 |
+| F506 | `setDoneDate` | 完成任务时添加 done date。 | Done。 | P1 |
+| F507 | `setCancelledDate` | 取消任务时添加 cancelled date。 | Done。 | P1 |
 | F508 | `autoSuggestInEditor` | 是否启用 auto-suggest。 | Todo。 | P2 |
 | F509 | auto-suggest min/max | 控制建议触发长度和最多显示项。 | Todo。 | P2 |
 | F510 | `useFilenameAsScheduledDate` | 从文件名推导 scheduled date。 | Todo。 | P2 |
 | F511 | filename date format/folders | 自定义文件名日期格式和生效文件夹。 | Todo。 | P2 |
-| F512 | recurrence settings | next recurrence 位置、是否移除 scheduled。 | Todo。 | P2 |
+| F512 | recurrence settings | next recurrence 位置、是否移除 scheduled。 | Partial：已支持 `recurrence_on_next_line` 和 `remove_scheduled_date_on_recurrence`。 | P2 |
 | F513 | `searchResults.taskCountLocation` | count 显示 top/bottom。 | Todo。 | P3 |
-| F514 | `statusSettings` | 自定义 status registry。 | Todo。 | P1 |
+| F514 | `statusSettings` | 自定义 status registry。 | Done：支持 symbol/name/type/next_symbol。 | P1 |
 | F515 | edit modal field visibility | 控制 modal 中显示哪些字段。 | Todo。 | P3 |
 | F516 | debug/logging/options | 控制日志、调试行为、部分 feature flag。 | Todo。 | P3 |
 | F517 | `queries` | 在 Neovim config 中定义 named queries。 | Done：Phase 2 已支持。 | P0 |
@@ -294,14 +294,16 @@
 
 ### Phase 4: Task Semantics
 
+状态：已实现第一版，详见 `PHASE_4.md` 和 `PHASE_4_TEST.md`。
+
 目标是补上会改变任务语义和源文件写回行为的能力。
 
-建议范围：
+核心需求：
 
 1. Status registry：custom status、status type、next status。
 2. Done/cancelled date 自动写回。
 3. Recurring task 完成后生成下一次任务。
-4. Dependencies：blocked/blocking、dependency picker。
+4. Dependencies：`is blocked` / `is blocking` query。
 5. Postpone action。
 
 ### Phase 5: Editing and Advanced Query
