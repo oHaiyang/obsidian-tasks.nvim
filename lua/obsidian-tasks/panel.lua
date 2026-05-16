@@ -343,12 +343,46 @@ function M.setup_commands()
 		force = true,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksAddDependency", function()
+		require("obsidian-tasks").add_dependency_at_cursor()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksPickDate", function(command)
+		require("obsidian-tasks").pick_date_at_cursor({
+			field = command.args ~= "" and command.args or "due",
+		})
+	end, {
+		nargs = "?",
+		force = true,
+		complete = function()
+			return { "due", "scheduled", "start", "created", "done", "cancelled" }
+		end,
+	})
+
 	vim.keymap.set({ "i", "n" }, "<Plug>(ObsidianTasksComplete)", function()
 		require("obsidian-tasks").complete_at_cursor()
 	end, {
 		noremap = true,
 		silent = true,
 		desc = "Complete Obsidian task field",
+	})
+
+	vim.keymap.set("n", "<Plug>(ObsidianTasksAddDependency)", function()
+		require("obsidian-tasks").add_dependency_at_cursor()
+	end, {
+		noremap = true,
+		silent = true,
+		desc = "Add Obsidian task dependency",
+	})
+
+	vim.keymap.set("n", "<Plug>(ObsidianTasksPickDate)", function()
+		require("obsidian-tasks").pick_date_at_cursor()
+	end, {
+		noremap = true,
+		silent = true,
+		desc = "Pick Obsidian task date",
 	})
 
 	require("obsidian-tasks.status").setup_status_commands()

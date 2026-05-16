@@ -2,6 +2,8 @@ local M = {}
 
 local completion = require("obsidian-tasks.completion")
 local date = require("obsidian-tasks.date")
+local date_picker = require("obsidian-tasks.date_picker")
+local dependency_editor = require("obsidian-tasks.dependency_editor")
 local parser = require("obsidian-tasks.parser")
 local status = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
@@ -163,7 +165,7 @@ local function form_lines(fields, mode)
 	local lines = {
 		"# Obsidian Tasks " .. (mode == "create" and "Create Task" or "Edit Task"),
 		"# Edit values after ':' and save with <C-S> or :write. Date fields accept today/tomorrow/+N/2 weeks/6 oct.",
-		"# Shortcuts: gs pick status, gd pick date, <C-Space>/<C-X><C-U> suggest, q close.",
+		"# Shortcuts: gs pick status, gd pick date, gD pick dependency, <C-Space>/<C-X><C-U> suggest, q close.",
 		"",
 	}
 	for _, key in ipairs(FIELD_ORDER) do
@@ -289,29 +291,52 @@ function M.pick_date(buf)
 	end
 
 	local state = M.form_state[buf] or {}
-	local choices = {
-		{ label = "Clear", value = "" },
-		{ label = "Today", expr = "today" },
-		{ label = "Tomorrow", expr = "tomorrow" },
-		{ label = "In 1 week", expr = "1 week" },
-		{ label = "In 2 weeks", expr = "2 weeks" },
-		{ label = "In 1 month", expr = "1 month" },
-	}
-	vim.ui.select(choices, {
+	date_picker.pick({
 		prompt = field .. " date",
-		format_item = function(item)
-			return item.label
-		end,
-	}, function(item)
-		if not item then
-			return
-		end
-		local value = item.value
-		if value == nil then
-			value = date.parse_date_expr(item.expr, date_opts(state)) or item.expr
-		end
+		state = state,
+	}, function(value)
 		set_form_field(buf, field, value)
 	end)
+end
+
+function M.pick_dependency(buf, target_task)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local state = M.form_state[buf] or {}
+	local function add_dependency(task)
+		if not task then
+			return false
+		end
+		local id, err = dependency_editor.ensure_task_id(task, {
+			today = state.today or get_config().today,
+			vault_path = state.vault_path or get_config().vault_path,
+		})
+		if not id then
+			vim.notify(err or "Failed to create dependency id", vim.log.levels.ERROR)
+			return false
+		end
+		local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+		local current = ""
+		for _, line in ipairs(lines) do
+			if line:match("^depends_on:") then
+				current = line:match("^depends_on:%s*(.*)$") or ""
+				break
+			end
+		end
+		return set_form_field(buf, "depends_on", dependency_editor.add_id_to_csv(current, id))
+	end
+
+	if target_task then
+		return add_dependency(target_task)
+	end
+
+	dependency_editor.select_dependency({
+		vault_path = state.vault_path or get_config().vault_path,
+		exclude = {
+			file_path = state.file_path,
+			line_number = state.line_number,
+		},
+	}, add_dependency)
+	return true
 end
 
 local function append_part(parts, value)
@@ -449,6 +474,9 @@ local function open_form(fields, state)
 	vim.keymap.set("n", "gd", function()
 		M.pick_date(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Pick date" })
+	vim.keymap.set("n", "gD", function()
+		M.pick_dependency(buf)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Pick task dependency" })
 	vim.keymap.set("i", "<c-space>", function()
 		M.trigger_complete(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Suggest task field value" })

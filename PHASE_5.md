@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`、`PHASE_5_8_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`、`scripts/smoke_phase5_8.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`、`PHASE_5_8_TEST.md`、`PHASE_5_9_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`、`scripts/smoke_phase5_8.sh`、`scripts/smoke_phase5_9.sh`。
 
 已覆盖：
 
@@ -46,12 +46,13 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - Phase 5.6 已支持 form buffer auto-suggest MVP。
   - Phase 5.7 已抽出 completion core，并支持普通 Markdown task 行手动补全。
   - Phase 5.8 已提供可选 `nvim-cmp` source。
+  - Phase 5.9 已提供 dependency editor 和增强 date picker。
 
 仍留到后续打磨：
 
 - Query File Defaults 的属性写入命令。
 - Tree/toolbar/urgency 等更完整 layout。
-- 更完整的 dependency editor 和 calendar picker。
+- Calendar-style date picker。
 - Dataview inline field 格式读写。
 - Frontmatter properties 和 links。
 
@@ -304,6 +305,7 @@ Form 快捷键：
 
 - `gs`：选择 status。
 - `gd`：在日期字段上选择常用日期。
+- `gD`：选择依赖任务并写入 `depends_on`。
 - `<C-Space>` / `<C-X><C-U>`：在支持字段触发补全建议。
 
 ### Form Auto-Suggest
@@ -381,6 +383,34 @@ nmap <leader>tc <Plug>(ObsidianTasksComplete)
 
 普通 Markdown buffer 不自动弹出补全，避免和 `nvim-cmp`、LSP 等用户已有补全系统冲突。
 
+### Dependency Editor
+
+Phase 5.9 支持从 vault tasks 中选择依赖：
+
+```vim
+:ObsidianTasksAddDependency
+```
+
+如果被选任务没有 `🆔 id`，会自动生成并写回被选任务，然后把该 id 添加到当前任务的 `⛔ dependsOn`。
+
+Form buffer 中可以按：
+
+```vim
+gD
+```
+
+### Better Date Picker
+
+Phase 5.9 扩展了 form 中的 `gd`，支持 Clear、Today、Tomorrow、Yesterday、Next week、Next month 和 Custom input。
+
+普通 Markdown task 行可以执行：
+
+```vim
+:ObsidianTasksPickDate due
+:ObsidianTasksPickDate scheduled
+:ObsidianTasksPickDate start
+```
+
 ## Phase 5 验收
 
 - Regex filters 可以匹配 description/tag/path/id/recurrence/status 等字段。
@@ -396,4 +426,6 @@ nmap <leader>tc <Plug>(ObsidianTasksComplete)
 - Form buffer 可以对常用字段提供 auto-suggest。
 - 普通 Markdown task 行可以手动触发 task metadata completion。
 - 可选 `nvim-cmp` source 可以复用同一套补全核心。
+- 普通 Markdown task 行和 form buffer 可以选择依赖任务。
+- Form buffer 和普通 Markdown task 行可以使用增强 date picker。
 - Phase 4 smoke 无回归。

@@ -114,6 +114,14 @@ function M.complete_at_cursor(opts)
 	return require("obsidian-tasks.completion").trigger_markdown_complete(opts)
 end
 
+function M.add_dependency_at_cursor(opts)
+	return require("obsidian-tasks.dependency_editor").add_dependency_at_cursor(opts)
+end
+
+function M.pick_date_at_cursor(opts)
+	return require("obsidian-tasks.date_picker").pick_at_cursor(opts)
+end
+
 function M.setup_cmp(opts)
 	return require("obsidian-tasks.completion.cmp").register(opts)
 end

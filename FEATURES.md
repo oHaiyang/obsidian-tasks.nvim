@@ -198,11 +198,11 @@
 | F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP；Phase 5.5 补日期解析和轻量 picker；Phase 5.6 补 auto-suggest MVP；Phase 5.7 抽 completion core。 | P1 |
 | F408 | Modal field visibility | 可隐藏不用字段。 | Todo。 | P3 |
 | F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Done：Phase 5.5 支持常用自然日期并正规化保存。 | P1 |
-| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.5 提供 form 内 `gd` 常用日期 picker；calendar 待补。 | P2 |
+| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；calendar-style UI 待补。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
 | F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；完整任务搜索待补。 | P1 |
-| F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Todo。 | P2 |
+| F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Todo。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
 | F417 | Refresh result view | 重新运行上一次查询。 | Done：已有 `<c-r>` 雏形。 | P0 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，Phase 5.1/5.2/5.3/5.4/5.5/5.6/5.7/5.8 已继续补 Boolean、placeholder、query composition、layout directives、edit form ergonomics、auto-suggest MVP、Markdown task line completion 和可选 `nvim-cmp` source，详见 `PHASE_5.md`。
+状态：已实现第一版，Phase 5.1/5.2/5.3/5.4/5.5/5.6/5.7/5.8/5.9 已继续补 Boolean、placeholder、query composition、layout directives、edit form ergonomics、auto-suggest MVP、Markdown task line completion、可选 `nvim-cmp` source、dependency editor 和 better date picker，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -324,11 +324,12 @@
 8. Edit form auto-suggest MVP。
 9. Completion core 和普通 Markdown task 行手动补全。
 10. 可选 `nvim-cmp` source。
+11. Dependency editor 和 better date picker。
 
 后续继续补：
 
 1. 更完整 completion adapter 和任务搜索建议。
-2. Dependency editor 和更完整 date picker。
+2. Calendar-style date picker。
 3. XOR / bracket / quote Boolean delimiters。
 4. Query File Defaults 属性写入命令。
 5. Dataview task format。
