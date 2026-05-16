@@ -100,6 +100,10 @@ function M.create_task(opts)
 	return require("obsidian-tasks.edit").create_task(opts)
 end
 
+function M.complete_at_cursor(opts)
+	return require("obsidian-tasks.completion").trigger_markdown_complete(opts)
+end
+
 function M.open(opts)
 	return require("obsidian-tasks.panel").open(opts)
 end

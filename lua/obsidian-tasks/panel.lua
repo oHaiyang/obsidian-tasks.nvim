@@ -337,6 +337,20 @@ function M.setup_commands()
 		complete = "file",
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksComplete", function()
+		require("obsidian-tasks").complete_at_cursor()
+	end, {
+		force = true,
+	})
+
+	vim.keymap.set({ "i", "n" }, "<Plug>(ObsidianTasksComplete)", function()
+		require("obsidian-tasks").complete_at_cursor()
+	end, {
+		noremap = true,
+		silent = true,
+		desc = "Complete Obsidian task field",
+	})
+
 	require("obsidian-tasks.status").setup_status_commands()
 end
 

@@ -1,5 +1,6 @@
 local M = {}
 
+local completion = require("obsidian-tasks.completion")
 local date = require("obsidian-tasks.date")
 local parser = require("obsidian-tasks.parser")
 local status = require("obsidian-tasks.status")
@@ -57,77 +58,12 @@ local DATE_FIELDS = {
 	"cancelled",
 }
 
-local PRIORITY_SUGGESTIONS = {
-	{ word = "highest", abbr = "highest 🔺", menu = "priority" },
-	{ word = "high", abbr = "high ⏫", menu = "priority" },
-	{ word = "medium", abbr = "medium 🔼", menu = "priority" },
-	{ word = "none", abbr = "none", menu = "priority" },
-	{ word = "low", abbr = "low 🔽", menu = "priority" },
-	{ word = "lowest", abbr = "lowest ⏬", menu = "priority" },
-}
-
-local DATE_SUGGESTIONS = {
-	{ word = "today", menu = "date" },
-	{ word = "tomorrow", menu = "date" },
-	{ word = "yesterday", menu = "date" },
-	{ word = "+1", abbr = "+1 tomorrow", menu = "date" },
-	{ word = "+7", abbr = "+7 one week", menu = "date" },
-	{ word = "1 week", menu = "date" },
-	{ word = "2 weeks", menu = "date" },
-	{ word = "1 month", menu = "date" },
-	{ word = "next week", menu = "date" },
-	{ word = "next month", menu = "date" },
-}
-
-local RECURRENCE_SUGGESTIONS = {
-	{ word = "every day", menu = "recurrence" },
-	{ word = "every weekday", menu = "recurrence" },
-	{ word = "every week", menu = "recurrence" },
-	{ word = "every month", menu = "recurrence" },
-	{ word = "every year", menu = "recurrence" },
-	{ word = "every week when done", menu = "recurrence" },
-	{ word = "every month when done", menu = "recurrence" },
-}
-
-local ON_COMPLETION_SUGGESTIONS = {
-	{ word = "keep", menu = "on completion" },
-	{ word = "delete", menu = "on completion" },
-}
-
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
 end
 
 local function get_config()
 	return require("obsidian-tasks").config or {}
-end
-
-local function config_bool(config, snake, camel, default)
-	config = config or {}
-	if config[snake] ~= nil then
-		return config[snake] ~= false
-	end
-	if config[camel] ~= nil then
-		return config[camel] ~= false
-	end
-	return default
-end
-
-local function config_number(config, snake, camel, default)
-	config = config or {}
-	local value = config[snake]
-	if value == nil then
-		value = config[camel]
-	end
-	value = tonumber(value)
-	if not value then
-		return default
-	end
-	return value
-end
-
-local function auto_suggest_enabled()
-	return config_bool(get_config(), "auto_suggest_in_editor", "autoSuggestInEditor", true)
 end
 
 local function date_opts(state)
@@ -301,172 +237,17 @@ local function ensure_completion_options(buf)
 	vim.api.nvim_set_option_value("completeopt", table.concat(values, ","), { buf = buf })
 end
 
-local function completion_context(buf)
-	buf = buf or vim.api.nvim_get_current_buf()
-	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
-	local before_cursor = line:sub(1, col)
-	local prefix, field, value = before_cursor:match("^(([%w_]+):%s*)(.*)$")
-	if not field then
-		return nil
-	end
-
-	local base = value
-	local start_col = #prefix
-	if field == "depends_on" then
-		local head, tail = value:match("^(.*,%s*)([^,]*)$")
-		if head then
-			base = tail
-			start_col = #prefix + #head
-		end
-	end
-
-	return {
+function M.suggest_field(field, base, state)
+	return completion.suggest({
+		context = "form",
 		field = field,
 		base = base,
-		line_length = #line,
-		completefunc_start_col = start_col,
-		complete_start_col = start_col + 1,
-	}
-end
-
-local function clone_item(item)
-	return {
-		word = item.word,
-		abbr = item.abbr or item.word,
-		menu = item.menu,
-		kind = item.kind,
-	}
-end
-
-local function append_items(items, source)
-	for _, item in ipairs(source or {}) do
-		table.insert(items, clone_item(item))
-	end
-end
-
-local function existing_ids(state)
-	state = state or {}
-	if state.cached_ids then
-		return state.cached_ids
-	end
-
-	local config = get_config()
-	local vault_path = state.vault_path or config.vault_path
-	local ids = {}
-	local seen = {}
-	if vault_path and vault_path ~= "" then
-		local scanner = require("obsidian-tasks.scanner")
-		for _, task in ipairs(scanner.scan_vault({
-			vault_path = vault_path,
-			global_filter = config.global_filter,
-		})) do
-			local id = trim(task.id)
-			if id ~= "" and not seen[id] then
-				table.insert(ids, id)
-				seen[id] = true
-			end
-		end
-	end
-	table.sort(ids)
-	state.cached_ids = ids
-	return ids
-end
-
-local function generated_id(state)
-	state = state or {}
-	if state.generated_id then
-		return state.generated_id
-	end
-	local stamp = (state.today or get_config().today or date.today()):gsub("%-", "")
-	state.generated_id = "task-" .. stamp
-	return state.generated_id
-end
-
-local function status_suggestions()
-	local items = {}
-	for _, entry in ipairs(status.registry(get_config())) do
-		table.insert(items, {
-			word = entry.name,
-			abbr = string.format("[%s] %s", entry.symbol, entry.name),
-			menu = entry.type,
-		})
-		if entry.symbol ~= " " then
-			table.insert(items, {
-				word = entry.symbol,
-				abbr = "[" .. entry.symbol .. "]",
-				menu = entry.name,
-			})
-		end
-	end
-	return items
-end
-
-local function id_suggestions(state)
-	local items = {
-		{ word = generated_id(state), menu = "new id" },
-	}
-	for _, id in ipairs(existing_ids(state)) do
-		table.insert(items, { word = id, menu = "existing id" })
-	end
-	return items
-end
-
-local function depends_on_suggestions(state)
-	local items = {}
-	for _, id in ipairs(existing_ids(state)) do
-		table.insert(items, { word = id, menu = "depends on" })
-	end
-	return items
-end
-
-local function field_suggestions(field, state)
-	local items = {}
-	if field == "status" then
-		append_items(items, status_suggestions())
-	elseif field == "priority" then
-		append_items(items, PRIORITY_SUGGESTIONS)
-	elseif DATE_SYMBOLS[field] then
-		append_items(items, DATE_SUGGESTIONS)
-	elseif field == "recurrence" then
-		append_items(items, RECURRENCE_SUGGESTIONS)
-	elseif field == "on_completion" then
-		append_items(items, ON_COMPLETION_SUGGESTIONS)
-	elseif field == "id" then
-		append_items(items, id_suggestions(state))
-	elseif field == "depends_on" then
-		append_items(items, depends_on_suggestions(state))
-	end
-	return items
-end
-
-local function matches_base(item, base)
-	base = trim(base):lower()
-	if base == "" then
-		return true
-	end
-	local word = tostring(item.word or ""):lower()
-	local abbr = tostring(item.abbr or ""):lower()
-	return word:find(base, 1, true) == 1 or abbr:find(base, 1, true) == 1
-end
-
-function M.suggest_field(field, base, state)
-	local items = {}
-	for _, item in ipairs(field_suggestions(field, state)) do
-		if matches_base(item, base) then
-			table.insert(items, item)
-		end
-	end
-
-	local max_items = config_number(get_config(), "auto_suggest_max_items", "autoSuggestMaxItems", 20)
-	while #items > max_items do
-		table.remove(items)
-	end
-	return items
+		state = state,
+	})
 end
 
 function M.complete(findstart, base)
-	local ctx = completion_context(vim.api.nvim_get_current_buf())
+	local ctx = completion.form_context(vim.api.nvim_get_current_buf())
 	if tonumber(findstart) == 1 then
 		return ctx and ctx.completefunc_start_col or -2
 	end
@@ -478,19 +259,10 @@ end
 
 function M.trigger_complete(buf)
 	buf = buf or vim.api.nvim_get_current_buf()
-	if not auto_suggest_enabled() then
+	if not completion.auto_suggest_enabled() then
 		return false
 	end
-	local ctx = completion_context(buf)
-	if not ctx then
-		return false
-	end
-	local items = M.suggest_field(ctx.field, ctx.base, M.form_state[buf] or {})
-	if #items == 0 then
-		return false
-	end
-	pcall(vim.fn.complete, ctx.complete_start_col, items)
-	return true
+	return completion.trigger_form_complete(buf, M.form_state[buf] or {})
 end
 
 function M.pick_status(buf)
@@ -630,10 +402,10 @@ local function open_form(fields, state)
 		group = group,
 		buffer = buf,
 		callback = function()
-			if not auto_suggest_enabled() or vim.fn.pumvisible() == 1 then
+			if not completion.auto_suggest_enabled() or vim.fn.pumvisible() == 1 then
 				return
 			end
-			local ctx = completion_context(buf)
+			local ctx = completion.form_context(buf)
 			if not ctx then
 				return
 			end
@@ -643,7 +415,8 @@ local function open_form(fields, state)
 				return
 			end
 			form_state.last_completion_line_length = ctx.line_length
-			local min_chars = config_number(get_config(), "auto_suggest_min_chars", "autoSuggestMinChars", 0)
+			local min_chars =
+				completion.config_number(get_config(), "auto_suggest_min_chars", "autoSuggestMinChars", 0)
 			if #trim(ctx.base) < min_chars then
 				return
 			end
@@ -658,7 +431,7 @@ local function open_form(fields, state)
 		group = group,
 		buffer = buf,
 		callback = function()
-			local ctx = completion_context(buf)
+			local ctx = completion.form_context(buf)
 			if ctx then
 				local form_state = M.form_state[buf] or {}
 				form_state.last_completion_line_length = ctx.line_length

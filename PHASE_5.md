@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`。
 
 已覆盖：
 
@@ -44,6 +44,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - Phase 5.5 已支持常用自然日期保存正规化。
   - form buffer 中 `gs` 选择 status，`gd` 在日期字段选择常用日期。
   - Phase 5.6 已支持 form buffer auto-suggest MVP。
+  - Phase 5.7 已抽出 completion core，并支持普通 Markdown task 行手动补全。
 
 仍留到后续打磨：
 
@@ -306,7 +307,7 @@ Form 快捷键：
 
 ### Form Auto-Suggest
 
-Phase 5.6 在 form buffer 里提供轻量补全源：
+Phase 5.6 在 form buffer 里提供轻量补全源；Phase 5.7 起底层由 `completion.lua` 提供：
 
 ```lua
 require("obsidian-tasks").setup({
@@ -326,6 +327,31 @@ require("obsidian-tasks").setup({
 - `depends_on`
 - `on_completion`
 
+### Markdown Task Completion
+
+Phase 5.7 支持普通 Markdown task 行手动触发补全：
+
+```vim
+:ObsidianTasksComplete
+```
+
+也提供 `<Plug>` mapping：
+
+```vim
+imap <C-Space> <Plug>(ObsidianTasksComplete)
+nmap <leader>tc <Plug>(ObsidianTasksComplete)
+```
+
+示例：
+
+```markdown
+- [ ] #task Finish draft 📅 tom
+- [ ] #task Weekly review 🔁 every w
+- [ ] #task Blocked by another task ⛔ alpha-id, b
+```
+
+普通 Markdown buffer 不自动弹出补全，避免和 `nvim-cmp`、LSP 等用户已有补全系统冲突。
+
 ## Phase 5 验收
 
 - Regex filters 可以匹配 description/tag/path/id/recurrence/status 等字段。
@@ -339,4 +365,5 @@ require("obsidian-tasks").setup({
 - `:ObsidianTasksCreate` 可以创建新任务。
 - 表单日期字段可以解析常用自然日期并阻止非法日期保存。
 - Form buffer 可以对常用字段提供 auto-suggest。
+- 普通 Markdown task 行可以手动触发 task metadata completion。
 - Phase 4 smoke 无回归。
