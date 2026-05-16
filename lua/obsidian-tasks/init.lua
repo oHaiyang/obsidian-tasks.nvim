@@ -37,10 +37,20 @@ function M.setup(config)
 	end
 	config.auto_suggest_min_chars = config.auto_suggest_min_chars or config.autoSuggestMinChars or 0
 	config.auto_suggest_max_items = config.auto_suggest_max_items or config.autoSuggestMaxItems or 20
+	if type(config.completion) ~= "table" then
+		config.completion = {}
+	end
 
 	-- Store config for other modules to access
 	M.config = config
 	require("obsidian-tasks.panel").setup_commands()
+	local cmp_config = config.completion.cmp or config.completion.nvim_cmp or config.completion.nvimCmp
+	if cmp_config then
+		local ok_cmp_source, cmp_source = pcall(require, "obsidian-tasks.completion.cmp")
+		if ok_cmp_source then
+			pcall(cmp_source.register, type(cmp_config) == "table" and cmp_config or {})
+		end
+	end
 
 	-- Register tree-sitter parser when available. Command registration should
 	-- not depend on tree-sitter support in the user's Neovim build.
@@ -102,6 +112,10 @@ end
 
 function M.complete_at_cursor(opts)
 	return require("obsidian-tasks.completion").trigger_markdown_complete(opts)
+end
+
+function M.setup_cmp(opts)
+	return require("obsidian-tasks.completion.cmp").register(opts)
 end
 
 function M.open(opts)

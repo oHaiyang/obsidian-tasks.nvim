@@ -201,7 +201,7 @@
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.5 提供 form 内 `gd` 常用日期 picker；calendar 待补。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
-| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.7 提供 completion core、form 补全和普通 Markdown task 行手动补全；`nvim-cmp` source 和完整任务搜索待补。 | P1 |
+| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；完整任务搜索待补。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Todo。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Todo。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
@@ -218,7 +218,7 @@
 | F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Partial：new recurrence 可写 created date。 | P1 |
 | F506 | `setDoneDate` | 完成任务时添加 done date。 | Done。 | P1 |
 | F507 | `setCancelledDate` | 取消任务时添加 cancelled date。 | Done。 | P1 |
-| F508 | `autoSuggestInEditor` | 是否启用 auto-suggest。 | Partial：Phase 5.6 支持 form buffer 内启用/关闭。 | P2 |
+| F508 | `autoSuggestInEditor` | 是否启用 auto-suggest。 | Partial：Phase 5.6 支持 form buffer 内启用/关闭；Phase 5.8 支持可选 cmp source 注册。 | P2 |
 | F509 | auto-suggest min/max | 控制建议触发长度和最多显示项。 | Partial：Phase 5.6 支持 `auto_suggest_min_chars` / `auto_suggest_max_items`。 | P2 |
 | F510 | `useFilenameAsScheduledDate` | 从文件名推导 scheduled date。 | Todo。 | P2 |
 | F511 | filename date format/folders | 自定义文件名日期格式和生效文件夹。 | Todo。 | P2 |
@@ -308,7 +308,7 @@
 
 ### Phase 5: Editing and Advanced Query
 
-状态：已实现第一版，Phase 5.1/5.2/5.3/5.4/5.5/5.6/5.7 已继续补 Boolean、placeholder、query composition、layout directives、edit form ergonomics、auto-suggest MVP 和 Markdown task line completion，详见 `PHASE_5.md`。
+状态：已实现第一版，Phase 5.1/5.2/5.3/5.4/5.5/5.6/5.7/5.8 已继续补 Boolean、placeholder、query composition、layout directives、edit form ergonomics、auto-suggest MVP、Markdown task line completion 和可选 `nvim-cmp` source，详见 `PHASE_5.md`。
 
 目标是接近 Obsidian Tasks 的高级使用体验。
 
@@ -323,10 +323,11 @@
 7. Edit form natural dates and lightweight pickers。
 8. Edit form auto-suggest MVP。
 9. Completion core 和普通 Markdown task 行手动补全。
+10. 可选 `nvim-cmp` source。
 
 后续继续补：
 
-1. `nvim-cmp` source 和更完整 completion adapter。
+1. 更完整 completion adapter 和任务搜索建议。
 2. Dependency editor 和更完整 date picker。
 3. XOR / bracket / quote Boolean delimiters。
 4. Query File Defaults 属性写入命令。

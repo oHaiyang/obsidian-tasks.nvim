@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`、`PHASE_5_8_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`、`scripts/smoke_phase5_8.sh`。
 
 已覆盖：
 
@@ -45,6 +45,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - form buffer 中 `gs` 选择 status，`gd` 在日期字段选择常用日期。
   - Phase 5.6 已支持 form buffer auto-suggest MVP。
   - Phase 5.7 已抽出 completion core，并支持普通 Markdown task 行手动补全。
+  - Phase 5.8 已提供可选 `nvim-cmp` source。
 
 仍留到后续打磨：
 
@@ -327,6 +328,34 @@ require("obsidian-tasks").setup({
 - `depends_on`
 - `on_completion`
 
+### nvim-cmp Source
+
+Phase 5.8 提供可选 `nvim-cmp` source：
+
+```lua
+require("obsidian-tasks").setup({
+  vault_path = "/path/to/vault",
+  completion = {
+    cmp = true,
+  },
+})
+
+local cmp = require("cmp")
+cmp.setup.filetype({ "markdown", "obstasks-form" }, {
+  sources = cmp.config.sources({
+    { name = "obsidian-tasks" },
+    { name = "buffer" },
+    { name = "path" },
+  }),
+})
+```
+
+也可以手动注册：
+
+```lua
+require("obsidian-tasks").setup_cmp()
+```
+
 ### Markdown Task Completion
 
 Phase 5.7 支持普通 Markdown task 行手动触发补全：
@@ -366,4 +395,5 @@ nmap <leader>tc <Plug>(ObsidianTasksComplete)
 - 表单日期字段可以解析常用自然日期并阻止非法日期保存。
 - Form buffer 可以对常用字段提供 auto-suggest。
 - 普通 Markdown task 行可以手动触发 task metadata completion。
+- 可选 `nvim-cmp` source 可以复用同一套补全核心。
 - Phase 4 smoke 无回归。

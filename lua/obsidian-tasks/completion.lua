@@ -296,10 +296,23 @@ function M.suggest(opts)
 	return items
 end
 
-function M.form_context(buf)
-	buf = buf or vim.api.nvim_get_current_buf()
-	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
-	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
+function M.form_context(opts)
+	opts = opts or {}
+	local buf
+	if type(opts) == "table" then
+		buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
+	else
+		buf = opts or vim.api.nvim_get_current_buf()
+		opts = {}
+	end
+	local row, col
+	if opts.row and opts.cursor_col then
+		row = opts.row
+		col = opts.cursor_col
+	else
+		row, col = unpack(vim.api.nvim_win_get_cursor(0))
+	end
+	local line = opts.line or (vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or "")
 	local before_cursor = line:sub(1, col)
 	local prefix, field, value = before_cursor:match("^(([%w_]+):%s*)(.*)$")
 	if not field then
