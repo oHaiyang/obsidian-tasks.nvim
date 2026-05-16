@@ -122,6 +122,11 @@ function M.pick_date_at_cursor(opts)
 	return require("obsidian-tasks.date_picker").pick_at_cursor(opts)
 end
 
+function M.add_query_file_defaults_properties(opts)
+	opts = opts or {}
+	return require("obsidian-tasks.query_file_defaults").add_all_properties_to_buffer(opts.buf or opts.buffer or 0)
+end
+
 function M.setup_cmp(opts)
 	return require("obsidian-tasks.completion.cmp").register(opts)
 end

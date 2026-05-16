@@ -93,6 +93,54 @@ local function is_top_level_property(line)
 	return line:match("^[%w_%-]+:%s*") ~= nil
 end
 
+local function frontmatter_range(lines)
+	if trim(lines[1]) ~= "---" then
+		return nil, nil
+	end
+
+	for index = 2, #lines do
+		local trimmed = trim(lines[index])
+		if trimmed == "---" or trimmed == "..." then
+			return 1, index
+		end
+	end
+
+	return nil, nil
+end
+
+local function copy_lines(lines)
+	local copied = {}
+	for _, line in ipairs(lines or {}) do
+		table.insert(copied, line)
+	end
+	return copied
+end
+
+local function is_empty_buffer_lines(lines)
+	return #lines == 0 or (#lines == 1 and lines[1] == "")
+end
+
+local function frontmatter_keys(lines, start_index, end_index)
+	local keys = {}
+	for index = start_index + 1, end_index - 1 do
+		local key = lines[index]:match("^([%w_%-]+):%s*")
+		if key then
+			keys[key] = true
+		end
+	end
+	return keys
+end
+
+local function missing_property_lines(existing_keys)
+	local missing = {}
+	for _, name in ipairs(M.all_property_names_sorted()) do
+		if not existing_keys[name] then
+			table.insert(missing, name .. ":")
+		end
+	end
+	return missing
+end
+
 local function block_value(lines, start_index)
 	local collected = {}
 	local index = start_index + 1
@@ -194,6 +242,67 @@ function M.all_property_names()
 		table.insert(names, prop.name)
 	end
 	return names
+end
+
+function M.all_property_names_sorted()
+	local names = M.all_property_names()
+	table.sort(names)
+	return names
+end
+
+function M.add_all_properties_to_lines(lines)
+	lines = copy_lines(lines)
+
+	local start_index, end_index = frontmatter_range(lines)
+	if start_index then
+		local missing = missing_property_lines(frontmatter_keys(lines, start_index, end_index))
+		if #missing == 0 then
+			return lines, 0
+		end
+
+		local updated = {}
+		for index = 1, end_index - 1 do
+			table.insert(updated, lines[index])
+		end
+		for _, line in ipairs(missing) do
+			table.insert(updated, line)
+		end
+		for index = end_index, #lines do
+			table.insert(updated, lines[index])
+		end
+		return updated, #missing
+	end
+
+	local missing = missing_property_lines({})
+	local updated = { "---" }
+	for _, line in ipairs(missing) do
+		table.insert(updated, line)
+	end
+	table.insert(updated, "---")
+
+	if not is_empty_buffer_lines(lines) then
+		table.insert(updated, "")
+		for _, line in ipairs(lines) do
+			table.insert(updated, line)
+		end
+	end
+
+	return updated, #missing
+end
+
+function M.add_all_properties_to_buffer(buf)
+	buf = buf or 0
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	local updated, added_count = M.add_all_properties_to_lines(lines)
+
+	if added_count == 0 then
+		vim.notify("All supported properties are already present.", vim.log.levels.INFO)
+		return 0
+	end
+
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, updated)
+	vim.notify("Properties updated successfully.", vim.log.levels.INFO)
+	return added_count
 end
 
 return M

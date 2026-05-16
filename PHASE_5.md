@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`、`PHASE_5_8_TEST.md`、`PHASE_5_9_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`、`scripts/smoke_phase5_8.sh`、`scripts/smoke_phase5_9.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`、`PHASE_5_7_TEST.md`、`PHASE_5_8_TEST.md`、`PHASE_5_9_TEST.md`、`PHASE_5_10_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`、`scripts/smoke_phase5_7.sh`、`scripts/smoke_phase5_8.sh`、`scripts/smoke_phase5_9.sh`、`scripts/smoke_phase5_10.sh`。
 
 已覆盖：
 
@@ -29,6 +29,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - Phase 5.3 已支持 `global_query` / `globalQuery`。
   - 已支持 `ignore global query`。
   - 已支持 Query File Defaults 的 `TQ_*` frontmatter 注入。
+  - Phase 5.10 已支持把全部 Query File Defaults 属性写入当前 note frontmatter。
 - Layout directives：
   - Phase 5.4 已支持 `show/hide task count`。
   - 已支持 `show/hide backlink`，隐藏后仍能 toggle/save/jump/edit。
@@ -47,10 +48,10 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - Phase 5.7 已抽出 completion core，并支持普通 Markdown task 行手动补全。
   - Phase 5.8 已提供可选 `nvim-cmp` source。
   - Phase 5.9 已提供 dependency editor 和增强 date picker。
+  - Phase 5.10 已提供 `:ObsidianTasksAddQueryFileDefaults`。
 
 仍留到后续打磨：
 
-- Query File Defaults 的属性写入命令。
 - Tree/toolbar/urgency 等更完整 layout。
 - Calendar-style date picker。
 - Dataview inline field 格式读写。
@@ -411,6 +412,22 @@ Phase 5.9 扩展了 form 中的 `gd`，支持 Clear、Today、Tomorrow、Yesterd
 :ObsidianTasksPickDate start
 ```
 
+### Query File Defaults Properties
+
+Phase 5.10 支持把原版 Query File Defaults 的全部 `TQ_*` 属性补到当前 note frontmatter：
+
+```vim
+:ObsidianTasksAddQueryFileDefaults
+```
+
+也提供完整名称别名：
+
+```vim
+:ObsidianTasksAddQueryFileDefaultsProperties
+```
+
+该命令只补缺失属性，保留已有值和已有多行 `TQ_extra_instructions` 内容。重复执行不会生成重复属性。
+
 ## Phase 5 验收
 
 - Regex filters 可以匹配 description/tag/path/id/recurrence/status 等字段。
@@ -428,4 +445,5 @@ Phase 5.9 扩展了 form 中的 `gd`，支持 Clear、Today、Tomorrow、Yesterd
 - 可选 `nvim-cmp` source 可以复用同一套补全核心。
 - 普通 Markdown task 行和 form buffer 可以选择依赖任务。
 - Form buffer 和普通 Markdown task 行可以使用增强 date picker。
+- 当前 note 可以通过命令补齐全部 Query File Defaults `TQ_*` frontmatter 属性。
 - Phase 4 smoke 无回归。

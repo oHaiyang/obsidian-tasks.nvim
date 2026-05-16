@@ -361,6 +361,18 @@ function M.setup_commands()
 		end,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksAddQueryFileDefaults", function()
+		require("obsidian-tasks").add_query_file_defaults_properties()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksAddQueryFileDefaultsProperties", function()
+		require("obsidian-tasks").add_query_file_defaults_properties()
+	end, {
+		force = true,
+	})
+
 	vim.keymap.set({ "i", "n" }, "<Plug>(ObsidianTasksComplete)", function()
 		require("obsidian-tasks").complete_at_cursor()
 	end, {
