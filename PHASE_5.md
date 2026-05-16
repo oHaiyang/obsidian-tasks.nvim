@@ -6,7 +6,7 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
 
 ## 当前实现状态
 
-状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`。
+状态：已实现第一版，手动测试步骤见 `PHASE_5_TEST.md`、`PHASE_5_1_TEST.md`、`PHASE_5_2_TEST.md`、`PHASE_5_3_TEST.md`、`PHASE_5_4_TEST.md`、`PHASE_5_5_TEST.md`、`PHASE_5_6_TEST.md`，headless smoke 见 `scripts/smoke_phase5.sh`、`scripts/smoke_phase5_1.sh`、`scripts/smoke_phase5_2.sh`、`scripts/smoke_phase5_3.sh`、`scripts/smoke_phase5_4.sh`、`scripts/smoke_phase5_5.sh`、`scripts/smoke_phase5_6.sh`。
 
 已覆盖：
 
@@ -43,12 +43,13 @@ Phase 5 仍保持一个原则：先做原 Obsidian Tasks 中确实存在的能�
   - 结果 buffer 中 `e` 编辑当前任务。
   - Phase 5.5 已支持常用自然日期保存正规化。
   - form buffer 中 `gs` 选择 status，`gd` 在日期字段选择常用日期。
+  - Phase 5.6 已支持 form buffer auto-suggest MVP。
 
 仍留到后续打磨：
 
-- Continuous auto-suggest popup。
 - Query File Defaults 的属性写入命令。
 - Tree/toolbar/urgency 等更完整 layout。
+- 更完整的 dependency editor 和 calendar picker。
 - Dataview inline field 格式读写。
 - Frontmatter properties 和 links。
 
@@ -301,6 +302,29 @@ Form 快捷键：
 
 - `gs`：选择 status。
 - `gd`：在日期字段上选择常用日期。
+- `<C-Space>` / `<C-X><C-U>`：在支持字段触发补全建议。
+
+### Form Auto-Suggest
+
+Phase 5.6 在 form buffer 里提供轻量补全源：
+
+```lua
+require("obsidian-tasks").setup({
+  auto_suggest_in_editor = true,
+  auto_suggest_min_chars = 0,
+  auto_suggest_max_items = 20,
+})
+```
+
+支持字段：
+
+- `status`
+- `priority`
+- date fields
+- `recurrence`
+- `id`
+- `depends_on`
+- `on_completion`
 
 ## Phase 5 验收
 
@@ -314,4 +338,5 @@ Form 快捷键：
 - `:ObsidianTasksEdit` 可以编辑当前任务并写回源行。
 - `:ObsidianTasksCreate` 可以创建新任务。
 - 表单日期字段可以解析常用自然日期并阻止非法日期保存。
+- Form buffer 可以对常用字段提供 auto-suggest。
 - Phase 4 smoke 无回归。

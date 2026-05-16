@@ -71,13 +71,17 @@ local function configured_statuses(config)
 	return config.status_settings or config.statusSettings or config.statuses
 end
 
+local function is_list(value)
+	return (vim.islist or vim.tbl_islist)(value)
+end
+
 function M.registry(config)
 	local entries = {}
 	local by_symbol = {}
 	local source = configured_statuses(config)
 
 	if type(source) == "table" then
-		if vim.tbl_islist(source) then
+		if is_list(source) then
 			for _, value in ipairs(source) do
 				local normalized = normalize_entry(value)
 				if normalized and not by_symbol[normalized.symbol] then

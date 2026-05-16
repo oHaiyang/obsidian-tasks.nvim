@@ -29,6 +29,14 @@ function M.setup(config)
 	config.remove_scheduled_date_on_recurrence = config.remove_scheduled_date_on_recurrence
 		or config.removeScheduledDateOnRecurrence
 		or false
+	if config.auto_suggest_in_editor == nil then
+		config.auto_suggest_in_editor = config.autoSuggestInEditor
+	end
+	if config.auto_suggest_in_editor == nil then
+		config.auto_suggest_in_editor = true
+	end
+	config.auto_suggest_min_chars = config.auto_suggest_min_chars or config.autoSuggestMinChars or 0
+	config.auto_suggest_max_items = config.auto_suggest_max_items or config.autoSuggestMaxItems or 20
 
 	-- Store config for other modules to access
 	M.config = config
