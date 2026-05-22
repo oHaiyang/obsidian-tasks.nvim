@@ -42,6 +42,23 @@ local PRIORITY_SYMBOLS = {
 	"⏬",
 }
 
+local DATE_FIELD_PREFIXES = {
+	du = true,
+	due = true,
+	sch = true,
+	schd = true,
+	schdu = true,
+	schdul = true,
+	schdule = true,
+	schduled = true,
+	sche = true,
+	sched = true,
+	schedu = true,
+	schedul = true,
+	schedule = true,
+	scheduled = true,
+}
+
 local current_options = nil
 
 local function get_config()
@@ -79,6 +96,14 @@ local function normalize_options(opts)
 		priority_prefix = auto_trigger.priorityPrefix
 	end
 
+	local date_keywords = auto_trigger.date_keywords
+	if date_keywords == nil then
+		date_keywords = auto_trigger.dateKeywords
+	end
+	if date_keywords == nil then
+		date_keywords = true
+	end
+
 	local keymap = opts.keymap
 	if keymap == nil then
 		keymap = "<M-Space>"
@@ -94,6 +119,7 @@ local function normalize_options(opts)
 			enabled = auto_trigger.enabled == true,
 			metadata_symbols = metadata_symbols ~= false,
 			priority_prefix = priority_prefix == true,
+			date_keywords = date_keywords ~= false,
 		},
 	}
 end
@@ -185,11 +211,42 @@ local function priority_token_context(ctx, line)
 	}
 end
 
+local function date_keyword_context(ctx, line)
+	if not ctx then
+		return nil
+	end
+
+	line = line or ""
+	local before_cursor = line:sub(1, ctx.cursor_col or #line)
+	local token_start, base = before_cursor:match("()([^%s]*)$")
+	token_start = token_start or (#before_cursor + 1)
+	base = base or ""
+
+	if not DATE_FIELD_PREFIXES[base:lower()] then
+		return nil
+	end
+	if token_starts_metadata_value(line, token_start) then
+		return nil
+	end
+
+	return {
+		context = "markdown",
+		field = "markdown_priority",
+		base = base,
+		row = ctx.row,
+		cursor_col = ctx.cursor_col,
+		start_col = token_start - 1,
+		line_length = #line,
+		completefunc_start_col = token_start - 1,
+		complete_start_col = token_start,
+	}
+end
+
 function M.complete(findstart, base)
 	local ctx = completion.markdown_context({ buf = vim.api.nvim_get_current_buf() })
 	if ctx then
 		local line = vim.api.nvim_get_current_line()
-		ctx = priority_token_context(ctx, line) or ctx
+		ctx = priority_token_context(ctx, line) or date_keyword_context(ctx, line) or ctx
 		if tonumber(findstart) == 1 then
 			return ctx.completefunc_start_col
 		end
@@ -254,6 +311,17 @@ function M.should_auto_trigger_priority(ctx, line, opts)
 		return PRIORITY_PREFIXES[(ctx.base or ""):lower()] == true
 	end
 	return priority_token_context(ctx, line) ~= nil
+end
+
+function M.should_auto_trigger_date_keyword(ctx, line, opts)
+	opts = opts or native_options()
+	if not (opts.auto_trigger and opts.auto_trigger.date_keywords) then
+		return false
+	end
+	if not ctx then
+		return false
+	end
+	return date_keyword_context(ctx, line) ~= nil
 end
 
 function M.attach(buf, opts)
@@ -327,6 +395,35 @@ local function maybe_trigger_priority(buf, opts)
 	end)
 end
 
+local function maybe_trigger_date_keyword(buf, opts)
+	if not (opts.auto_trigger.enabled and opts.auto_trigger.date_keywords) then
+		return
+	end
+	if vim.fn.pumvisible() ~= 0 then
+		return
+	end
+
+	local line = vim.api.nvim_get_current_line()
+	local ctx = completion.markdown_context({ buf = buf })
+	if not M.should_auto_trigger_date_keyword(ctx, line, opts) then
+		return
+	end
+	local field_ctx = date_keyword_context(ctx, line)
+
+	local previous_length = vim.b[buf].obsidian_tasks_native_completion_line_length
+	vim.b[buf].obsidian_tasks_native_completion_line_length = field_ctx.line_length
+	if previous_length and field_ctx.line_length < previous_length then
+		return
+	end
+
+	vim.schedule(function()
+		if vim.api.nvim_get_current_buf() ~= buf or vim.fn.pumvisible() ~= 0 then
+			return
+		end
+		M.trigger(buf, { context = field_ctx })
+	end)
+end
+
 function M.setup(opts)
 	current_options = normalize_options(opts)
 	if not current_options.enabled then
@@ -362,6 +459,7 @@ function M.setup(opts)
 		callback = function(event)
 			if is_markdown_buffer(event.buf) then
 				maybe_trigger_priority(event.buf, current_options)
+				maybe_trigger_date_keyword(event.buf, current_options)
 			end
 		end,
 	})

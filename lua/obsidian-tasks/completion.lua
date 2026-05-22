@@ -43,6 +43,21 @@ local MARKDOWN_PRIORITY_SUGGESTIONS = {
 	{ word = "⏬", abbr = "lowest ⏬", menu = "priority", filter_text = "lowest" },
 }
 
+local MARKDOWN_FIELD_SUGGESTIONS = {
+	{
+		word = "📅 ",
+		abbr = "due 📅",
+		menu = "date field",
+		filter_text = { "due", "due date" },
+	},
+	{
+		word = "⏳ ",
+		abbr = "scheduled ⏳",
+		menu = "date field",
+		filter_text = { "scheduled", "schedule", "sched", "schduled", "scheduled date" },
+	},
+}
+
 local DATE_SUGGESTIONS = {
 	{ expr = "today", word = "today", menu = "date" },
 	{ expr = "tomorrow", word = "tomorrow", menu = "date" },
@@ -237,6 +252,7 @@ local function field_suggestions(field, state, opts)
 		append_items(items, PRIORITY_SUGGESTIONS)
 	elseif field == "markdown_priority" then
 		append_items(items, MARKDOWN_PRIORITY_SUGGESTIONS)
+		append_items(items, MARKDOWN_FIELD_SUGGESTIONS)
 	elseif DATE_SYMBOLS[field] then
 		append_items(items, date_suggestions(opts.context, state))
 	elseif field == "recurrence" then

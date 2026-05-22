@@ -50,6 +50,9 @@ require("obsidian-tasks").setup({
 
         -- 输入 h/m/l 等 priority 前缀后自动弹；默认 false，避免 task 描述中误触发
         priority_prefix = false,
+
+        -- 输入 due/scheduled 等日期字段关键词后自动弹 emoji；默认 true
+        date_keywords = true,
       },
     },
   },
@@ -62,6 +65,7 @@ require("obsidian-tasks").setup({
 autoTrigger = {
   metadataSymbols = true,
   priorityPrefix = true,
+  dateKeywords = true,
 }
 ```
 
@@ -73,6 +77,7 @@ autoTrigger = {
 - 绑定 `keymap`，默认 `<M-Space>`。
 - 可选 `InsertCharPre` 监听 metadata emoji，并在字符插入后自动触发补全。
 - 可选 `TextChangedI` 监听 priority 前缀。
+- 可选 `TextChangedI` 监听 date field keyword。
 
 补全只在 Markdown task item 行生效。普通段落不会返回 items。
 
@@ -80,6 +85,8 @@ Markdown task 行示例：
 
 ```markdown
 - [ ] #task Finish draft h
+- [ ] #task Finish draft due
+- [ ] #task Finish draft scheduled
 - [ ] #task Finish draft 📅 tom
 - [ ] #task Repeat 🔁 every w
 - [ ] #task Blocked ⛔ alpha, b
@@ -116,6 +123,44 @@ Markdown task 行示例：
 ```
 
 会弹出 `today`、`tomorrow`、`+7` 等候选，并在 Markdown task 行中插入 ISO 日期。
+
+### Date field 关键词自动触发
+
+当 `auto_trigger.date_keywords = true` 时，在 task 行输入这些 token 会补出对应 emoji：
+
+```text
+due        -> 📅
+scheduled  -> ⏳
+schduled   -> ⏳
+```
+
+比如输入：
+
+```markdown
+- [ ] #task Follow up due
+```
+
+选择 `due 📅` 后会变成：
+
+```markdown
+- [ ] #task Follow up 📅 <cursor>
+```
+
+然后继续输入 `today`、`tomorrow`、`next week` 等，再触发补全即可插入 ISO 日期。
+
+日期字段关键词也不要求出现在所有 metadata 之前：
+
+```markdown
+- [ ] #task Follow up 📅 2026-05-23 scheduled
+```
+
+这里可以继续补出 `⏳`。但如果关键词是某个 metadata emoji 后的第一个值 token，例如：
+
+```markdown
+- [ ] #task Due 📅 due
+```
+
+则按 date value 处理，不触发 field emoji。
 
 ### Priority 前缀自动触发
 
@@ -161,5 +206,6 @@ Priority 前缀不要求出现在所有 metadata 之前。比如已有 due date 
 - 默认 `<M-Space>` 可手动触发。
 - 普通 Markdown 段落不返回 items。
 - metadata emoji auto trigger 可识别 trigger characters。
+- date keyword auto trigger 可补 `due -> 📅`、`scheduled/schduled -> ⏳`，且不抢 metadata 第一个值 token。
 - priority auto trigger 默认关闭，开启后只在 task 行、无已有 priority emoji、当前 token 前缀匹配且不是 metadata 的第一个值 token 时触发。
 - Phase 5.7/5.8 completion smoke 无回归。

@@ -18,6 +18,7 @@ require("obsidian-tasks").setup({
         enabled = true,
         metadata_symbols = true,
         priority_prefix = true,
+        date_keywords = true,
       },
     },
   },
@@ -117,7 +118,60 @@ metadata_symbols = true
 
 预期输入 `📅` 后自动弹日期候选。
 
-## 7. Priority 前缀自动触发
+## 7. Date field 关键词自动触发
+
+确认配置中：
+
+```lua
+date_keywords = true
+```
+
+输入：
+
+```markdown
+- [ ] #task Due field due
+```
+
+预期输入 `due` 后自动弹 date field 候选，选择后变成：
+
+```markdown
+- [ ] #task Due field 📅 <cursor>
+```
+
+继续输入：
+
+```markdown
+- [ ] #task Due field 📅 today
+```
+
+预期可以继续补全成 ISO 日期。
+
+scheduled date 也应支持：
+
+```markdown
+- [ ] #task Scheduled field scheduled
+- [ ] #task Scheduled typo schduled
+```
+
+预期可以补出 `⏳`。
+
+已有 metadata 值之后也可以继续触发日期字段：
+
+```markdown
+- [ ] #task Follow up 📅 2026-05-23 scheduled
+```
+
+预期输入最后的 `scheduled` 后自动弹 `⏳` 候选。
+
+metadata emoji 后的第一个值 token 不应被当成日期字段：
+
+```markdown
+- [ ] #task Due 📅 due
+```
+
+预期这里不弹 `📅` 候选。
+
+## 8. Priority 前缀自动触发
 
 确认配置中：
 
@@ -159,7 +213,7 @@ metadata emoji 后的第一个值 token 不应被当成 priority：
 
 预期这里不弹 priority 候选。
 
-## 8. Headless smoke
+## 9. Headless smoke
 
 在插件目录运行：
 

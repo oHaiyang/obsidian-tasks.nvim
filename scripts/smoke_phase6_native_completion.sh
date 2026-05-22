@@ -23,6 +23,10 @@ vim.fn.writefile({
   "- [ ] #task Already priority ⏫ h",
   "- [ ] #task Priority after due value 📅 2026-05-23 h",
   "- [ ] #task Metadata value position 📅 h",
+  "- [ ] #task Due keyword due",
+  "- [ ] #task Scheduled keyword schduled",
+  "- [ ] #task Scheduled after due value 📅 2026-05-23 scheduled",
+  "- [ ] #task Date keyword as metadata value 📅 due",
   "Plain paragraph h",
 }, tasks_file)
 
@@ -137,7 +141,39 @@ assert(not native.should_auto_trigger_priority(ctx, vim.api.nvim_get_current_lin
 }))
 assert(not has_word(native.complete(0, "h"), "⏫"), vim.inspect(native.complete(0, "h")))
 
-move_to_end(11)
+ctx = context_at(11)
+assert(ctx.field == "markdown_priority", ctx.field)
+assert(ctx.base == "due", ctx.base)
+assert(native.should_auto_trigger_date_keyword(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { date_keywords = true },
+}))
+assert(has_word(native.complete(0, "due"), "📅 "), vim.inspect(native.complete(0, "due")))
+
+ctx = context_at(12)
+assert(ctx.field == "markdown_priority", ctx.field)
+assert(ctx.base == "schduled", ctx.base)
+assert(native.should_auto_trigger_date_keyword(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { date_keywords = true },
+}))
+assert(has_word(native.complete(0, "schduled"), "⏳ "), vim.inspect(native.complete(0, "schduled")))
+
+ctx = context_at(13)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "2026-05-23 scheduled", ctx.base)
+assert(native.should_auto_trigger_date_keyword(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { date_keywords = true },
+}))
+assert(has_word(native.complete(0, "scheduled"), "⏳ "), vim.inspect(native.complete(0, "scheduled")))
+
+ctx = context_at(14)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "due", ctx.base)
+assert(not native.should_auto_trigger_date_keyword(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { date_keywords = true },
+}))
+assert(not has_word(native.complete(0, "due"), "📅 "), vim.inspect(native.complete(0, "due")))
+
+move_to_end(15)
 assert(completion.markdown_context({ buf = 0 }) == nil)
 assert(native.complete(1, "") == -2)
 assert(vim.b.obsidian_tasks_native_completion == true)
