@@ -19,6 +19,7 @@ require("obsidian-tasks").setup({
         metadata_symbols = true,
         priority_prefix = true,
         date_keywords = true,
+        date_values = true,
       },
     },
   },
@@ -144,7 +145,7 @@ date_keywords = true
 - [ ] #task Due field 📅 today
 ```
 
-预期可以继续补全成 ISO 日期。
+预期可以继续补全成 ISO 日期。开启 `date_values = true` 时，输入 `t` / `tom` / `next w` 等日期语义前缀就应自动弹日期候选。
 
 scheduled date 也应支持：
 
@@ -154,6 +155,14 @@ scheduled date 也应支持：
 ```
 
 预期可以补出 `⏳`。
+
+选择 `⏳` 后继续输入：
+
+```markdown
+- [ ] #task Scheduled field ⏳ next w
+```
+
+预期自动弹日期候选，并能补成 ISO 日期。
 
 已有 metadata 值之后也可以继续触发日期字段：
 

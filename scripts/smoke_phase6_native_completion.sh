@@ -27,6 +27,8 @@ vim.fn.writefile({
   "- [ ] #task Scheduled keyword schduled",
   "- [ ] #task Scheduled after due value 📅 2026-05-23 scheduled",
   "- [ ] #task Date keyword as metadata value 📅 due",
+  "- [ ] #task Due value after emoji 📅 t",
+  "- [ ] #task Scheduled value after emoji ⏳ next w",
   "Plain paragraph h",
 }, tasks_file)
 
@@ -44,6 +46,7 @@ tasks.setup({
         enabled = true,
         metadata_symbols = true,
         priority_prefix = true,
+        date_values = true,
       },
     },
   },
@@ -84,6 +87,7 @@ native.attach(0, {
     enabled = true,
     metadata_symbols = true,
     priority_prefix = true,
+    date_values = true,
   },
 })
 
@@ -100,6 +104,9 @@ local start_col = native.complete(1, "")
 assert(start_col == ctx.completefunc_start_col, tostring(start_col) .. " != " .. tostring(ctx.completefunc_start_col))
 local due_items = native.complete(0, "tom")
 assert(has_word(due_items, "2026-05-23"), vim.inspect(due_items))
+assert(native.should_auto_trigger_date_value(ctx, {
+  auto_trigger = { date_values = true },
+}))
 
 ctx = context_at(5)
 assert(ctx.field == "recurrence", ctx.field)
@@ -173,7 +180,23 @@ assert(not native.should_auto_trigger_date_keyword(ctx, vim.api.nvim_get_current
 }))
 assert(not has_word(native.complete(0, "due"), "📅 "), vim.inspect(native.complete(0, "due")))
 
-move_to_end(15)
+ctx = context_at(15)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "t", ctx.base)
+assert(native.should_auto_trigger_date_value(ctx, {
+  auto_trigger = { date_values = true },
+}))
+assert(has_word(native.complete(0, "t"), "2026-05-22"), vim.inspect(native.complete(0, "t")))
+
+ctx = context_at(16)
+assert(ctx.field == "scheduled", ctx.field)
+assert(ctx.base == "next w", ctx.base)
+assert(native.should_auto_trigger_date_value(ctx, {
+  auto_trigger = { date_values = true },
+}))
+assert(has_word(native.complete(0, "next w"), "2026-05-29"), vim.inspect(native.complete(0, "next w")))
+
+move_to_end(17)
 assert(completion.markdown_context({ buf = 0 }) == nil)
 assert(native.complete(1, "") == -2)
 assert(vim.b.obsidian_tasks_native_completion == true)

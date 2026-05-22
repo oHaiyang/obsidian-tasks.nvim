@@ -59,6 +59,45 @@ local DATE_FIELD_PREFIXES = {
 	scheduled = true,
 }
 
+local DATE_VALUE_FIELDS = {
+	created = true,
+	start = true,
+	scheduled = true,
+	due = true,
+	done = true,
+	cancelled = true,
+}
+
+local DATE_VALUE_PREFIXES = {
+	t = true,
+	to = true,
+	tod = true,
+	toda = true,
+	today = true,
+	tom = true,
+	tomo = true,
+	tomor = true,
+	tomorr = true,
+	tomorro = true,
+	tomorrow = true,
+	y = true,
+	ye = true,
+	yes = true,
+	yest = true,
+	yeste = true,
+	yester = true,
+	yesterd = true,
+	yesterda = true,
+	yesterday = true,
+	n = true,
+	ne = true,
+	nex = true,
+	next = true,
+	["+"] = true,
+	["+1"] = true,
+	["+7"] = true,
+}
+
 local current_options = nil
 
 local function get_config()
@@ -104,6 +143,14 @@ local function normalize_options(opts)
 		date_keywords = true
 	end
 
+	local date_values = auto_trigger.date_values
+	if date_values == nil then
+		date_values = auto_trigger.dateValues
+	end
+	if date_values == nil then
+		date_values = true
+	end
+
 	local keymap = opts.keymap
 	if keymap == nil then
 		keymap = "<M-Space>"
@@ -120,6 +167,7 @@ local function normalize_options(opts)
 			metadata_symbols = metadata_symbols ~= false,
 			priority_prefix = priority_prefix == true,
 			date_keywords = date_keywords ~= false,
+			date_values = date_values ~= false,
 		},
 	}
 end
@@ -242,6 +290,19 @@ local function date_keyword_context(ctx, line)
 	}
 end
 
+local function date_value_context(ctx)
+	if not ctx or not DATE_VALUE_FIELDS[ctx.field] then
+		return nil
+	end
+
+	local base = (ctx.base or ""):lower()
+	if DATE_VALUE_PREFIXES[base] or base:match("^next%s+[%a]*$") or base:match("^%d+%s*[%a]*$") then
+		return ctx
+	end
+
+	return nil
+end
+
 function M.complete(findstart, base)
 	local ctx = completion.markdown_context({ buf = vim.api.nvim_get_current_buf() })
 	if ctx then
@@ -322,6 +383,14 @@ function M.should_auto_trigger_date_keyword(ctx, line, opts)
 		return false
 	end
 	return date_keyword_context(ctx, line) ~= nil
+end
+
+function M.should_auto_trigger_date_value(ctx, opts)
+	opts = opts or native_options()
+	if not (opts.auto_trigger and opts.auto_trigger.date_values) then
+		return false
+	end
+	return date_value_context(ctx) ~= nil
 end
 
 function M.attach(buf, opts)
@@ -424,6 +493,33 @@ local function maybe_trigger_date_keyword(buf, opts)
 	end)
 end
 
+local function maybe_trigger_date_value(buf, opts)
+	if not (opts.auto_trigger.enabled and opts.auto_trigger.date_values) then
+		return
+	end
+	if vim.fn.pumvisible() ~= 0 then
+		return
+	end
+
+	local ctx = completion.markdown_context({ buf = buf })
+	if not M.should_auto_trigger_date_value(ctx, opts) then
+		return
+	end
+
+	local previous_length = vim.b[buf].obsidian_tasks_native_completion_line_length
+	vim.b[buf].obsidian_tasks_native_completion_line_length = ctx.line_length
+	if previous_length and ctx.line_length < previous_length then
+		return
+	end
+
+	vim.schedule(function()
+		if vim.api.nvim_get_current_buf() ~= buf or vim.fn.pumvisible() ~= 0 then
+			return
+		end
+		M.trigger(buf, { context = ctx })
+	end)
+end
+
 function M.setup(opts)
 	current_options = normalize_options(opts)
 	if not current_options.enabled then
@@ -460,6 +556,7 @@ function M.setup(opts)
 			if is_markdown_buffer(event.buf) then
 				maybe_trigger_priority(event.buf, current_options)
 				maybe_trigger_date_keyword(event.buf, current_options)
+				maybe_trigger_date_value(event.buf, current_options)
 			end
 		end,
 	})

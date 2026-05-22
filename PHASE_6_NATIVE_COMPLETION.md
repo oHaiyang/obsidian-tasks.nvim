@@ -53,6 +53,9 @@ require("obsidian-tasks").setup({
 
         -- 输入 due/scheduled 等日期字段关键词后自动弹 emoji；默认 true
         date_keywords = true,
+
+        -- 在 📅/⏳ 等日期字段后输入 t/tom/next w 等日期语义时自动弹；默认 true
+        date_values = true,
       },
     },
   },
@@ -66,6 +69,7 @@ autoTrigger = {
   metadataSymbols = true,
   priorityPrefix = true,
   dateKeywords = true,
+  dateValues = true,
 }
 ```
 
@@ -78,6 +82,7 @@ autoTrigger = {
 - 可选 `InsertCharPre` 监听 metadata emoji，并在字符插入后自动触发补全。
 - 可选 `TextChangedI` 监听 priority 前缀。
 - 可选 `TextChangedI` 监听 date field keyword。
+- 可选 `TextChangedI` 监听 date field value。
 
 补全只在 Markdown task item 行生效。普通段落不会返回 items。
 
@@ -148,6 +153,15 @@ schduled   -> ⏳
 
 然后继续输入 `today`、`tomorrow`、`next week` 等，再触发补全即可插入 ISO 日期。
 
+如果 `auto_trigger.date_values = true`，继续输入日期语义时也会自动弹：
+
+```markdown
+- [ ] #task Follow up 📅 t
+- [ ] #task Follow up ⏳ next w
+```
+
+候选会插入 ISO 日期，例如 `2026-05-22` 或 `2026-05-29`。
+
 日期字段关键词也不要求出现在所有 metadata 之前：
 
 ```markdown
@@ -207,5 +221,6 @@ Priority 前缀不要求出现在所有 metadata 之前。比如已有 due date 
 - 普通 Markdown 段落不返回 items。
 - metadata emoji auto trigger 可识别 trigger characters。
 - date keyword auto trigger 可补 `due -> 📅`、`scheduled/schduled -> ⏳`，且不抢 metadata 第一个值 token。
+- date value auto trigger 可在 `📅 t`、`📅 tom`、`⏳ next w` 等场景弹日期候选。
 - priority auto trigger 默认关闭，开启后只在 task 行、无已有 priority emoji、当前 token 前缀匹配且不是 metadata 的第一个值 token 时触发。
 - Phase 5.7/5.8 completion smoke 无回归。
