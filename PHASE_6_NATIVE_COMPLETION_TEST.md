@@ -143,6 +143,22 @@ priority_prefix = true
 
 再输入 `h` 不应自动弹 priority 候选。
 
+已有 metadata 值之后可以继续触发 priority：
+
+```markdown
+- [ ] #task Follow up 📅 2026-05-23 h
+```
+
+预期输入最后的 `h` 后自动弹 priority 候选。
+
+metadata emoji 后的第一个值 token 不应被当成 priority：
+
+```markdown
+- [ ] #task Due 📅 h
+```
+
+预期这里不弹 priority 候选。
+
 ## 8. Headless smoke
 
 在插件目录运行：

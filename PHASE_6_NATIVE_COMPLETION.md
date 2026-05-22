@@ -129,6 +129,20 @@ l lo low lowest
 
 如果当前行已经有 priority emoji，则不会再次触发。
 
+Priority 前缀不要求出现在所有 metadata 之前。比如已有 due date 后继续输入 `h`：
+
+```markdown
+- [ ] #task Follow up 📅 2026-05-23 h
+```
+
+仍会触发 priority 候选。但如果 `h` 是某个 metadata emoji 后的第一个值 token，例如：
+
+```markdown
+- [ ] #task Due 📅 h
+```
+
+则按 date value 处理，不触发 priority。
+
 这个选项默认关闭，因为 task 描述中也可能自然输入 `home`、`handle`、`low level` 等文本。
 
 ## 已实现
@@ -147,5 +161,5 @@ l lo low lowest
 - 默认 `<M-Space>` 可手动触发。
 - 普通 Markdown 段落不返回 items。
 - metadata emoji auto trigger 可识别 trigger characters。
-- priority auto trigger 默认关闭，开启后只在 task 行、无已有 priority emoji、前缀匹配时触发。
+- priority auto trigger 默认关闭，开启后只在 task 行、无已有 priority emoji、当前 token 前缀匹配且不是 metadata 的第一个值 token 时触发。
 - Phase 5.7/5.8 completion smoke 无回归。

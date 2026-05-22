@@ -123,7 +123,82 @@ local function has_priority_symbol(line)
 	return false
 end
 
+local function latest_metadata_before(line, index)
+	local best = nil
+	for symbol, _ in pairs(METADATA_TRIGGERS) do
+		local start = 1
+		while true do
+			local found_start, found_end = line:find(symbol, start, true)
+			if not found_start or found_start >= index then
+				break
+			end
+			if found_end < index and (not best or found_end > best.finish) then
+				best = {
+					symbol = symbol,
+					start = found_start,
+					finish = found_end,
+				}
+			end
+			start = found_end + 1
+		end
+	end
+	return best
+end
+
+local function token_starts_metadata_value(line, token_start)
+	local symbol = latest_metadata_before(line, token_start)
+	if not symbol then
+		return false
+	end
+	local between = line:sub(symbol.finish + 1, token_start - 1)
+	return between:match("^%s*$") ~= nil
+end
+
+local function priority_token_context(ctx, line)
+	if not ctx then
+		return nil
+	end
+
+	line = line or ""
+	local before_cursor = line:sub(1, ctx.cursor_col or #line)
+	local token_start, base = before_cursor:match("()([^%s]*)$")
+	token_start = token_start or (#before_cursor + 1)
+	base = base or ""
+
+	if not PRIORITY_PREFIXES[base:lower()] then
+		return nil
+	end
+	if token_starts_metadata_value(line, token_start) then
+		return nil
+	end
+
+	return {
+		context = "markdown",
+		field = "markdown_priority",
+		base = base,
+		row = ctx.row,
+		cursor_col = ctx.cursor_col,
+		start_col = token_start - 1,
+		line_length = #line,
+		completefunc_start_col = token_start - 1,
+		complete_start_col = token_start,
+	}
+end
+
 function M.complete(findstart, base)
+	local ctx = completion.markdown_context({ buf = vim.api.nvim_get_current_buf() })
+	if ctx then
+		local line = vim.api.nvim_get_current_line()
+		ctx = priority_token_context(ctx, line) or ctx
+		if tonumber(findstart) == 1 then
+			return ctx.completefunc_start_col
+		end
+		return completion.suggest({
+			context = "markdown",
+			field = ctx.field,
+			base = base,
+		})
+	end
 	return completion.complete(findstart, base)
 end
 
@@ -131,7 +206,7 @@ function M.trigger(buf, opts)
 	opts = opts or {}
 	buf = buf or vim.api.nvim_get_current_buf()
 
-	local ctx = completion.markdown_context({ buf = buf })
+	local ctx = opts.context or completion.markdown_context({ buf = buf })
 	if not ctx then
 		if opts.notify then
 			vim.notify("Cursor is not on a Markdown task field", vim.log.levels.WARN)
@@ -169,13 +244,16 @@ function M.should_auto_trigger_priority(ctx, line, opts)
 	if not (opts.auto_trigger and opts.auto_trigger.priority_prefix) then
 		return false
 	end
-	if not ctx or ctx.field ~= "markdown_priority" then
+	if not ctx then
 		return false
 	end
 	if has_priority_symbol(line or "") then
 		return false
 	end
-	return PRIORITY_PREFIXES[(ctx.base or ""):lower()] == true
+	if ctx.field == "markdown_priority" then
+		return PRIORITY_PREFIXES[(ctx.base or ""):lower()] == true
+	end
+	return priority_token_context(ctx, line) ~= nil
 end
 
 function M.attach(buf, opts)
@@ -233,10 +311,11 @@ local function maybe_trigger_priority(buf, opts)
 	if not M.should_auto_trigger_priority(ctx, line, opts) then
 		return
 	end
+	local priority_ctx = priority_token_context(ctx, line) or ctx
 
 	local previous_length = vim.b[buf].obsidian_tasks_native_completion_line_length
-	vim.b[buf].obsidian_tasks_native_completion_line_length = ctx.line_length
-	if previous_length and ctx.line_length < previous_length then
+	vim.b[buf].obsidian_tasks_native_completion_line_length = priority_ctx.line_length
+	if previous_length and priority_ctx.line_length < previous_length then
 		return
 	end
 
@@ -244,7 +323,7 @@ local function maybe_trigger_priority(buf, opts)
 		if vim.api.nvim_get_current_buf() ~= buf or vim.fn.pumvisible() ~= 0 then
 			return
 		end
-		M.trigger(buf)
+		M.trigger(buf, { context = priority_ctx })
 	end)
 end
 

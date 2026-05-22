@@ -21,6 +21,8 @@ vim.fn.writefile({
   "- [ ] #task Depends field ⛔ alpha-id, b",
   "- [ ] #task Priority field h",
   "- [ ] #task Already priority ⏫ h",
+  "- [ ] #task Priority after due value 📅 2026-05-23 h",
+  "- [ ] #task Metadata value position 📅 h",
   "Plain paragraph h",
 }, tasks_file)
 
@@ -119,7 +121,23 @@ assert(not native.should_auto_trigger_priority(ctx, vim.api.nvim_get_current_lin
   auto_trigger = { priority_prefix = true },
 }))
 
-move_to_end(9)
+ctx = context_at(9)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "2026-05-23 h", ctx.base)
+assert(native.should_auto_trigger_priority(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { priority_prefix = true },
+}))
+assert(has_word(native.complete(0, "h"), "⏫"), vim.inspect(native.complete(0, "h")))
+
+ctx = context_at(10)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "h", ctx.base)
+assert(not native.should_auto_trigger_priority(ctx, vim.api.nvim_get_current_line(), {
+  auto_trigger = { priority_prefix = true },
+}))
+assert(not has_word(native.complete(0, "h"), "⏫"), vim.inspect(native.complete(0, "h")))
+
+move_to_end(11)
 assert(completion.markdown_context({ buf = 0 }) == nil)
 assert(native.complete(1, "") == -2)
 assert(vim.b.obsidian_tasks_native_completion == true)
