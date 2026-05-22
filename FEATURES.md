@@ -78,7 +78,7 @@
 | F029 | Custom statuses | 每个 status 有 symbol/name/next symbol/type/availableAsCommand。 | Done。 | P1 |
 | F030 | Unknown status | 未配置的 status 默认为 name `Unknown`、type `TODO`、next `x`。 | Done。 | P1 |
 | F031 | Status types | `TODO`、`IN_PROGRESS`、`ON_HOLD`、`DONE`、`CANCELLED`、`NON_TASK` 决定完成语义。 | Done：done/not done、toggle、dependencies 使用 status type。 | P1 |
-| F032 | Urgency | 根据 due、priority、scheduled、start 计算数值分数。 | Todo。 | P1 |
+| F032 | Urgency | 根据 due、priority、scheduled、start 计算数值分数。 | Done：Phase 6.2 支持原版 urgency score、`show urgency`、`sort/group by urgency` 和 `task.urgency`。 | P1 |
 | F033 | File properties | 暴露 path/root/folder/filename/pathWithoutExtension 等。 | Partial：当前只有 file_path。 | P0 |
 | F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Todo。 | P2 |
 | F035 | Links | 解析 task line、file body、frontmatter 中 outlinks。 | Todo。 | P3 |
@@ -173,7 +173,7 @@
 | F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Done：Phase 5.4 支持显示和 `show/hide task count`。 | P1 |
 | F307 | Task count location | 全局设置 count 在 top 或 bottom。 | Todo。 | P3 |
 | F308 | Hide/show task fields | `hide/show priority/due date/tags/...`。 | Partial：Phase 5.4 支持常用 task 字段。 | P1 |
-| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Partial：Phase 5.4 支持 backlink/task count；按钮/toolbar/tree/urgency 待补。 | P1 |
+| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Partial：Phase 5.4 支持 backlink/task count；Phase 6.2 支持 urgency；按钮/toolbar/tree 待补。 | P1 |
 | F310 | Full mode | 默认展示字段值，如具体日期、循环规则。 | Partial：默认 full display，Phase 5.4 开始接 layout。 | P1 |
 | F311 | Short mode | 只显示 emoji，具体值靠 tooltip。 | Partial：Phase 5.4 对 metadata 做轻量 short mode；tooltip 待补。 | P2 |
 | F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Todo。 | P1 |
@@ -234,7 +234,7 @@
 
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
-| F601 | Task properties | `task.*` 暴露 status、dates、dependencies、description、priority、file、frontmatter、links 等。 | Todo。 | P2 |
+| F601 | Task properties | `task.*` 暴露 status、dates、dependencies、description、priority、file、frontmatter、links 等。 | Partial：当前已有基础字段、`task.file`、dependencies 和 Phase 6.2 的 `task.urgency`；frontmatter/links 待补。 | P2 |
 | F602 | Query properties | `query.file.*` 和 `query.allTasks`。 | Partial：Phase 5/5.2 在 Lua function filter 中提供 `query.allTasks`、`query.all_tasks`、`query.file`。 | P2 |
 | F603 | JavaScript expressions | custom filter/sort/group 运行 JS，需要显式启用。 | Obsidian-only；nvim 建议 Lua 表达式。 | P2 |
 | F604 | TasksDate helper | 日期对象支持 `format()`、`category`、`fromNow` 等。 | Todo。 | P2 |
@@ -337,9 +337,15 @@
 
 ### Phase 6: Polish and Ecosystem
 
-建议范围：
+状态：进行中，Phase 6.2 已实现 urgency，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
-1. Date picker、status picker、toolbar filter/copy。
-2. Highlight/extmark 样式系统。
-3. Reminder 兼容字段。
-4. i18n、debug logging、文档和 demo vault。
+建议拆分：
+
+1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done。
+2. Phase 6.3：`show tree`、父子 list item 与 sub-items。
+3. Phase 6.4：Toolbar filter/copy 和 result view polishing。
+4. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
+5. Phase 6.6：Auto-suggest polish 和任务搜索建议。
+6. Phase 6.7：Dataview task format MVP。
+7. Phase 6.8：Frontmatter properties、links、scripting surface。
+8. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。

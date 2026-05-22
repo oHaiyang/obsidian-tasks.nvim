@@ -229,6 +229,32 @@ function M.compare(left, right)
 	return 0
 end
 
+function M.days_between(left, right)
+	if not M.is_valid(left) or not M.is_valid(right) then
+		return nil
+	end
+
+	local left_year, left_month, left_day = parse_ymd(left)
+	local right_year, right_month, right_day = parse_ymd(right)
+	local left_time = os.time({
+		year = left_year,
+		month = left_month,
+		day = left_day,
+		hour = 12,
+		min = 0,
+		sec = 0,
+	})
+	local right_time = os.time({
+		year = right_year,
+		month = right_month,
+		day = right_day,
+		hour = 12,
+		min = 0,
+		sec = 0,
+	})
+	return math.floor((left_time - right_time) / (24 * 60 * 60) + 0.5)
+end
+
 local DATE_FIELDS = {
 	due = "due_date",
 	scheduled = "scheduled_date",

@@ -42,6 +42,9 @@ local function value_for(task, field)
 		return filename_without_extension(task)
 	elseif field == "heading" then
 		return task.heading or ""
+	elseif field == "urgency" then
+		-- Obsidian Tasks sorts urgency from highest to lowest by default.
+		return -(tonumber(task.urgency) or 0)
 	elseif date.normalize_field(field) then
 		return date.get_task_date(task, field)
 	end

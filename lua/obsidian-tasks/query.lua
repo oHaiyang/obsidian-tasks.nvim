@@ -49,6 +49,7 @@ local SORT_FIELDS = {
 	filename = true,
 	heading = true,
 	description = true,
+	urgency = true,
 }
 
 local GROUP_FIELDS = {
@@ -63,6 +64,7 @@ local GROUP_FIELDS = {
 	start = true,
 	done = true,
 	happens = true,
+	urgency = true,
 }
 
 local function trim(value)

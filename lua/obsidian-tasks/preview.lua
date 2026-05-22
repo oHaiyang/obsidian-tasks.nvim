@@ -53,6 +53,7 @@ local function preview_lines_for(source, opts)
 	local tasks = scanner.scan_vault({
 		vault_path = config.vault_path,
 		global_filter = config.global_filter,
+		today = opts.today,
 	})
 	tasks = query.filter_tasks(tasks, plan)
 	if #plan.sorts > 0 then

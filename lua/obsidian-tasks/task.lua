@@ -1,5 +1,7 @@
 local M = {}
 
+local urgency = require("obsidian-tasks.urgency")
+
 M.PRIORITY_EMOJIS = {
 	["🔺"] = "highest",
 	["⏫"] = "high",
@@ -292,6 +294,7 @@ function M.parse_line(opts)
 	task.done_date = task.dates.done
 
 	enrich_file_fields(task)
+	urgency.enrich(task, opts)
 
 	return task
 end

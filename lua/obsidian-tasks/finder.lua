@@ -169,6 +169,7 @@ function M.find_tasks(opts)
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,
 		composition = composition,
+		today = opts.today,
 	}
 
 	display.last_finder_opts = {
@@ -213,6 +214,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 	local tasks = scanner.scan_vault({
 		vault_path = vault_path,
 		global_filter = global_filter or "",
+		today = display_opts.today,
 	})
 
 	local query_filtered_tasks = tasks

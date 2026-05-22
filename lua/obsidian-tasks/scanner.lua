@@ -59,6 +59,7 @@ function M.scan_file(path, opts)
 					line_number = line_number,
 					heading = current_heading,
 					global_filter = opts.global_filter,
+					today = opts.today,
 				})
 
 				if task then

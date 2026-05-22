@@ -185,6 +185,8 @@ function M.group_tasks(tasks, group_by)
 				group_value = filename
 			elseif current_group == "heading" then
 				group_value = task.heading or "No heading"
+			elseif current_group == "urgency" then
+				group_value = string.format("%.2f", tonumber(task.urgency) or 0)
 			elseif date.normalize_field(current_group) then
 				group_value = date.get_task_date(task, current_group) or ("No " .. current_group .. " date")
 			else
@@ -208,6 +210,10 @@ function M.group_tasks(tasks, group_by)
 
 				-- Use the PRIORITY_ORDER table to determine sort order
 				return M.PRIORITY_ORDER[a_priority] < M.PRIORITY_ORDER[b_priority]
+			end)
+		elseif current_group == "urgency" then
+			table.sort(sub_group_names, function(a, b)
+				return tonumber(a) > tonumber(b)
 			end)
 		end
 		-- require('plenary.log').info('[xxxhhh][sorted priority group names]', sub_group_names);

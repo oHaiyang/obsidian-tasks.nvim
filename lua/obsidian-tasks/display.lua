@@ -10,6 +10,7 @@ M.TASK_VIEW_HELP_LINES = {
 local core = require("obsidian-tasks.core")
 local parser = require("obsidian-tasks.parser")
 local task_model = require("obsidian-tasks.task")
+local urgency = require("obsidian-tasks.urgency")
 
 -- Store the last used options for refresh functionality
 M.last_finder_opts = {}
@@ -214,6 +215,9 @@ function M.format_task_body(task, opts)
 		if M.should_show(opts, spec.field, true) then
 			append_part(parts, metadata_part(spec.symbol, task[spec.key], opts))
 		end
+	end
+	if M.should_show(opts, "urgency", false) then
+		append_part(parts, (short_mode(opts) and "" or "urgency ") .. urgency.format(task))
 	end
 	if M.should_show(opts, "id", true) then
 		append_part(parts, metadata_part("🆔", task.id, opts))
