@@ -29,13 +29,14 @@ Phase 6 的原则：
 建议顺序：
 
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done，详见 `PHASE_6_2.md`。
-2. Phase 6.3：`show tree`、父子 list item 与 sub-items。
-3. Phase 6.4：Toolbar filter/copy 和 result view polishing。
-4. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
-5. Phase 6.6：Auto-suggest polish 和任务搜索建议。
-6. Phase 6.7：Dataview task format MVP。
-7. Phase 6.8：Frontmatter properties、links、scripting surface。
-8. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
+2. Phase 6 Native Completion Adapter：原生补全 adapter。Done，详见 `PHASE_6_NATIVE_COMPLETION.md`。
+3. Phase 6.3：`show tree`、父子 list item 与 sub-items。
+4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
+5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
+6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
+7. Phase 6.7：Dataview task format MVP。
+8. Phase 6.8：Frontmatter properties、links、scripting surface。
+9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
 
 当前决策：Phase 6.1 先跳过。原因是 query diagnostics 和 `explain` 使用频率低，而且复杂查询写错时更适合到 Obsidian 原版里做权威验证。文档仍保留 6.1 的完整设计，作为后续 backlog。
 

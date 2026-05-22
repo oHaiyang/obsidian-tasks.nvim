@@ -201,7 +201,7 @@
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；calendar-style UI 待补。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
-| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；完整任务搜索待补。 | P1 |
+| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全；完整任务搜索待补。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Done：Phase 5.10 支持只补缺失属性并保留已有值。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
@@ -218,7 +218,7 @@
 | F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Partial：new recurrence 可写 created date。 | P1 |
 | F506 | `setDoneDate` | 完成任务时添加 done date。 | Done。 | P1 |
 | F507 | `setCancelledDate` | 取消任务时添加 cancelled date。 | Done。 | P1 |
-| F508 | `autoSuggestInEditor` | 是否启用 auto-suggest。 | Partial：Phase 5.6 支持 form buffer 内启用/关闭；Phase 5.8 支持可选 cmp source 注册。 | P2 |
+| F508 | `autoSuggestInEditor` | 是否启用 auto-suggest。 | Partial：Phase 5.6 支持 form buffer 内启用/关闭；Phase 5.8 支持可选 cmp source 注册；Phase 6 Native Completion Adapter 支持原生补全 opt-in。 | P2 |
 | F509 | auto-suggest min/max | 控制建议触发长度和最多显示项。 | Partial：Phase 5.6 支持 `auto_suggest_min_chars` / `auto_suggest_max_items`。 | P2 |
 | F510 | `useFilenameAsScheduledDate` | 从文件名推导 scheduled date。 | Todo。 | P2 |
 | F511 | filename date format/folders | 自定义文件名日期格式和生效文件夹。 | Todo。 | P2 |
@@ -342,10 +342,11 @@
 建议拆分：
 
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done。
-2. Phase 6.3：`show tree`、父子 list item 与 sub-items。
-3. Phase 6.4：Toolbar filter/copy 和 result view polishing。
-4. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
-5. Phase 6.6：Auto-suggest polish 和任务搜索建议。
-6. Phase 6.7：Dataview task format MVP。
-7. Phase 6.8：Frontmatter properties、links、scripting surface。
-8. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
+2. Phase 6 Native Completion Adapter：原生补全 adapter。Done。
+3. Phase 6.3：`show tree`、父子 list item 与 sub-items。
+4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
+5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
+6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
+7. Phase 6.7：Dataview task format MVP。
+8. Phase 6.8：Frontmatter properties、links、scripting surface。
+9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。

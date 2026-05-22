@@ -51,6 +51,13 @@ function M.setup(config)
 			pcall(cmp_source.register, type(cmp_config) == "table" and cmp_config or {})
 		end
 	end
+	local native_config = config.completion.native or config.completion.native_completion or config.completion.nativeCompletion
+	if native_config then
+		local ok_native, native = pcall(require, "obsidian-tasks.completion.native")
+		if ok_native then
+			pcall(native.setup, native_config)
+		end
+	end
 
 	-- Register tree-sitter parser when available. Command registration should
 	-- not depend on tree-sitter support in the user's Neovim build.
