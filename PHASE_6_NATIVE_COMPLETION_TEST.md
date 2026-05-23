@@ -147,6 +147,18 @@ date_keywords = true
 
 预期可以继续补全成 ISO 日期。开启 `date_values = true` 时，输入 `t` / `tom` / `next w` 等日期语义前缀就应自动弹日期候选。
 
+也应支持原版 Obsidian Tasks 的常用 date suggest 语义：
+
+```markdown
+- [ ] #task Due weekday 📅 Fri
+- [ ] #task Due next weekday 📅 next fri
+- [ ] #task Due abbreviation 📅 tm
+- [ ] #task Due weekend 📅 weekend
+- [ ] #task Due next year 📅 next y
+```
+
+在 `today = 2026-05-22` 时，预期分别能补到 `2026-05-22`、`2026-05-29`、`2026-05-23`、`2026-05-23`、`2027-05-22`。
+
 scheduled date 也应支持：
 
 ```markdown

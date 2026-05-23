@@ -68,36 +68,6 @@ local DATE_VALUE_FIELDS = {
 	cancelled = true,
 }
 
-local DATE_VALUE_PREFIXES = {
-	t = true,
-	to = true,
-	tod = true,
-	toda = true,
-	today = true,
-	tom = true,
-	tomo = true,
-	tomor = true,
-	tomorr = true,
-	tomorro = true,
-	tomorrow = true,
-	y = true,
-	ye = true,
-	yes = true,
-	yest = true,
-	yeste = true,
-	yester = true,
-	yesterd = true,
-	yesterda = true,
-	yesterday = true,
-	n = true,
-	ne = true,
-	nex = true,
-	next = true,
-	["+"] = true,
-	["+1"] = true,
-	["+7"] = true,
-}
-
 local current_options = nil
 
 local function get_config()
@@ -296,7 +266,7 @@ local function date_value_context(ctx)
 	end
 
 	local base = (ctx.base or ""):lower()
-	if DATE_VALUE_PREFIXES[base] or base:match("^next%s+[%a]*$") or base:match("^%d+%s*[%a]*$") then
+	if base ~= "" then
 		return ctx
 	end
 

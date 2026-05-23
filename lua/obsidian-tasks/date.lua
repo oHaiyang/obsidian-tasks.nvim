@@ -31,6 +31,36 @@ local MONTHS = {
 	december = 12,
 }
 
+local WEEKDAYS = {
+	sun = 0,
+	sunday = 0,
+	mon = 1,
+	monday = 1,
+	tue = 2,
+	tues = 2,
+	tuesday = 2,
+	wed = 3,
+	wednesday = 3,
+	thu = 4,
+	thur = 4,
+	thurs = 4,
+	thursday = 4,
+	fri = 5,
+	friday = 5,
+	sat = 6,
+	saturday = 6,
+}
+
+local DATE_ABBREVIATIONS = {
+	td = "today",
+	tm = "tomorrow",
+	yd = "yesterday",
+	tw = "this week",
+	nw = "next week",
+	we = "sat",
+	weekend = "sat",
+}
+
 local function parse_ymd(value)
 	local year, month, day = tostring(value or ""):match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
 	if not year then
@@ -108,6 +138,47 @@ function M.add_months(value, months)
 	return string.format("%04d-%02d-%02d", year, month, day)
 end
 
+local function weekday(value)
+	if not M.is_valid(value) then
+		return nil
+	end
+	local year, month, day = parse_ymd(value)
+	return tonumber(os.date("%w", os.time({
+		year = year,
+		month = month,
+		day = day,
+		hour = 12,
+		min = 0,
+		sec = 0,
+	})))
+end
+
+local function add_weekday(today, target, mode)
+	local current = weekday(today)
+	if current == nil then
+		return nil
+	end
+
+	local delta = target - current
+	if mode == "next" then
+		if delta <= 0 then
+			delta = delta + 7
+		end
+	elseif mode == "last" then
+		if delta >= 0 then
+			delta = delta - 7
+		end
+	elseif delta < 0 then
+		delta = delta + 7
+	end
+
+	return M.add_days(today, delta)
+end
+
+local function expand_abbreviation(expr)
+	return DATE_ABBREVIATIONS[expr] or expr
+end
+
 local function add_units(today, amount, unit)
 	amount = tonumber(amount)
 	if not amount then
@@ -155,7 +226,7 @@ end
 
 function M.parse_date_expr(value, opts)
 	opts = opts or {}
-	local expr = trim(value):lower()
+	local expr = expand_abbreviation(trim(value):lower())
 	if expr == "" then
 		return nil
 	end
@@ -171,6 +242,29 @@ function M.parse_date_expr(value, opts)
 
 	if M.is_valid(expr) then
 		return expr
+	end
+
+	if expr == "this week" or expr == "this month" or expr == "this year" then
+		return today
+	end
+
+	local weekday_name = expr:match("^this%s+([%a]+)$")
+	if weekday_name and WEEKDAYS[weekday_name] ~= nil then
+		return add_weekday(today, WEEKDAYS[weekday_name], "this")
+	end
+
+	weekday_name = expr:match("^next%s+([%a]+)$")
+	if weekday_name and WEEKDAYS[weekday_name] ~= nil then
+		return add_weekday(today, WEEKDAYS[weekday_name], "next")
+	end
+
+	weekday_name = expr:match("^last%s+([%a]+)$")
+	if weekday_name and WEEKDAYS[weekday_name] ~= nil then
+		return add_weekday(today, WEEKDAYS[weekday_name], "last")
+	end
+
+	if WEEKDAYS[expr] ~= nil then
+		return add_weekday(today, WEEKDAYS[expr], "this")
 	end
 
 	local amount, unit = expr:match("^in%s+([%+%-]?%d+)%s*([%a]+)$")

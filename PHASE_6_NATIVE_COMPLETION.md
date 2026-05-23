@@ -127,7 +127,7 @@ Markdown task 行示例：
 - [ ] #task Due 📅
 ```
 
-会弹出 `today`、`tomorrow`、`+7` 等候选，并在 Markdown task 行中插入 ISO 日期。
+会弹出 `today`、`tomorrow`、星期几、`next week/month/year` 等候选，并在 Markdown task 行中插入 ISO 日期。
 
 ### Date field 关键词自动触发
 
@@ -158,9 +158,17 @@ schduled   -> ⏳
 ```markdown
 - [ ] #task Follow up 📅 t
 - [ ] #task Follow up ⏳ next w
+- [ ] #task Follow up 📅 Fri
+- [ ] #task Follow up 📅 tm
 ```
 
 候选会插入 ISO 日期，例如 `2026-05-22` 或 `2026-05-29`。
+
+这一段参考原版 Obsidian Tasks suggestor：
+
+- 固定候选：`today`、`tomorrow`、`Sunday` 到 `Saturday`、`next week`、`next month`、`next year`。
+- 日期缩写：`td`、`tm`、`yd`、`tw`、`nw`、`weekend`、`we`。
+- 解析式：`next Friday`、`last Monday`、`in 2 weeks`、`+7`、`6 oct`、`oct 6` 等。
 
 日期字段关键词也不要求出现在所有 metadata 之前：
 

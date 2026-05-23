@@ -80,6 +80,13 @@ local date = require("obsidian-tasks.date")
 assert(date.parse_date_expr("in 1 month", { today = "2026-05-16" }) == "2026-06-16")
 assert(date.parse_date_expr("last week", { today = "2026-05-16" }) == "2026-05-09")
 assert(date.parse_date_expr("-2", { today = "2026-05-16" }) == "2026-05-14")
+assert(date.parse_date_expr("Friday", { today = "2026-05-22" }) == "2026-05-22")
+assert(date.parse_date_expr("next Friday", { today = "2026-05-22" }) == "2026-05-29")
+assert(date.parse_date_expr("tm", { today = "2026-05-22" }) == "2026-05-23")
+assert(date.parse_date_expr("tw", { today = "2026-05-22" }) == "2026-05-22")
+assert(date.parse_date_expr("nw", { today = "2026-05-22" }) == "2026-05-29")
+assert(date.parse_date_expr("weekend", { today = "2026-05-22" }) == "2026-05-23")
+assert(date.parse_date_expr("next y", { today = "2026-05-22" }) == "2027-05-22")
 LUA
 
 NVIM_LOG_FILE="${NVIM_LOG_FILE:-/private/tmp/obsidian-tasks-nvim-phase5-5.log}" \

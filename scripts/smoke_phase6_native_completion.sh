@@ -29,6 +29,12 @@ vim.fn.writefile({
   "- [ ] #task Date keyword as metadata value 📅 due",
   "- [ ] #task Due value after emoji 📅 t",
   "- [ ] #task Scheduled value after emoji ⏳ next w",
+  "- [ ] #task Due weekday 📅 Fri",
+  "- [ ] #task Due next weekday 📅 next fri",
+  "- [ ] #task Due abbreviation 📅 tm",
+  "- [ ] #task Due this week abbreviation 📅 tw",
+  "- [ ] #task Due weekend 📅 weekend",
+  "- [ ] #task Due next year 📅 next y",
   "Plain paragraph h",
 }, tasks_file)
 
@@ -194,9 +200,49 @@ assert(ctx.base == "next w", ctx.base)
 assert(native.should_auto_trigger_date_value(ctx, {
   auto_trigger = { date_values = true },
 }))
-assert(has_word(native.complete(0, "next w"), "2026-05-29"), vim.inspect(native.complete(0, "next w")))
+local next_week_items = native.complete(0, "next w")
+assert(has_word(next_week_items, "2026-05-29"), vim.inspect(next_week_items))
 
-move_to_end(17)
+ctx = context_at(17)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "Fri", ctx.base)
+assert(native.should_auto_trigger_date_value(ctx, {
+  auto_trigger = { date_values = true },
+}))
+local friday_items = native.complete(0, "Fri")
+assert(has_word(friday_items, "2026-05-22"), vim.inspect(friday_items))
+
+ctx = context_at(18)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "next fri", ctx.base)
+local next_friday_items = native.complete(0, "next fri")
+assert(has_word(next_friday_items, "2026-05-29"), vim.inspect(next_friday_items))
+
+ctx = context_at(19)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "tm", ctx.base)
+local tm_items = native.complete(0, "tm")
+assert(has_word(tm_items, "2026-05-23"), vim.inspect(tm_items))
+
+ctx = context_at(20)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "tw", ctx.base)
+local tw_items = native.complete(0, "tw")
+assert(has_word(tw_items, "2026-05-22"), vim.inspect(tw_items))
+
+ctx = context_at(21)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "weekend", ctx.base)
+local weekend_items = native.complete(0, "weekend")
+assert(has_word(weekend_items, "2026-05-23"), vim.inspect(weekend_items))
+
+ctx = context_at(22)
+assert(ctx.field == "due", ctx.field)
+assert(ctx.base == "next y", ctx.base)
+local next_year_items = native.complete(0, "next y")
+assert(has_word(next_year_items, "2027-05-22"), vim.inspect(next_year_items))
+
+move_to_end(23)
 assert(completion.markdown_context({ buf = 0 }) == nil)
 assert(native.complete(1, "") == -2)
 assert(vim.b.obsidian_tasks_native_completion == true)

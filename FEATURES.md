@@ -201,7 +201,7 @@
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；calendar-style UI 待补。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
-| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全、priority 前缀和 due/scheduled 日期字段关键词；完整任务搜索待补。 | P1 |
+| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全、priority 前缀、due/scheduled 日期字段关键词和 Obsidian-style 常用日期语义；完整任务搜索待补。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Done：Phase 5.10 支持只补缺失属性并保留已有值。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |

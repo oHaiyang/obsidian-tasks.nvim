@@ -61,14 +61,16 @@ local MARKDOWN_FIELD_SUGGESTIONS = {
 local DATE_SUGGESTIONS = {
 	{ expr = "today", word = "today", menu = "date" },
 	{ expr = "tomorrow", word = "tomorrow", menu = "date" },
-	{ expr = "yesterday", word = "yesterday", menu = "date" },
-	{ expr = "+1", word = "+1", abbr = "+1 tomorrow", menu = "date" },
-	{ expr = "+7", word = "+7", abbr = "+7 one week", menu = "date" },
-	{ expr = "1 week", word = "1 week", menu = "date" },
-	{ expr = "2 weeks", word = "2 weeks", menu = "date" },
-	{ expr = "1 month", word = "1 month", menu = "date" },
+	{ expr = "Sunday", word = "Sunday", menu = "date" },
+	{ expr = "Monday", word = "Monday", menu = "date" },
+	{ expr = "Tuesday", word = "Tuesday", menu = "date" },
+	{ expr = "Wednesday", word = "Wednesday", menu = "date" },
+	{ expr = "Thursday", word = "Thursday", menu = "date" },
+	{ expr = "Friday", word = "Friday", menu = "date" },
+	{ expr = "Saturday", word = "Saturday", menu = "date" },
 	{ expr = "next week", word = "next week", menu = "date" },
 	{ expr = "next month", word = "next month", menu = "date" },
+	{ expr = "next year", word = "next year", menu = "date" },
 }
 
 local RECURRENCE_SUGGESTIONS = {
@@ -150,6 +152,19 @@ local function append_items(items, source)
 	end
 end
 
+local function append_unique_item(items, item, seen)
+	if not item or not item.word then
+		return
+	end
+	seen = seen or {}
+	local key = item.word .. "\t" .. (item.menu or "") .. "\t" .. tostring(item.filter_text or item.abbr or "")
+	if seen[key] then
+		return
+	end
+	table.insert(items, clone_item(item))
+	seen[key] = true
+end
+
 local function existing_ids(state)
 	state = state_with_defaults(state)
 	if state.cached_ids then
@@ -208,19 +223,46 @@ local function status_suggestions()
 	return items
 end
 
-local function date_suggestions(context, state)
+local function date_suggestions(context, state, base)
 	local items = {}
+	local seen = {}
+	local defaults = state_with_defaults(state)
+	base = trim(base or "")
+
+	if base ~= "" and #base > 1 then
+		local parsed = date.parse_date_expr(base, { today = defaults.today })
+		local duplicated_by_generic = false
+		for _, source in ipairs(DATE_SUGGESTIONS) do
+			local source_word = tostring(source.word or ""):lower()
+			if source_word:find(base:lower(), 1, true) == 1 then
+				local source_date = date.parse_date_expr(source.expr or source.word, { today = defaults.today })
+				if source_date == parsed then
+					duplicated_by_generic = true
+					break
+				end
+			end
+		end
+		if parsed and not duplicated_by_generic then
+			append_unique_item(items, {
+				word = parsed,
+				abbr = base .. " -> " .. parsed,
+				menu = "date",
+				filter_text = base,
+			}, seen)
+		end
+	end
+
 	for _, source in ipairs(DATE_SUGGESTIONS) do
 		local item = clone_item(source)
 		item.filter_text = source.word
 		if context == "markdown" then
-			local parsed = date.parse_date_expr(source.expr or source.word, { today = state_with_defaults(state).today })
+			local parsed = date.parse_date_expr(source.expr or source.word, { today = defaults.today })
 			if parsed then
 				item.word = parsed
 				item.abbr = (source.abbr or source.word) .. " -> " .. parsed
 			end
 		end
-		table.insert(items, item)
+		append_unique_item(items, item, seen)
 	end
 	return items
 end
@@ -254,7 +296,7 @@ local function field_suggestions(field, state, opts)
 		append_items(items, MARKDOWN_PRIORITY_SUGGESTIONS)
 		append_items(items, MARKDOWN_FIELD_SUGGESTIONS)
 	elseif DATE_SYMBOLS[field] then
-		append_items(items, date_suggestions(opts.context, state))
+		append_items(items, date_suggestions(opts.context, state, opts.base))
 	elseif field == "recurrence" then
 		append_items(items, RECURRENCE_SUGGESTIONS)
 	elseif field == "on_completion" then
