@@ -19,6 +19,7 @@ function M.setup(config)
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
 	config.presets = config.presets or config.query_presets or config.queryPresets or {}
+	config.task_format = config.task_format or config.taskFormat or "tasks"
 	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
 	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses

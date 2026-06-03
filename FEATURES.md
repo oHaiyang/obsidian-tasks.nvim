@@ -57,7 +57,7 @@
 | F008 | Global Filter | 可设置全局字符串，如 `#task`，只追踪包含该字符串的 checklist item。 | Partial：已支持配置，后续补 removeGlobalFilter 等细节。 | P0 |
 | F009 | Remove global filter | 全局过滤 tag 可从描述和 `task.tags` 中移除。 | Todo。 | P1 |
 | F010 | Tasks Emoji Format | 默认格式：优先级、日期、循环、on completion、依赖均用 emoji 字段。 | Partial：只解析优先级和 due。 | P0 |
-| F011 | Dataview Format | 支持 `[due:: 2024-01-01]`、`[priority:: high]` 等 Dataview inline fields。 | Todo。 | P2 |
+| F011 | Dataview Format | 支持 `[due:: 2024-01-01]`、`[priority:: high]` 等 Dataview inline fields。 | Partial：Phase 6.7 支持 Dataview task format MVP 的解析、查询、主要编辑写回和补全入口。 | P2 |
 | F012 | 描述字段 | 解析任务正文，metadata 从行尾剥离，保留用户可见描述。 | Partial。 | P0 |
 | F013 | 解析顺序 | 从行尾向左解析 metadata；metadata 后只能继续放 tag/block link，否则左侧 metadata 不识别。 | Todo。 | P0 |
 | F014 | Tags | 识别 task description 中 tag；支持较 Obsidian 更宽松的 tag 规则。 | Todo。 | P0 |
@@ -201,7 +201,7 @@
 | F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；Phase 6.5 支持 floating calendar picker、选择和清空日期。 | P2 |
 | F411 | Date context menu | 右键日期可 advance/postpone。 | Partial：Phase 6.5 在 select picker 中提供已有日期的 `Advance 1 day` / `Postpone 1 day`，右键菜单本身不做。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
-| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全、priority 前缀、due/scheduled 日期字段关键词和 Obsidian-style 常用日期语义；Phase 6.6 支持 dependency task search suggestions。 | P1 |
+| F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全、priority 前缀、due/scheduled 日期字段关键词和 Obsidian-style 常用日期语义；Phase 6.6 支持 dependency task search suggestions；Phase 6.7 支持 Dataview inline field completion MVP。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`；Phase 6.6 与 completion 共用 task search 候选。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Done：Phase 5.10 支持只补缺失属性并保留已有值。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
@@ -214,7 +214,7 @@
 | F501 | `globalFilter` | 只追踪包含指定字符串的 checklist item。 | Partial。 | P0 |
 | F502 | `removeGlobalFilter` | 从描述和 tags 中隐藏/移除 global filter。 | Todo。 | P1 |
 | F503 | `globalQuery` | 注入每个 tasks query 前面。 | Done：Phase 5.3 支持 `global_query` / `globalQuery`。 | P1 |
-| F504 | `taskFormat` | `tasksPluginEmoji` 或 `dataview`。 | Todo。 | P2 |
+| F504 | `taskFormat` | `tasksPluginEmoji` 或 `dataview`。 | Partial：Phase 6.7 支持 `task_format` / `taskFormat = "dataview"` MVP；默认仍为 emoji format。 | P2 |
 | F505 | `setCreatedDate` | 新建任务或新 recurrence 时添加 created date。 | Partial：new recurrence 可写 created date。 | P1 |
 | F506 | `setDoneDate` | 完成任务时添加 done date。 | Done。 | P1 |
 | F507 | `setCancelledDate` | 取消任务时添加 cancelled date。 | Done。 | P1 |
@@ -239,7 +239,7 @@
 | F603 | JavaScript expressions | custom filter/sort/group 运行 JS，需要显式启用。 | Obsidian-only；nvim 建议 Lua 表达式。 | P2 |
 | F604 | TasksDate helper | 日期对象支持 `format()`、`category`、`fromNow` 等。 | Todo。 | P2 |
 | F605 | API v1 | `createTaskLineModal()`、`editTaskLineModal()`、`executeToggleTaskDoneCommand()`。 | Todo；nvim 可提供 Lua API。 | P2 |
-| F606 | Dataview interop | 可读写 Dataview inline field 格式。 | Todo。 | P2 |
+| F606 | Dataview interop | 可读写 Dataview inline field 格式。 | Partial：Phase 6.7 支持 task line inline fields，不读取 frontmatter Dataview 数据。 | P2 |
 | F607 | QuickAdd / Kanban / Meta Bind docs | Obsidian 生态集成说明和部分适配。 | Obsidian-only。 | P3 |
 | F608 | Reminder interop | 与 obsidian-reminder 约定 `⏰ YYYY-MM-DD HH:mm`。 | Todo；可作为兼容解析。 | P3 |
 | F609 | i18n | 原插件带多语言 locale。 | Todo。 | P3 |
@@ -330,12 +330,11 @@
 后续继续补：
 
 1. XOR / bracket / quote Boolean delimiters。
-2. Dataview task format。
-3. Frontmatter properties 和 links。
+2. Frontmatter properties 和 links。
 
 ### Phase 6: Polish and Ecosystem
 
-状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，Phase 6.5 已实现 calendar date picker，Phase 6.6 已实现 task search suggestions，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
+状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，Phase 6.5 已实现 calendar date picker，Phase 6.6 已实现 task search suggestions，Phase 6.7 已实现 Dataview task format MVP，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
 建议拆分：
 
@@ -345,6 +344,6 @@
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。Done。
-7. Phase 6.7：Dataview task format MVP。
+7. Phase 6.7：Dataview task format MVP。Done。
 8. Phase 6.8：Frontmatter properties、links、scripting surface。
 9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。

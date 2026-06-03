@@ -143,11 +143,23 @@ end
 
 local function has_id(line)
 	return (line or ""):find("🆔", 1, true) ~= nil
+		or task_model.dataview_field_value(line, task_model.DATAVIEW_FIELD_KEYS.id) ~= nil
+end
+
+local function task_prefix(task)
+	return string.format("%s%s [%s]", task.indentation or "", task.list_marker or "-", task.status_symbol or " ")
 end
 
 function M.add_id_to_line(line, id)
 	if has_id(line) then
 		return line
+	end
+	local parsed = task_model.parse_line({
+		line = line,
+		global_filter = "",
+	})
+	if parsed and parsed.task_format == "dataview" then
+		return task_prefix(parsed) .. " " .. task_model.set_dataview_metadata(parsed.body or "", "id", id)
 	end
 	return rstrip(line) .. " 🆔 " .. id
 end
@@ -210,6 +222,12 @@ function M.add_dependency_to_line(line, id)
 		if existing == id then
 			return line
 		end
+	end
+
+	if parsed.task_format == "dataview" then
+		local value = table.concat(parsed.depends_on or parsed.dependsOn or {}, ", ")
+		local body = task_model.set_dataview_metadata(parsed.body or "", "depends_on", M.add_id_to_csv(value, id))
+		return task_prefix(parsed) .. " " .. body
 	end
 
 	local start_col, end_col, value = line:find("⛔%s*([%w_%-,%s]+)")

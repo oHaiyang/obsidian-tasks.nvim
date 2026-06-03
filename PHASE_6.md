@@ -34,13 +34,13 @@ Phase 6 的原则：
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done，详见 `PHASE_6_4.md`。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done，详见 `PHASE_6_5.md`。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。Done，详见 `PHASE_6_6.md`。
-7. Phase 6.7：Dataview task format MVP。
+7. Phase 6.7：Dataview task format MVP。Done，详见 `PHASE_6_7.md`。
 8. Phase 6.8：Frontmatter properties、links、scripting surface。
 9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
 
 当前决策：Phase 6.1 先跳过。原因是 query diagnostics 和 `explain` 使用频率低，而且复杂查询写错时更适合到 Obsidian 原版里做权威验证。文档仍保留 6.1 的完整设计，作为后续 backlog。
 
-当前 Phase 6.2、Native Completion Adapter、6.3、6.4、6.5、6.6 已完成。下一步建议做 6.7 Dataview task format MVP。Phase 6.7 和 6.8 涉及数据模型扩展，风险更高，实施时要保持 MVP 边界。
+当前 Phase 6.2、Native Completion Adapter、6.3、6.4、6.5、6.6、6.7 已完成。下一步建议做 6.8 Frontmatter Properties + Links + Scripting Surface。Phase 6.8 继续涉及数据模型扩展，实施时要保持 MVP 边界。
 
 ---
 
@@ -840,6 +840,8 @@ sh scripts/smoke_phase5_9.sh
 
 ## Phase 6.7: Dataview Task Format MVP
 
+状态：已实现，详见 `PHASE_6_7.md` 和 `PHASE_6_7_TEST.md`。
+
 ### 目标
 
 支持原版 Tasks 的 Dataview inline field 格式读写 MVP：
@@ -1105,10 +1107,10 @@ sh scripts/smoke_phase5.sh
 
 ## 推荐下一步
 
-建议下一步做 **Phase 6.7 Dataview Task Format MVP**。
+建议下一步做 **Phase 6.8 Frontmatter Properties + Links + Scripting Surface**。
 
 理由：
 
-- Phase 6.6 已经把 auto-suggest 和 dependency task search 的主路径补上。
-- Dataview task format 是原版 Tasks 的正式 task format 能力，不是自创功能。
-- Phase 6.7 会触碰 parser/serializer/edit/date/dependency 多条写回路径，建议先做 MVP：解析、查询、编辑时尽量保留格式。
+- Phase 6.7 已经补上 Dataview task format MVP，task model 已经开始承载更多原版字段形态。
+- Phase 6.8 继续补原版 custom filter/scripting surface 中常用的 file frontmatter 和 links。
+- Phase 6.8 也能服务后续更完整的 custom filter/sort/group by function。

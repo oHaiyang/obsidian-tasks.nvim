@@ -59,6 +59,24 @@ local MARKDOWN_FIELD_SUGGESTIONS = {
 	},
 }
 
+local DATAVIEW_MARKDOWN_SUGGESTIONS = {
+	{ word = "[priority:: highest]", abbr = "priority highest", menu = "priority", filter_text = { "highest", "priority highest" } },
+	{ word = "[priority:: high]", abbr = "priority high", menu = "priority", filter_text = { "high", "priority high" } },
+	{ word = "[priority:: medium]", abbr = "priority medium", menu = "priority", filter_text = { "medium", "priority medium" } },
+	{ word = "[priority:: low]", abbr = "priority low", menu = "priority", filter_text = { "low", "priority low" } },
+	{ word = "[priority:: lowest]", abbr = "priority lowest", menu = "priority", filter_text = { "lowest", "priority lowest" } },
+	{ word = "[due:: ", abbr = "due", menu = "date field", filter_text = { "due", "due date" } },
+	{ word = "[scheduled:: ", abbr = "scheduled", menu = "date field", filter_text = { "scheduled", "schedule", "sched", "schduled", "scheduled date" } },
+	{ word = "[start:: ", abbr = "start", menu = "date field", filter_text = { "start", "start date" } },
+	{ word = "[created:: ", abbr = "created", menu = "date field", filter_text = { "created", "created date" } },
+	{ word = "[completion:: ", abbr = "completion", menu = "done date", filter_text = { "done", "completion" } },
+	{ word = "[cancelled:: ", abbr = "cancelled", menu = "cancelled date", filter_text = { "cancelled", "canceled" } },
+	{ word = "[repeat:: ", abbr = "repeat", menu = "recurrence", filter_text = { "repeat", "recurrence", "every" } },
+	{ word = "[onCompletion:: ", abbr = "onCompletion", menu = "on completion", filter_text = { "onCompletion", "on completion" } },
+	{ word = "[id:: ", abbr = "id", menu = "id", filter_text = "id" },
+	{ word = "[dependsOn:: ", abbr = "dependsOn", menu = "depends on", filter_text = { "dependsOn", "depends on", "dependency" } },
+}
+
 local DATE_SUGGESTIONS = {
 	{ expr = "today", word = "today", menu = "date" },
 	{ expr = "tomorrow", word = "tomorrow", menu = "date" },
@@ -344,8 +362,12 @@ local function field_suggestions(field, state, opts)
 	elseif field == "priority" then
 		append_items(items, PRIORITY_SUGGESTIONS)
 	elseif field == "markdown_priority" then
-		append_items(items, MARKDOWN_PRIORITY_SUGGESTIONS)
-		append_items(items, MARKDOWN_FIELD_SUGGESTIONS)
+		if task_model.is_dataview_format(opts.state or {}) then
+			append_items(items, DATAVIEW_MARKDOWN_SUGGESTIONS)
+		else
+			append_items(items, MARKDOWN_PRIORITY_SUGGESTIONS)
+			append_items(items, MARKDOWN_FIELD_SUGGESTIONS)
+		end
 	elseif DATE_SYMBOLS[field] then
 		append_items(items, date_suggestions(opts.context, state, opts.base))
 	elseif field == "recurrence" then
@@ -480,6 +502,69 @@ local function current_token_context(line, before_cursor, row, col)
 	}
 end
 
+local DATAVIEW_CONTEXT_FIELDS = {
+	created = "created",
+	start = "start",
+	scheduled = "scheduled",
+	due = "due",
+	completion = "done",
+	cancelled = "cancelled",
+	priority = "priority",
+	["repeat"] = "recurrence",
+	onCompletion = "on_completion",
+	id = "id",
+	dependsOn = "depends_on",
+}
+
+local function latest_dataview_context(line, before_cursor, row, col)
+	local best = nil
+	for key, field in pairs(DATAVIEW_CONTEXT_FIELDS) do
+		for _, pattern in ipairs({ "%[%s*" .. key .. "::%s*", "%(%s*" .. key .. "::%s*" }) do
+			local start = 1
+			while true do
+				local found_start, found_end = before_cursor:find(pattern, start)
+				if not found_start then
+					break
+				end
+				local raw_value = before_cursor:sub(found_end + 1)
+				if not raw_value:find("[%]%)]") and (not best or found_end > best.finish) then
+					best = {
+						field = field,
+						finish = found_end,
+						base = raw_value,
+					}
+				end
+				start = found_end + 1
+			end
+		end
+	end
+	if not best then
+		return nil
+	end
+
+	local base = best.base or ""
+	local start_col = best.finish
+	if best.field == "depends_on" then
+		local head, tail = base:match("^(.*,%s*)([^,]*)$")
+		if head then
+			start_col = start_col + #head
+			base = tail
+		end
+	end
+
+	return {
+		context = "markdown",
+		field = best.field,
+		base = base,
+		row = row,
+		cursor_col = col,
+		start_col = start_col,
+		line_length = #line,
+		completefunc_start_col = start_col,
+		complete_start_col = start_col + 1,
+	}
+end
+
 local function latest_symbol(before_cursor)
 	local best = nil
 	for _, entry in ipairs(MARKDOWN_SYMBOLS) do
@@ -528,6 +613,12 @@ function M.markdown_context(opts)
 	end
 
 	local before_cursor = line:sub(1, col)
+	local dataview_ctx = task.task_format == "dataview" and latest_dataview_context(line, before_cursor, row, col)
+	if dataview_ctx then
+		dataview_ctx.current_task = task
+		return dataview_ctx
+	end
+
 	local symbol = latest_symbol(before_cursor)
 	if not symbol then
 		local ctx = current_token_context(line, before_cursor, row, col)

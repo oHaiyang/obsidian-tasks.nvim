@@ -28,8 +28,125 @@ M.DATE_SYMBOLS = {
 	done = { "✅" },
 }
 
+M.DATAVIEW_DATE_KEYS = {
+	created = "created",
+	start = "start",
+	scheduled = "scheduled",
+	due = "due",
+	done = "completion",
+	cancelled = "cancelled",
+}
+
+M.DATAVIEW_FIELD_KEYS = {
+	priority = "priority",
+	recurrence = "repeat",
+	on_completion = "onCompletion",
+	id = "id",
+	depends_on = "dependsOn",
+}
+
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
+end
+
+local function get_config()
+	local ok, plugin = pcall(require, "obsidian-tasks")
+	if ok and plugin then
+		return plugin.config or {}
+	end
+	return {}
+end
+
+local function normalize_task_format(value)
+	value = tostring(value or "tasks"):lower()
+	if value == "dataview" then
+		return "dataview"
+	end
+	return "tasks"
+end
+
+function M.task_format(opts)
+	opts = opts or {}
+	return normalize_task_format(opts.task_format or opts.taskFormat or get_config().task_format or get_config().taskFormat)
+end
+
+function M.is_dataview_format(opts)
+	return M.task_format(opts) == "dataview"
+end
+
+local function clean_body(value)
+	value = trim(value)
+	value = value:gsub("%s%s%s+", "  ")
+	return trim(value)
+end
+
+local function dataview_square_pattern(key)
+	return "%s*%[%s*" .. key .. "::%s*[^%]]+%s*%]%s*,?"
+end
+
+local function dataview_paren_pattern(key)
+	return "%s*%(%s*" .. key .. "::%s*[^%)]+%s*%)%s*,?"
+end
+
+local function dataview_value(line, key)
+	local value = (line or ""):match("%[%s*" .. key .. "::%s*([^%]]+)%s*%]")
+		or (line or ""):match("%(%s*" .. key .. "::%s*([^%)]+)%s*%)")
+	if value then
+		return trim(value):gsub("%s*,%s*$", "")
+	end
+	return nil
+end
+
+function M.dataview_field_value(line, key)
+	return dataview_value(line, key)
+end
+
+function M.dataview_inline_field(key, value)
+	return string.format("[%s:: %s]", key, value)
+end
+
+function M.remove_dataview_field(body, key)
+	body = (body or ""):gsub(dataview_square_pattern(key), " ")
+	body = body:gsub(dataview_paren_pattern(key), " ")
+	return clean_body(body)
+end
+
+function M.set_dataview_field(body, key, value)
+	value = trim(value)
+	if value == "" then
+		return M.remove_dataview_field(body, key)
+	end
+
+	local replacement = "  " .. M.dataview_inline_field(key, value)
+	local updated, count = (body or ""):gsub(dataview_square_pattern(key), replacement, 1)
+	if count == 0 then
+		updated, count = (body or ""):gsub(dataview_paren_pattern(key), replacement, 1)
+	end
+	if count > 0 then
+		return clean_body(updated)
+	end
+
+	local before, block_link = (body or ""):match("^(.-)%s+(%^[%w%-]+)%s*$")
+	if block_link then
+		return clean_body(trim(before) .. replacement .. " " .. block_link)
+	end
+	return clean_body((body or "") .. replacement)
+end
+
+function M.set_dataview_date(body, field, value)
+	local key = M.DATAVIEW_DATE_KEYS[field]
+	if not key then
+		return clean_body(body)
+	end
+	return M.set_dataview_field(body, key, value)
+end
+
+function M.set_dataview_metadata(body, field, value)
+	local key = M.DATAVIEW_FIELD_KEYS[field] or M.DATAVIEW_DATE_KEYS[field]
+	if not key then
+		return clean_body(body)
+	end
+	return M.set_dataview_field(body, key, value)
 end
 
 local function split_csv(value)
@@ -138,6 +255,61 @@ local function extract_date(state)
 		end
 	end
 	return false
+end
+
+local function extract_dataview_metadata(state)
+	state.task.dataview_fields = {}
+	for field, key in pairs(M.DATAVIEW_DATE_KEYS) do
+		local value = dataview_value(state.line, key)
+		if value and value:match("^%d%d%d%d%-%d%d%-%d%d$") then
+			state.task.dataview_fields[key] = value
+			state.task.dates[field] = value
+			state.task[field .. "_date"] = value
+		end
+	end
+
+	local priority = dataview_value(state.line, M.DATAVIEW_FIELD_KEYS.priority)
+	if priority then
+		priority = trim(priority):lower()
+		if priority ~= "" and priority ~= "normal" and priority ~= "none" then
+			state.task.priority = priority
+		end
+		state.task.dataview_fields.priority = priority
+	end
+
+	local recurrence = dataview_value(state.line, M.DATAVIEW_FIELD_KEYS.recurrence)
+	if recurrence then
+		state.task.recurrence_rule = trim(recurrence)
+		state.task.is_recurring = state.task.recurrence_rule ~= ""
+		state.task.dataview_fields["repeat"] = state.task.recurrence_rule
+	end
+
+	local on_completion = dataview_value(state.line, M.DATAVIEW_FIELD_KEYS.on_completion)
+	if on_completion then
+		state.task.on_completion = trim(on_completion):lower()
+		state.task.dataview_fields.onCompletion = state.task.on_completion
+	end
+
+	local id = dataview_value(state.line, M.DATAVIEW_FIELD_KEYS.id)
+	if id then
+		state.task.id = trim(id)
+		state.task.dataview_fields.id = state.task.id
+	end
+
+	local depends_on = dataview_value(state.line, M.DATAVIEW_FIELD_KEYS.depends_on)
+	if depends_on then
+		state.task.depends_on = split_csv(depends_on)
+		state.task.dependsOn = state.task.depends_on
+		state.task.dataview_fields.dependsOn = table.concat(state.task.depends_on, ", ")
+	end
+
+	for _, key in pairs(M.DATAVIEW_DATE_KEYS) do
+		state.line = M.remove_dataview_field(state.line, key)
+	end
+	for _, key in pairs(M.DATAVIEW_FIELD_KEYS) do
+		state.line = M.remove_dataview_field(state.line, key)
+	end
+	return true
 end
 
 local function extract_recurrence(state)
@@ -254,6 +426,8 @@ function M.parse_line(opts)
 		depends_on = {},
 		dependsOn = {},
 		block_link = "",
+		task_format = M.task_format(opts),
+		taskFormat = M.task_format(opts),
 	}
 
 	local state = {
@@ -264,17 +438,27 @@ function M.parse_line(opts)
 
 	extract_block_link(state)
 
-	local max_runs = 30
-	for _ = 1, max_runs do
-		local matched = extract_priority(state)
-			or extract_date(state)
-			or extract_recurrence(state)
-			or extract_on_completion(state)
-			or extract_id(state)
-			or extract_depends_on(state)
-			or extract_trailing_tag(state)
-		if not matched then
-			break
+	if task.task_format == "dataview" then
+		extract_dataview_metadata(state)
+		local max_runs = 30
+		for _ = 1, max_runs do
+			if not extract_trailing_tag(state) then
+				break
+			end
+		end
+	else
+		local max_runs = 30
+		for _ = 1, max_runs do
+			local matched = extract_priority(state)
+				or extract_date(state)
+				or extract_recurrence(state)
+				or extract_on_completion(state)
+				or extract_id(state)
+				or extract_depends_on(state)
+				or extract_trailing_tag(state)
+			if not matched then
+				break
+			end
 		end
 	end
 

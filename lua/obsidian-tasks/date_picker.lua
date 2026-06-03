@@ -184,6 +184,13 @@ end
 
 function M.date_in_line(line, field)
 	field = normalize_field(field or "due")
+	local dataview_key = task_model.DATAVIEW_DATE_KEYS[field]
+	if dataview_key then
+		local value = task_model.dataview_field_value(line, dataview_key)
+		if date.is_valid(value) then
+			return value
+		end
+	end
 	for _, symbol in ipairs(task_model.DATE_SYMBOLS[field] or { FIELD_SYMBOLS[field] }) do
 		if symbol then
 			local value = tostring(line or ""):match(symbol .. "%s*(%d%d%d%d%-%d%d%-%d%d)")
@@ -431,6 +438,15 @@ function M.set_date_in_line(line, field, value)
 	end
 
 	value = trim(value)
+	if parsed.task_format == "dataview" or task_model.is_dataview_format() then
+		local updated_body = task_model.set_dataview_date(parsed.body or "", field, value)
+		local prefix = string.format("%s%s [%s]", parsed.indentation or "", parsed.list_marker or "-", parsed.status_symbol or " ")
+		if updated_body == "" then
+			return prefix
+		end
+		return prefix .. " " .. updated_body
+	end
+
 	for _, symbol in ipairs(task_model.DATE_SYMBOLS[field] or { primary_symbol }) do
 		local pattern = symbol .. "%s*%d%d%d%d%-%d%d%-%d%d"
 		if line:find(symbol, 1, true) then

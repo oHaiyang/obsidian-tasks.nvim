@@ -40,14 +40,32 @@ local function field_symbol(field)
 	return symbols[1]
 end
 
-local function remove_date(body, field)
+local function is_dataview_task(task)
+	return task and (task.task_format == "dataview" or task.taskFormat == "dataview")
+end
+
+local function has_dataview_date(body, field)
+	local key = task_model.DATAVIEW_DATE_KEYS[field]
+	return key and task_model.dataview_field_value(body, key) ~= nil
+end
+
+local function remove_date(body, field, task)
+	if is_dataview_task(task) then
+		return task_model.set_dataview_date(body, field, "")
+	end
 	for _, symbol in ipairs(task_model.DATE_SYMBOLS[field] or {}) do
 		body = body:gsub("%s*" .. symbol .. "%s*%d%d%d%d%-%d%d%-%d%d", "")
 	end
 	return trim(body)
 end
 
-local function replace_date(body, field, value)
+local function replace_date(body, field, value, task)
+	if is_dataview_task(task) then
+		if not has_dataview_date(body, field) then
+			return trim(body), false
+		end
+		return task_model.set_dataview_date(body, field, value), true
+	end
 	for _, symbol in ipairs(task_model.DATE_SYMBOLS[field] or {}) do
 		local pattern = "(" .. symbol .. "%s*)%d%d%d%d%-%d%d%-%d%d"
 		local updated, count = body:gsub(pattern, "%1" .. value, 1)
@@ -67,10 +85,13 @@ local function append_metadata(body, metadata)
 	return trim(body .. " " .. metadata)
 end
 
-local function replace_or_append_date(body, field, value)
-	local updated, replaced = replace_date(body, field, value)
+local function replace_or_append_date(body, field, value, task)
+	local updated, replaced = replace_date(body, field, value, task)
 	if replaced then
 		return updated
+	end
+	if is_dataview_task(task) then
+		return task_model.set_dataview_date(updated, field, value)
 	end
 	return append_metadata(updated, (field_symbol(field) or "") .. " " .. value)
 end
@@ -92,17 +113,17 @@ function M.change_status(task, next_symbol, opts)
 	local updated = status.with_status(task, next_symbol)
 
 	if new_type ~= "DONE" then
-		body = remove_date(body, "done")
+		body = remove_date(body, "done", task)
 		set_date_field(updated, "done", nil)
 	end
 	if new_type ~= "CANCELLED" then
-		body = remove_date(body, "cancelled")
+		body = remove_date(body, "cancelled", task)
 		set_date_field(updated, "cancelled", nil)
 	end
 
 	if new_type == "DONE" and old_type ~= "DONE" and option(opts, "set_done_date", "setDoneDate", false) then
 		local today = opts.today or date.today()
-		body = replace_or_append_date(body, "done", today)
+		body = replace_or_append_date(body, "done", today, task)
 		set_date_field(updated, "done", today)
 	end
 
@@ -112,7 +133,7 @@ function M.change_status(task, next_symbol, opts)
 		and option(opts, "set_cancelled_date", "setCancelledDate", false)
 	then
 		local today = opts.today or date.today()
-		body = replace_or_append_date(body, "cancelled", today)
+		body = replace_or_append_date(body, "cancelled", today, task)
 		set_date_field(updated, "cancelled", today)
 	end
 
@@ -236,7 +257,7 @@ function M.postpone_task(task, expr, opts)
 	for key, value in pairs(task) do
 		updated[key] = value
 	end
-	updated.body = replace_or_append_date(updated.body or updated.display_text or updated.text or "", field, target)
+	updated.body = replace_or_append_date(updated.body or updated.display_text or updated.text or "", field, target, task)
 	updated.display_text = updated.body
 	updated.text = updated.body
 	set_date_field(updated, field, target)

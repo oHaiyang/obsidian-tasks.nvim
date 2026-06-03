@@ -380,13 +380,46 @@ local function build_body(fields)
 	return table.concat(parts, " ")
 end
 
+local function append_dataview_field(body, field, value)
+	value = trim(value)
+	if value == "" then
+		return trim(body)
+	end
+	local key = task_model.DATAVIEW_FIELD_KEYS[field] or task_model.DATAVIEW_DATE_KEYS[field]
+	if not key then
+		return trim(body)
+	end
+	return trim(trim(body) .. "  " .. task_model.dataview_inline_field(key, value))
+end
+
+local function build_dataview_body(fields)
+	local body = trim(fields.description)
+	local priority = normalize_priority(fields.priority)
+	if priority ~= "" and priority ~= "normal" and priority ~= "none" then
+		body = append_dataview_field(body, "priority", priority)
+	end
+	body = append_dataview_field(body, "recurrence", fields.recurrence)
+	body = append_dataview_field(body, "on_completion", fields.on_completion)
+
+	for _, field in ipairs({ "created", "start", "scheduled", "due", "done", "cancelled" }) do
+		body = append_dataview_field(body, field, fields[field])
+	end
+
+	body = append_dataview_field(body, "id", fields.id)
+	body = append_dataview_field(body, "depends_on", fields.depends_on)
+	return body
+end
+
 local function build_task_line(fields, state)
 	local symbol = status.resolve_symbol(fields.status, get_config()) or status.normalize_symbol(fields.status)
+	local task_format = task_model.task_format(state or {})
 	local task = {
 		indentation = state.indentation or "",
 		list_marker = state.list_marker or "-",
 		status_symbol = symbol,
-		body = build_body(fields),
+		body = task_format == "dataview" and build_dataview_body(fields) or build_body(fields),
+		task_format = task_format,
+		taskFormat = task_format,
 	}
 	return task_model.serialize(task)
 end
@@ -579,6 +612,7 @@ function M.edit_current_task()
 			list_marker = task.list_marker,
 			today = get_config().today,
 			vault_path = get_config().vault_path,
+			task_format = task.task_format or task.taskFormat or task_model.task_format(),
 		}
 	else
 		task = current_display_task(buf)
@@ -594,6 +628,7 @@ function M.edit_current_task()
 			list_marker = task.list_marker,
 			today = get_config().today,
 			vault_path = get_config().vault_path,
+			task_format = task.task_format or task.taskFormat or task_model.task_format(),
 		}
 	end
 
@@ -626,6 +661,7 @@ function M.create_task(opts)
 		list_marker = "-",
 		today = opts.today,
 		vault_path = get_config().vault_path,
+		task_format = task_model.task_format(),
 	})
 end
 
