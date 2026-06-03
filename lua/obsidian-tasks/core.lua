@@ -83,7 +83,8 @@ local function format_display_line(parsed)
 	end
 
 	return string.format(
-		"%d. %s %s%s [[%s#L%d]]",
+		"%s%d. %s %s%s [[%s#L%d]]",
+		parsed.display_indentation or "",
 		parsed.index,
 		parsed.status,
 		priority_text,
@@ -105,7 +106,7 @@ function M.save_tasks_changes(buf, tasks)
 
 	for _, line in ipairs(current_lines) do
 		-- require('plenary.log').info('[xxxhhh][try saving line]', line);
-		if line:match("^%d+%. %[.?%]") then -- Ensure this is a task line, not a group title or help line
+		if line:match("^%s*%d+%. %[.?%]") then -- Ensure this is a task line, not a group title or help line
 			-- require('plenary.log').info('[xxxhhh][valid task line]', line);
 			---@type ObsidianTask|nil
 			local parsed = parser.parse_display_line(line)
@@ -178,7 +179,7 @@ local function update_display_status_line(buf, row, parsed, next_symbol)
 	parsed.status_symbol = status_model.normalize_symbol(next_symbol)
 	parsed.status = status_model.status_text(parsed.status_symbol)
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
-	local updated = line:gsub("^(%d+%. )%[.?%]", "%1" .. parsed.status, 1)
+	local updated = line:gsub("^(%s*%d+%. )%[.?%]", "%1" .. parsed.status, 1)
 	if updated == line then
 		updated = format_display_line(parsed)
 	end

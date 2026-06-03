@@ -408,6 +408,29 @@ local function add_date_exists_filter(plan, line_number, original_line, field, e
 	})
 end
 
+local function exclude_sub_items_matches(task)
+	local indentation = task.indentation or ""
+	if indentation == "" then
+		return true
+	end
+
+	local last_blockquote = nil
+	local start = 1
+	while true do
+		local found = indentation:find(">", start, true)
+		if not found then
+			break
+		end
+		last_blockquote = found
+		start = found + 1
+	end
+	if not last_blockquote then
+		return false
+	end
+
+	return indentation:sub(last_blockquote + 1):match("^ ?$") ~= nil
+end
+
 local function matching_close_index(value, open_index)
 	local depth = 0
 	local quote = nil
@@ -703,6 +726,9 @@ function parse_line(plan, line_number, line, opts)
 		return
 	elseif line_lower == "done" then
 		add_filter(plan, { type = "done", value = true })
+		return
+	elseif line_lower == "exclude sub-items" then
+		add_filter(plan, { type = "exclude_sub_items" })
 		return
 	end
 
@@ -1129,6 +1155,8 @@ local function filter_matches(task, filter, context)
 	context = context or {}
 	if filter.type == "done" then
 		return task_done(task, context.status_config) == filter.value
+	elseif filter.type == "exclude_sub_items" then
+		return exclude_sub_items_matches(task)
 	elseif filter.type == "status" then
 		local expected = status.resolve_symbol(filter.value, context.status_config) or normalize_status(filter.value)
 		local matches = task_status_symbol(task) == expected

@@ -37,7 +37,7 @@ end
 ---@param line string The line to parse
 ---@return ObsidianTask|nil task The parsed task or nil if parsing failed
 function M.parse_display_line(line)
-	local index, status, rest = line:match("^(%d+)%. (%[.?%]) (.+)")
+	local indentation, index, status, rest = line:match("^(%s*)(%d+)%. (%[.?%]) (.+)")
 	-- require('plenary.log').info('[xxxhhh][parsing line]', index, status, rest);
 
 	if not (index and status and rest) then
@@ -80,6 +80,7 @@ function M.parse_display_line(line)
 	end
 
 	return {
+		display_indentation = indentation,
 		index = tonumber(index),
 		status = status,
 		status_symbol = status:sub(2, 2),

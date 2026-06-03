@@ -94,6 +94,10 @@ local function has_layout_directives(opts)
 	return current_layout.short_mode ~= nil or (current_layout.show and next(current_layout.show) ~= nil)
 end
 
+local function tree_enabled(opts)
+	return M.should_show(opts, "tree", false)
+end
+
 local function append_part(parts, value)
 	value = trim(value)
 	if value ~= "" then
@@ -245,7 +249,8 @@ function M.format_task_for_display(task, index, opts)
 	local task_text = M.format_task_body(task, opts)
 
 	local display_text = string.format(
-		"%d. %s %s%s",
+		"%s%d. %s %s%s",
+		opts.display_prefix or "",
 		index,
 		task.status,
 		priority_text,
@@ -258,6 +263,87 @@ function M.format_task_for_display(task, index, opts)
 		return display_text .. metadata
 	end
 	return display_text
+end
+
+local function tree_indent(value)
+	return ((value or ""):gsub("\t", "    "):gsub(">", ""))
+end
+
+local function task_with_prefix(task, index, prefix, opts)
+	local task_opts = vim.tbl_extend("force", opts or {}, {
+		display_prefix = prefix,
+	})
+	return M.format_task_for_display(task, index, task_opts)
+end
+
+local function format_list_item_for_display(item)
+	local marker = item.list_marker or item.listMarker or "-"
+	local description = item.description or ""
+	local status_symbol = item.status_symbol or item.statusCharacter
+	local checkbox = status_symbol and (" [" .. status_symbol .. "]") or ""
+	local suffix = trim(description) ~= "" and (" " .. description) or ""
+	return string.format("%s%s%s%s", tree_indent(item.indentation), marker, checkbox, suffix)
+end
+
+local function matched_task_set(tasks)
+	local set = {}
+	for _, task in ipairs(tasks or {}) do
+		set[task] = true
+	end
+	return set
+end
+
+local function closest_matched_parent(node, task_set)
+	local parent = node and node.parent or nil
+	while parent do
+		if parent.task and task_set[parent.task] then
+			return parent
+		end
+		parent = parent.parent
+	end
+	return nil
+end
+
+local function format_tree_tasks(tasks, current_index, opts)
+	local display_lines = {}
+	local index_map = {}
+	local task_set = matched_task_set(tasks)
+	local rendered = {}
+
+	local function append_node(node)
+		if not node or rendered[node] then
+			return
+		end
+
+		rendered[node] = true
+		if node.task and task_set[node.task] then
+			table.insert(display_lines, task_with_prefix(node.task, current_index, tree_indent(node.indentation), opts))
+			index_map[current_index] = node.task
+			current_index = current_index + 1
+		else
+			table.insert(display_lines, format_list_item_for_display(node))
+		end
+
+		for _, child in ipairs(node.children or {}) do
+			append_node(child)
+		end
+	end
+
+	for _, task in ipairs(tasks or {}) do
+		local node = task.list_item or task.listItem
+		if not node then
+			table.insert(display_lines, M.format_task_for_display(task, current_index, opts))
+			index_map[current_index] = task
+			current_index = current_index + 1
+		elseif not rendered[node] then
+			local matched_parent = closest_matched_parent(node, task_set)
+			if not matched_parent or rendered[matched_parent] then
+				append_node(node)
+			end
+		end
+	end
+
+	return display_lines, index_map, current_index
 end
 
 -- Format grouped tasks for display
@@ -318,11 +404,22 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 		end
 
 		-- Process tasks in group
-		for _, task in ipairs(tasks) do
-			local formatted_line = M.format_task_for_display(task, current_index, opts)
-			table.insert(display_lines, formatted_line)
-			index_map[current_index] = task
-			current_index = current_index + 1
+		if tree_enabled(opts) then
+			local tree_lines, tree_index_map
+			tree_lines, tree_index_map, current_index = format_tree_tasks(tasks, current_index, opts)
+			for _, line in ipairs(tree_lines) do
+				table.insert(display_lines, line)
+			end
+			for index, task in pairs(tree_index_map) do
+				index_map[index] = task
+			end
+		else
+			for _, task in ipairs(tasks) do
+				local formatted_line = M.format_task_for_display(task, current_index, opts)
+				table.insert(display_lines, formatted_line)
+				index_map[current_index] = task
+				current_index = current_index + 1
+			end
 		end
 	end
 
@@ -490,7 +587,7 @@ function M.setup_editable_buffer(buf, tasks, opts)
 		local file_path, line_number = line:match("%[%[([^#]+)#L(%d+)%]%]")
 
 		if not file_path then
-			local index = tonumber(line:match("^(%d+)%. "))
+			local index = tonumber(line:match("^%s*(%d+)%. "))
 			local task = index and (core.task_index_map[buf] or {})[index] or nil
 			file_path = task and task.file_path or nil
 			line_number = task and task.line_number or nil
@@ -525,7 +622,7 @@ function M.setup_editable_buffer(buf, tasks, opts)
 
 			local line_content = vim.api.nvim_buf_get_lines(buf, line_num - 1, line_num, false)[1]
 			-- Check if line matches task pattern (starts with a number followed by dot and status)
-			return line_content:match("^%d+%. %[.?%]")
+			return line_content:match("^%s*%d+%. %[.?%]")
 		end
 
 		if direction == "next" then

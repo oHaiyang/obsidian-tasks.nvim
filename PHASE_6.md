@@ -30,7 +30,7 @@ Phase 6 的原则：
 
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done，详见 `PHASE_6_2.md`。
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done，详见 `PHASE_6_NATIVE_COMPLETION.md`。
-3. Phase 6.3：`show tree`、父子 list item 与 sub-items。
+3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done，详见 `PHASE_6_3.md`。
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
@@ -1101,11 +1101,10 @@ sh scripts/smoke_phase5.sh
 
 ## 推荐下一步
 
-建议下一步做 **Phase 6.3 Show Tree + Sub-Items**。
+建议下一步做 **Phase 6.4 Toolbar + Result View Polish**。
 
 理由：
 
-- 原版能力明确，`show tree` 是用户能直接感受到的结果视图能力。
-- Phase 5.4 已经接受 `show/hide tree`，但还没有实际树形展示。
-- 做完 urgency 后，下一块最明显的 result view 缺口就是父子 list 上下文。
-- Phase 6.3 会推动 scanner 的 list context 建模，后续 Dataview/frontmatter 等数据模型扩展也能复用这类结构化扫描经验。
+- 原版 toolbar 能提供临时 description filter 和复制结果，属于高频 result view polish。
+- Phase 6.3 已经补了 tree context，Phase 6.4 可以继续沿着结果视图交互补齐。
+- Toolbar copy 需要尊重 `show tree`，刚好可以复用 Phase 6.3 的格式化能力。

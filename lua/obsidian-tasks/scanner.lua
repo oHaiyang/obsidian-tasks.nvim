@@ -34,6 +34,65 @@ local function heading_text(line)
 	return line:match("^%s*#+%s+(.+)$")
 end
 
+local function trim(value)
+	return (value or ""):match("^%s*(.-)%s*$")
+end
+
+local function parse_list_item(line)
+	local indentation, list_marker, body = line:match("^([%s\t>]*)([-*+])%s+(.*)$")
+	if not indentation then
+		indentation, list_marker, body = line:match("^([%s\t>]*)(%d+[%.%)])%s+(.*)$")
+	end
+	if not indentation then
+		return nil
+	end
+
+	local status_symbol, description = body:match("^%[(.)%]%s*(.*)$")
+	return {
+		original_markdown = line,
+		originalMarkdown = line,
+		indentation = indentation,
+		list_marker = list_marker,
+		listMarker = list_marker,
+		status_symbol = status_symbol,
+		statusCharacter = status_symbol,
+		description = trim(description or body),
+		children = {},
+	}
+end
+
+local function list_indent_depth(indentation)
+	indentation = (indentation or ""):gsub("\t", "    ")
+	local last_blockquote = nil
+	local start = 1
+	while true do
+		local found = indentation:find(">", start, true)
+		if not found then
+			break
+		end
+		last_blockquote = found
+		start = found + 1
+	end
+	if last_blockquote then
+		indentation = indentation:sub(last_blockquote + 1)
+	end
+	return #indentation
+end
+
+local function attach_to_tree(stack, item)
+	item.indent_depth = list_indent_depth(item.indentation)
+	while #stack > 0 and (stack[#stack].indent_depth or 0) >= item.indent_depth do
+		table.remove(stack)
+	end
+
+	local parent = stack[#stack]
+	item.parent = parent
+	if parent then
+		table.insert(parent.children, item)
+	end
+	table.insert(stack, item)
+end
+
 function M.scan_file(path, opts)
 	opts = opts or {}
 	local lines = read_lines(path)
@@ -44,6 +103,7 @@ function M.scan_file(path, opts)
 	local tasks = {}
 	local in_fence = false
 	local current_heading = nil
+	local list_stack = {}
 
 	for line_number, line in ipairs(lines) do
 		if is_fence(line) then
@@ -53,6 +113,14 @@ function M.scan_file(path, opts)
 			if heading then
 				current_heading = heading
 			else
+				local list_item = parse_list_item(line)
+				if list_item then
+					list_item.file_path = path
+					list_item.line_number = line_number
+					list_item.heading = current_heading
+					attach_to_tree(list_stack, list_item)
+				end
+
 				local task = task_model.parse_line({
 					line = line,
 					file_path = path,
@@ -63,6 +131,11 @@ function M.scan_file(path, opts)
 				})
 
 				if task then
+					if list_item then
+						list_item.task = task
+						task.list_item = list_item
+						task.listItem = list_item
+					end
 					table.insert(tasks, task)
 				end
 			end

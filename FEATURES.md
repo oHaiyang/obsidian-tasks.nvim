@@ -52,7 +52,7 @@
 | F003 | 单行任务限制 | 原插件只解析单行 checklist item，多行正文不作为任务描述。 | Partial：当前逐行扫描天然单行。 | P0 |
 | F004 | code block / comment 排除 | 原插件依赖 Obsidian metadata，不读取 code block 和注释中的任务。 | Todo。 | P0 |
 | F005 | blockquote / callout 中任务 | 支持 `>` 缩进中的任务，并记录其位置。 | Todo。 | P1 |
-| F006 | 父子 list item / task 树 | 记录父级 ListItem，用于 `show tree`。 | Todo。 | P1 |
+| F006 | 父子 list item / task 树 | 记录父级 ListItem，用于 `show tree`。 | Done：Phase 6.3 记录 list item parent/children，并支持 `show tree` 展示命中 task 的 child tree。 | P1 |
 | F007 | 前置 heading | 记录任务前最近 heading，用于 backlink、filter/sort/group by heading。 | Todo。 | P0 |
 | F008 | Global Filter | 可设置全局字符串，如 `#task`，只追踪包含该字符串的 checklist item。 | Partial：已支持配置，后续补 removeGlobalFilter 等细节。 | P0 |
 | F009 | Remove global filter | 全局过滤 tag 可从描述和 `task.tags` 中移除。 | Todo。 | P1 |
@@ -133,7 +133,7 @@
 | Tags | `has tags`、`no tags`、`tag/tags include/do not include/regex...`。 |
 | File | `path`、`root`、`folder`、`filename`、`heading` 的 include/regex 查询。 |
 | Other via function | `originalMarkdown`、`lineNumber`、`listMarker`、frontmatter、links 等主要通过 custom function 查询。 |
-| Sub-items | `exclude sub-items`。 |
+| Sub-items | `exclude sub-items`。已支持 Phase 6.3 MVP。 |
 
 ### 3.2 内置 sorting
 
@@ -337,13 +337,13 @@
 
 ### Phase 6: Polish and Ecosystem
 
-状态：进行中，Phase 6.2 已实现 urgency，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
+状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
 建议拆分：
 
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done。
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done。
-3. Phase 6.3：`show tree`、父子 list item 与 sub-items。
+3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done。
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
