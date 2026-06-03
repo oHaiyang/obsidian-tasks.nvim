@@ -28,8 +28,8 @@ end
 local function preview_lines_for(source, opts)
 	opts = opts or {}
 	local config = get_config()
+	local cache = require("obsidian-tasks.cache")
 	local query = require("obsidian-tasks.query")
-	local scanner = require("obsidian-tasks.scanner")
 	local sorter = require("obsidian-tasks.sort")
 
 	local query_opts = {
@@ -50,10 +50,11 @@ local function preview_lines_for(source, opts)
 		}
 	end
 
-	local tasks = scanner.scan_vault({
+	local tasks = cache.tasks({
 		vault_path = config.vault_path,
 		global_filter = config.global_filter,
 		today = opts.today,
+		use_cache = opts.use_cache or opts.useCache,
 	})
 	tasks = query.filter_tasks(tasks, plan)
 	if #plan.sorts > 0 then

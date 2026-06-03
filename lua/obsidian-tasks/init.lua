@@ -20,6 +20,17 @@ function M.setup(config)
 	config.default_query = config.default_query or config.defaultQuery
 	config.presets = config.presets or config.query_presets or config.queryPresets or {}
 	config.task_format = config.task_format or config.taskFormat or "tasks"
+	if type(config.cache) ~= "table" then
+		config.cache = {
+			enabled = config.cache == true,
+		}
+	end
+	if config.cache_enabled ~= nil then
+		config.cache.enabled = config.cache_enabled
+	end
+	if config.cacheEnabled ~= nil then
+		config.cache.enabled = config.cacheEnabled
+	end
 	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
 	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses
@@ -133,6 +144,25 @@ end
 function M.add_query_file_defaults_properties(opts)
 	opts = opts or {}
 	return require("obsidian-tasks.query_file_defaults").add_all_properties_to_buffer(opts.buf or opts.buffer or 0)
+end
+
+function M.refresh_cache(opts)
+	opts = opts or {}
+	if opts.vault_path == nil then
+		opts.vault_path = M.config and M.config.vault_path
+	end
+	if opts.global_filter == nil and opts.globalFilter == nil then
+		opts.global_filter = M.config and M.config.global_filter
+	end
+	return require("obsidian-tasks.cache").refresh(opts)
+end
+
+function M.clear_cache()
+	return require("obsidian-tasks.cache").clear()
+end
+
+function M.cache_stats()
+	return require("obsidian-tasks.cache").stats()
 end
 
 function M.setup_cmp(opts)

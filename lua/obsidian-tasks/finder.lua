@@ -1,8 +1,8 @@
 local M = {}
 
 local parser = require("obsidian-tasks.parser")
+local cache = require("obsidian-tasks.cache")
 local display = require("obsidian-tasks.display")
-local scanner = require("obsidian-tasks.scanner")
 local query = require("obsidian-tasks.query")
 local sorter = require("obsidian-tasks.sort")
 
@@ -140,6 +140,7 @@ function M.find_tasks(opts)
 				pinned = opts.pinned,
 				today = opts.today,
 				toolbar_filter = opts.toolbar_filter,
+				use_cache = opts.use_cache or opts.useCache,
 				composition = composition,
 			}
 			local error_opts = {
@@ -173,6 +174,7 @@ function M.find_tasks(opts)
 		today = opts.today,
 		group_by = group_by,
 		toolbar_filter = opts.toolbar_filter,
+		use_cache = opts.use_cache or opts.useCache,
 	}
 
 	display.last_finder_opts = {
@@ -192,6 +194,7 @@ function M.find_tasks(opts)
 		pinned = opts.pinned,
 		today = opts.today,
 		toolbar_filter = opts.toolbar_filter,
+		use_cache = opts.use_cache or opts.useCache,
 		composition = composition,
 	}
 	display_opts.finder_opts = display.last_finder_opts
@@ -215,10 +218,11 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		return
 	end
 
-	local tasks = scanner.scan_vault({
+	local tasks = cache.tasks({
 		vault_path = vault_path,
 		global_filter = global_filter or "",
 		today = display_opts.today,
+		use_cache = display_opts.use_cache,
 	})
 
 	local query_filtered_tasks = tasks

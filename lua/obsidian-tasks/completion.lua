@@ -199,8 +199,7 @@ local function existing_ids(state)
 	local ids = {}
 	local seen = {}
 	if state.vault_path and state.vault_path ~= "" then
-		local scanner = require("obsidian-tasks.scanner")
-		for _, task in ipairs(scanner.scan_vault({
+		for _, task in ipairs(require("obsidian-tasks.cache").tasks({
 			vault_path = state.vault_path,
 			global_filter = config.global_filter,
 		})) do

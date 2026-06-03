@@ -51,9 +51,10 @@ function M.candidate_tasks(opts)
 	end
 
 	local tasks = {}
-	for _, task in ipairs(require("obsidian-tasks.scanner").scan_vault({
+	for _, task in ipairs(require("obsidian-tasks.cache").tasks({
 		vault_path = vault_path,
 		global_filter = opts.global_filter or opts.globalFilter or config.global_filter,
+		use_cache = opts.use_cache or opts.useCache,
 	})) do
 		if not opts.exclude or not M.same_source(task, opts.exclude) then
 			table.insert(tasks, task)

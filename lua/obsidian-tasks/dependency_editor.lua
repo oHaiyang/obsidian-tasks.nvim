@@ -114,7 +114,7 @@ local function all_ids(opts)
 		return ids
 	end
 
-	for _, task in ipairs(require("obsidian-tasks.scanner").scan_vault({
+	for _, task in ipairs(require("obsidian-tasks.cache").tasks({
 		vault_path = vault_path,
 		global_filter = config.global_filter,
 	})) do

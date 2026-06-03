@@ -277,6 +277,35 @@ function M.setup_commands()
 		force = true,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksRefreshCache", function()
+		local refreshed = require("obsidian-tasks").refresh_cache()
+		vim.notify(string.format("Obsidian Tasks cache refreshed: %d task(s)", #refreshed), vim.log.levels.INFO)
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksClearCache", function()
+		require("obsidian-tasks").clear_cache()
+		vim.notify("Obsidian Tasks cache cleared", vim.log.levels.INFO)
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksCacheInfo", function()
+		local stats = require("obsidian-tasks").cache_stats()
+		local context = stats.context or {}
+		local message = string.format(
+			"Obsidian Tasks cache: %s, %d file(s), %d task(s)%s",
+			stats.status or "cold",
+			stats.file_count or 0,
+			stats.task_count or 0,
+			context.vault_path and (", " .. context.vault_path) or ""
+		)
+		vim.notify(message, vim.log.levels.INFO)
+	end, {
+		force = true,
+	})
+
 	vim.api.nvim_create_user_command("ObsidianTasksRunBlock", function(command)
 		M.run_query_at_cursor({
 			pinned = command.bang,
