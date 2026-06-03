@@ -1,5 +1,6 @@
 local M = {}
 
+local cache = require("obsidian-tasks.cache")
 local completion = require("obsidian-tasks.completion")
 local date = require("obsidian-tasks.date")
 local date_picker = require("obsidian-tasks.date_picker")
@@ -549,7 +550,11 @@ local function save_to_file(state, line)
 		lines[state.line_number] = line
 	end
 
-	return write_file_lines(file_path, lines)
+	local ok, err = write_file_lines(file_path, lines)
+	if ok then
+		cache.on_file_changed(file_path)
+	end
+	return ok, err
 end
 
 function M.save_form(buf)

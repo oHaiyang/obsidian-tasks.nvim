@@ -31,6 +31,13 @@ function M.setup(config)
 	if config.cacheEnabled ~= nil then
 		config.cache.enabled = config.cacheEnabled
 	end
+	if config.cache.auto_update_on_write == nil then
+		config.cache.auto_update_on_write = config.cache.autoUpdateOnWrite
+	end
+	if config.cache.auto_update_on_write == nil then
+		config.cache.auto_update_on_write = true
+	end
+	config.cache.debounce_ms = config.cache.debounce_ms or config.cache.debounceMs or 0
 	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
 	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses
@@ -56,6 +63,7 @@ function M.setup(config)
 	-- Store config for other modules to access
 	M.config = config
 	require("obsidian-tasks.panel").setup_commands()
+	require("obsidian-tasks.cache").setup(config)
 	local cmp_config = config.completion.cmp or config.completion.nvim_cmp or config.completion.nvimCmp
 	if cmp_config then
 		local ok_cmp_source, cmp_source = pcall(require, "obsidian-tasks.completion.cmp")

@@ -1,6 +1,7 @@
 local M = {}
 
 local date = require("obsidian-tasks.date")
+local cache = require("obsidian-tasks.cache")
 local parser = require("obsidian-tasks.parser")
 local task_model = require("obsidian-tasks.task")
 local task_search = require("obsidian-tasks.task_search")
@@ -102,7 +103,11 @@ local function set_task_line(task, line)
 		return false, "Line not found in file: " .. task.file_path
 	end
 	lines[task.line_number] = line
-	return write_file_lines(task.file_path, lines)
+	local ok, err = write_file_lines(task.file_path, lines)
+	if ok then
+		cache.on_file_changed(task.file_path)
+	end
+	return ok, err
 end
 
 local function all_ids(opts)

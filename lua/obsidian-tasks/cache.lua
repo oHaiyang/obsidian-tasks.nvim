@@ -3,13 +3,17 @@ local M = {}
 local date = require("obsidian-tasks.date")
 local scanner = require("obsidian-tasks.scanner")
 
+local AUGROUP = "ObsidianTasksCache"
+
 M.state = {
 	status = "cold",
 	context = nil,
 	files = {},
 	tasks = {},
 	last_refresh = nil,
+	last_update = nil,
 }
+M.pending_updates = {}
 
 local function get_config()
 	local ok, plugin = pcall(require, "obsidian-tasks")
@@ -54,6 +58,25 @@ local function cache_config(config)
 	}
 end
 
+local function cache_auto_update_enabled(config)
+	local cache = cache_config(config)
+	if cache.enabled ~= true then
+		return false
+	end
+	if cache.auto_update_on_write ~= nil then
+		return cache.auto_update_on_write ~= false
+	end
+	if cache.autoUpdateOnWrite ~= nil then
+		return cache.autoUpdateOnWrite ~= false
+	end
+	return true
+end
+
+local function cache_debounce_ms(config)
+	local cache = cache_config(config)
+	return tonumber(cache.debounce_ms or cache.debounceMs or 0) or 0
+end
+
 function M.is_enabled(opts)
 	opts = opts or {}
 	local explicit = opts.use_cache
@@ -88,6 +111,15 @@ local function same_context(left, right)
 		and left.global_filter == right.global_filter
 		and left.today == right.today
 		and left.task_format == right.task_format
+end
+
+function M.is_path_in_vault(path, vault_path)
+	local normalized_path = realpath(path)
+	local normalized_vault = normalize_vault_path(vault_path)
+	if not normalized_path or normalized_path == "" or not normalized_vault or normalized_vault == "" then
+		return false
+	end
+	return normalized_path == normalized_vault or normalized_path:sub(1, #normalized_vault + 1) == normalized_vault .. "/"
 end
 
 local function copy_task_list(tasks)
@@ -135,6 +167,7 @@ function M.clear()
 		files = {},
 		tasks = {},
 		last_refresh = nil,
+		last_update = nil,
 	}
 end
 
@@ -158,6 +191,7 @@ function M.refresh(opts)
 		files = files,
 		tasks = {},
 		last_refresh = os.time(),
+		last_update = nil,
 	}
 	rebuild_tasks()
 	return copy_task_list(M.state.tasks)
@@ -184,6 +218,13 @@ function M.update_file(path, opts)
 	opts = opts or {}
 	local ctx = context(opts)
 	if M.state.status ~= "warm" or not same_context(M.state.context, ctx) then
+		local refresh_if_cold = opts.refresh_if_cold
+		if refresh_if_cold == nil then
+			refresh_if_cold = opts.refreshIfCold
+		end
+		if refresh_if_cold == false then
+			return {}
+		end
 		M.refresh(opts)
 	end
 	if not path or path == "" then
@@ -195,16 +236,19 @@ function M.update_file(path, opts)
 	if uv and not uv.fs_stat(normalized) then
 		M.state.files[normalized] = nil
 		rebuild_tasks()
+		M.state.last_update = os.time()
 		return {}
 	end
 	if normalized:sub(-3) ~= ".md" then
 		M.state.files[normalized] = nil
 		rebuild_tasks()
+		M.state.last_update = os.time()
 		return {}
 	end
 
 	M.state.files[normalized] = scan_file(normalized, M.state.context or ctx)
 	rebuild_tasks()
+	M.state.last_update = os.time()
 	return copy_task_list(M.state.files[normalized].tasks)
 end
 
@@ -214,6 +258,72 @@ function M.remove_file(path)
 	end
 	M.state.files[realpath(path) or path] = nil
 	rebuild_tasks()
+	M.state.last_update = os.time()
+end
+
+function M.on_file_changed(path, opts)
+	opts = opts or {}
+	local config = opts.config or get_config()
+	if not M.is_enabled({ config = config }) then
+		return false
+	end
+
+	local ctx = context({ config = config })
+	if not path or path == "" or path:sub(-3) ~= ".md" or not M.is_path_in_vault(path, ctx.vault_path) then
+		return false
+	end
+
+	M.update_file(path, {
+		config = config,
+		refresh_if_cold = false,
+	})
+	return true
+end
+
+function M.on_buf_write(path, opts)
+	opts = opts or {}
+	local config = opts.config or get_config()
+	if not cache_auto_update_enabled(config) then
+		return false
+	end
+
+	local ctx = context({ config = config })
+	if not path or path == "" or path:sub(-3) ~= ".md" or not M.is_path_in_vault(path, ctx.vault_path) then
+		return false
+	end
+
+	local normalized = realpath(path) or path
+	local debounce_ms = cache_debounce_ms(config)
+	if debounce_ms <= 0 then
+		return M.on_file_changed(normalized, { config = config })
+	end
+
+	local token = (M.pending_updates[normalized] or 0) + 1
+	M.pending_updates[normalized] = token
+	vim.defer_fn(function()
+		if M.pending_updates[normalized] ~= token then
+			return
+		end
+		M.pending_updates[normalized] = nil
+		M.on_file_changed(normalized, { config = config })
+	end, debounce_ms)
+	return true
+end
+
+function M.setup(config)
+	config = config or get_config()
+	local group = vim.api.nvim_create_augroup(AUGROUP, { clear = true })
+	if not cache_auto_update_enabled(config) then
+		return
+	end
+
+	vim.api.nvim_create_autocmd("BufWritePost", {
+		group = group,
+		pattern = "*.md",
+		callback = function(args)
+			M.on_buf_write(args.file, { config = config })
+		end,
+	})
 end
 
 function M.stats()
@@ -227,6 +337,7 @@ function M.stats()
 		file_count = file_count,
 		task_count = #(M.state.tasks or {}),
 		last_refresh = M.state.last_refresh,
+		last_update = M.state.last_update,
 	}
 end
 

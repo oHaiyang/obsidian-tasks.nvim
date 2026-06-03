@@ -68,6 +68,7 @@ M.task_index_map = {}
 
 -- Importing other modules
 local parser = require("obsidian-tasks.parser")
+local cache = require("obsidian-tasks.cache")
 local mutation = require("obsidian-tasks.mutation")
 local status_model = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
@@ -171,6 +172,7 @@ function M.apply_task_changes(original_task, updated_task)
 		file:write(line .. "\n")
 	end
 	file:close()
+	cache.on_file_changed(file_path)
 
 	return true
 end
@@ -251,6 +253,7 @@ function M.apply_postpone_changes(original_task, expr)
 		vim.notify(write_err, vim.log.levels.ERROR)
 		return false
 	end
+	cache.on_file_changed(file_path)
 
 	vim.notify(string.format("Postponed %s date to %s", field, target), vim.log.levels.INFO)
 	return true
