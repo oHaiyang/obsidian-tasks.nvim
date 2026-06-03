@@ -169,14 +169,14 @@
 | F302 | Backlink | 每条任务显示文件名和 heading，点击跳回源行。 | Partial：`gd/gf` 可跳转；Phase 5.4 支持 `show/hide backlink`。 | P0 |
 | F303 | Edit button | 结果里有铅笔按钮打开编辑 modal。 | Todo。 | P2 |
 | F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Partial：`p` / `:ObsidianTasksPostpone` 已支持基础推迟。 | P1 |
-| F305 | Toolbar | 查询结果顶部可临时过滤 description、复制结果为 Markdown。 | Todo。 | P2 |
+| F305 | Toolbar | 查询结果顶部可临时过滤 description、复制结果为 Markdown。 | Done：Phase 6.4 支持 result buffer toolbar、临时 description filter 和 copy markdown。 | P2 |
 | F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Done：Phase 5.4 支持显示和 `show/hide task count`。 | P1 |
 | F307 | Task count location | 全局设置 count 在 top 或 bottom。 | Todo。 | P3 |
 | F308 | Hide/show task fields | `hide/show priority/due date/tags/...`。 | Partial：Phase 5.4 支持常用 task 字段。 | P1 |
-| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Partial：Phase 5.4 支持 backlink/task count；Phase 6.2 支持 urgency；按钮/toolbar/tree 待补。 | P1 |
+| F309 | Hide/show query UI | `hide/show backlink/edit button/postpone button/toolbar/tree/urgency/task count`。 | Partial：Phase 5.4 支持 backlink/task count；Phase 6.2 支持 urgency；Phase 6.3 支持 tree；Phase 6.4 支持 toolbar；edit/postpone button 待补。 | P1 |
 | F310 | Full mode | 默认展示字段值，如具体日期、循环规则。 | Partial：默认 full display，Phase 5.4 开始接 layout。 | P1 |
 | F311 | Short mode | 只显示 emoji，具体值靠 tooltip。 | Partial：Phase 5.4 对 metadata 做轻量 short mode；tooltip 待补。 | P2 |
-| F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Todo。 | P1 |
+| F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Done：Phase 6.3 支持 `show tree` / `hide tree`。 | P1 |
 | F313 | Styling hooks | HTML/CSS class 和 data attributes 支持自定义样式。 | Obsidian-only；nvim 可映射 highlights/extmarks。 | P3 |
 | F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Todo。 | P1 |
 | F315 | Global Tasks panel | 在任意 buffer 打开任务面板，不需要先定位到 query block。 | Done：`:ObsidianTasks` 已支持。 | P0 |
@@ -337,14 +337,14 @@
 
 ### Phase 6: Polish and Ecosystem
 
-状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
+状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
 建议拆分：
 
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done。
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done。
 3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done。
-4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
+4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
 7. Phase 6.7：Dataview task format MVP。

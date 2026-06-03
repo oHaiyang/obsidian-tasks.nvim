@@ -139,6 +139,7 @@ function M.find_tasks(opts)
 				reuse_buffer = opts.reuse_buffer,
 				pinned = opts.pinned,
 				today = opts.today,
+				toolbar_filter = opts.toolbar_filter,
 				composition = composition,
 			}
 			local error_opts = {
@@ -170,6 +171,8 @@ function M.find_tasks(opts)
 		pinned = opts.pinned,
 		composition = composition,
 		today = opts.today,
+		group_by = group_by,
+		toolbar_filter = opts.toolbar_filter,
 	}
 
 	display.last_finder_opts = {
@@ -188,6 +191,7 @@ function M.find_tasks(opts)
 		reuse_buffer = opts.reuse_buffer,
 		pinned = opts.pinned,
 		today = opts.today,
+		toolbar_filter = opts.toolbar_filter,
 		composition = composition,
 	}
 	display_opts.finder_opts = display.last_finder_opts

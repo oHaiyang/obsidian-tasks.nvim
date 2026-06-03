@@ -31,7 +31,7 @@ Phase 6 的原则：
 1. Phase 6.2：Urgency score、`show urgency`、`sort/group by urgency`。Done，详见 `PHASE_6_2.md`。
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done，详见 `PHASE_6_NATIVE_COMPLETION.md`。
 3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done，详见 `PHASE_6_3.md`。
-4. Phase 6.4：Toolbar filter/copy 和 result view polishing。
+4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done，详见 `PHASE_6_4.md`。
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
 7. Phase 6.7：Dataview task format MVP。
@@ -1101,10 +1101,10 @@ sh scripts/smoke_phase5.sh
 
 ## 推荐下一步
 
-建议下一步做 **Phase 6.4 Toolbar + Result View Polish**。
+建议下一步做 **Phase 6.5 Calendar Date Picker + Date Menus**。
 
 理由：
 
-- 原版 toolbar 能提供临时 description filter 和复制结果，属于高频 result view polish。
-- Phase 6.3 已经补了 tree context，Phase 6.4 可以继续沿着结果视图交互补齐。
-- Toolbar copy 需要尊重 `show tree`，刚好可以复用 Phase 6.3 的格式化能力。
+- Phase 5.9 已经有基础 date picker，Phase 6.5 可以在较小风险下把日期编辑体验继续打磨。
+- 原版 date menu/date picker 是编辑任务时的高频能力，和当前 `p` postpone、form date 字段能自然衔接。
+- Phase 6.4 已经补完 result toolbar，下一块最明显的交互 polish 是日期选择和日期动作菜单。

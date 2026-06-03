@@ -15,6 +15,7 @@ local urgency = require("obsidian-tasks.urgency")
 -- Store the last used options for refresh functionality
 M.last_finder_opts = {}
 M.buffer_finder_opts = {}
+M.buffer_display_opts = {}
 M.buffer_header_line_count = {}
 
 local DATE_DISPLAY = {
@@ -96,6 +97,10 @@ end
 
 local function tree_enabled(opts)
 	return M.should_show(opts, "tree", false)
+end
+
+local function toolbar_visible(opts)
+	return M.should_show(opts, "toolbar", true)
 end
 
 local function append_part(parts, value)
@@ -189,14 +194,21 @@ local function build_header_lines(opts)
 		source = source .. "manual"
 	end
 
-	return {
+	local lines = {
 		title,
 		source,
 		"",
 		"o queries  [q previous query  ]q next query  gq query source",
-			"<space> toggle  e edit  s status  p postpone  <c-s> save  <c-r> refresh  gd task source  q close",
-		"",
 	}
+	if toolbar_visible(opts) then
+		table.insert(lines, "Toolbar: f filter description  c clear filter  y copy markdown  Y copy with backlinks")
+		if trim(opts.toolbar_filter) ~= "" then
+			table.insert(lines, "Filter: description includes " .. trim(opts.toolbar_filter))
+		end
+	end
+	table.insert(lines, "<space> toggle  e edit  s status  p postpone  <c-s> save  <c-r> refresh  gd task source  q close")
+	table.insert(lines, "")
+	return lines
 end
 
 function M.format_task_body(task, opts)
@@ -344,6 +356,53 @@ local function format_tree_tasks(tasks, current_index, opts)
 	end
 
 	return display_lines, index_map, current_index
+end
+
+function M.filter_tasks_for_toolbar(tasks, filter)
+	filter = trim(filter)
+	if filter == "" then
+		return tasks or {}
+	end
+
+	local filtered = {}
+	local needle = filter:lower()
+	for _, task in ipairs(tasks or {}) do
+		local description = (task.description or task.text or task.body or ""):lower()
+		if description:find(needle, 1, true) then
+			table.insert(filtered, task)
+		end
+	end
+	return filtered
+end
+
+local function render_task_lines(tasks, opts)
+	opts = opts or {}
+	local group_by = opts.group_by or {}
+	local grouped_tasks, group_order = parser.group_tasks(tasks or {}, group_by)
+	return M.format_grouped_tasks(grouped_tasks, group_order, opts)
+end
+
+function M.render_tasks_to_buffer(buf, tasks, opts)
+	opts = vim.tbl_extend("force", opts or {}, {})
+	tasks = tasks or {}
+	local visible_tasks = M.filter_tasks_for_toolbar(tasks, opts.toolbar_filter)
+	opts.shown_count = #visible_tasks
+	opts.total_count = opts.total_count or #tasks
+
+	local display_lines, index_map = render_task_lines(visible_tasks, opts)
+	local header_lines = build_header_lines(opts)
+	local lines = {}
+	for _, line in ipairs(header_lines) do
+		table.insert(lines, line)
+	end
+	for _, line in ipairs(display_lines) do
+		table.insert(lines, line)
+	end
+
+	core.task_index_map[buf] = index_map
+	M.buffer_header_line_count[buf] = #header_lines
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	return display_lines, index_map
 end
 
 -- Format grouped tasks for display
@@ -499,6 +558,115 @@ function M.refresh_tasks_view()
 	vim.notify("Tasks refreshed", vim.log.levels.INFO)
 end
 
+local function display_opts_for_buffer(buf)
+	local finder_opts = M.buffer_finder_opts[buf] or {}
+	local opts = vim.tbl_extend("force", M.buffer_display_opts[buf] or {}, {})
+	opts.group_by = opts.group_by or finder_opts.group_by or {}
+	opts.toolbar_filter = finder_opts.toolbar_filter
+	return opts
+end
+
+function M.redraw_tasks_buffer(buf, opts)
+	buf = buf or vim.api.nvim_get_current_buf()
+	if not vim.api.nvim_buf_is_valid(buf) then
+		return false
+	end
+	if vim.api.nvim_get_option_value("modified", { buf = buf }) then
+		vim.notify("Save task changes before filtering results", vim.log.levels.WARN)
+		return false
+	end
+
+	local tasks = core.buffer_tasks[buf]
+	if not tasks then
+		vim.notify("No tasks associated with this buffer", vim.log.levels.ERROR)
+		return false
+	end
+
+	opts = opts or display_opts_for_buffer(buf)
+	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+	M.render_tasks_to_buffer(buf, tasks, opts)
+	vim.api.nvim_set_option_value("modified", false, { buf = buf })
+	return true
+end
+
+function M.set_toolbar_filter(buf, value)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local finder_opts = M.buffer_finder_opts[buf] or {}
+	finder_opts.toolbar_filter = trim(value)
+	if finder_opts.toolbar_filter == "" then
+		finder_opts.toolbar_filter = nil
+	end
+	M.buffer_finder_opts[buf] = finder_opts
+	return M.redraw_tasks_buffer(buf)
+end
+
+function M.clear_toolbar_filter(buf)
+	return M.set_toolbar_filter(buf, "")
+end
+
+function M.prompt_toolbar_filter(buf)
+	buf = buf or vim.api.nvim_get_current_buf()
+	local finder_opts = M.buffer_finder_opts[buf] or {}
+	vim.ui.input({
+		prompt = "Task description filter: ",
+		default = finder_opts.toolbar_filter or "",
+	}, function(input)
+		if input ~= nil then
+			M.set_toolbar_filter(buf, input)
+		end
+	end)
+end
+
+local function result_body_lines(buf)
+	local header_count = M.buffer_header_line_count[buf] or 0
+	return vim.api.nvim_buf_get_lines(buf, header_count, -1, false)
+end
+
+local function strip_backlink(line)
+	return (line:gsub("%s+%[%[[^%]]+#L%d+%]%]$", ""))
+end
+
+local function markdown_line_from_display(buf, line, include_backlinks)
+	local index = tonumber(line:match("^%s*(%d+)%. "))
+	local markdown = line:gsub("^(%s*)%d+%.%s+", "%1- ", 1)
+	if not include_backlinks then
+		return strip_backlink(markdown)
+	end
+
+	if index and not markdown:match("%[%[[^%]]+#L%d+%]%]$") then
+		local task = (core.task_index_map[buf] or {})[index]
+		if task and task.file_path and task.line_number then
+			markdown = markdown .. string.format(" [[%s#L%d]]", task.file_path, task.line_number)
+		end
+	end
+	return markdown
+end
+
+function M.markdown_lines(buf, opts)
+	buf = buf or vim.api.nvim_get_current_buf()
+	opts = opts or {}
+	local lines = {}
+	for _, line in ipairs(result_body_lines(buf)) do
+		table.insert(lines, markdown_line_from_display(buf, line, opts.include_backlinks == true))
+	end
+	return lines
+end
+
+function M.copy_markdown(buf, opts)
+	buf = buf or vim.api.nvim_get_current_buf()
+	opts = opts or {}
+	local lines = M.markdown_lines(buf, opts)
+	vim.fn.setreg(opts.register or '"', table.concat(lines, "\n"))
+	vim.notify(string.format("Copied %d task result line(s)", #lines), vim.log.levels.INFO)
+	return lines
+end
+
+local function clear_toolbar_keymaps(buf)
+	for _, lhs in ipairs({ "f", "c", "y", "Y" }) do
+		pcall(vim.keymap.del, "n", lhs, { buffer = buf })
+	end
+end
+
 -- Set up editable buffer
 function M.setup_editable_buffer(buf, tasks, opts)
 	opts = opts or {}
@@ -521,10 +689,6 @@ function M.setup_editable_buffer(buf, tasks, opts)
 			end
 		end,
 	})
-
-	local header_lines = build_header_lines(opts)
-	M.buffer_header_line_count[buf] = #header_lines
-	vim.api.nvim_buf_set_lines(buf, 0, 0, false, header_lines)
 
 	-- Keyboard mappings
 	vim.api.nvim_buf_set_keymap(buf, "n", "q", ":bd!<CR>", { noremap = true, silent = true })
@@ -550,6 +714,22 @@ function M.setup_editable_buffer(buf, tasks, opts)
 	vim.keymap.set({ "n" }, "gq", function()
 		require("obsidian-tasks.panel").go_to_query_source({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Go to query source" })
+
+	clear_toolbar_keymaps(buf)
+	if toolbar_visible(opts) then
+		vim.keymap.set("n", "f", function()
+			M.prompt_toolbar_filter(buf)
+		end, { buffer = buf, noremap = true, silent = true, desc = "Filter task results" })
+		vim.keymap.set("n", "c", function()
+			M.clear_toolbar_filter(buf)
+		end, { buffer = buf, noremap = true, silent = true, desc = "Clear task result filter" })
+		vim.keymap.set("n", "y", function()
+			M.copy_markdown(buf, { include_backlinks = false })
+		end, { buffer = buf, noremap = true, silent = true, desc = "Copy task results" })
+		vim.keymap.set("n", "Y", function()
+			M.copy_markdown(buf, { include_backlinks = true })
+		end, { buffer = buf, noremap = true, silent = true, desc = "Copy task results with backlinks" })
+	end
 
 	-- Toggle task status
 	vim.keymap.set(
@@ -671,23 +851,10 @@ function M.display_tasks(tasks, grouped_tasks, group_order, opts)
 	-- Store task list association with buffer
 	core.buffer_tasks[buf] = tasks
 	M.buffer_finder_opts[buf] = opts.finder_opts or M.last_finder_opts
-
-	-- Format task display
-	local display_lines
-	local index_map = {}
-	if grouped_tasks then
-		display_lines, index_map = M.format_grouped_tasks(grouped_tasks, group_order, opts)
-	else
-		display_lines = {}
-		for i, task in ipairs(tasks) do
-			table.insert(display_lines, M.format_task_for_display(task, i, opts))
-			index_map[i] = task
-		end
-	end
-	core.task_index_map[buf] = index_map
+	M.buffer_display_opts[buf] = opts
 
 	-- Set buffer content
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, display_lines)
+	M.render_tasks_to_buffer(buf, tasks, opts)
 
 	-- Make buffer editable
 	M.setup_editable_buffer(buf, tasks, opts)
@@ -705,6 +872,7 @@ function M.display_tasks(tasks, grouped_tasks, group_order, opts)
 			core.buffer_tasks[buf] = nil
 			core.task_index_map[buf] = nil
 			M.buffer_finder_opts[buf] = nil
+			M.buffer_display_opts[buf] = nil
 			M.buffer_header_line_count[buf] = nil
 		end,
 		once = true,
@@ -722,23 +890,10 @@ function M.display_tasks_float(tasks, grouped_tasks, group_order, opts)
 	-- Store task list association with buffer
 	core.buffer_tasks[buf] = tasks
 	M.buffer_finder_opts[buf] = opts.finder_opts or M.last_finder_opts
-
-	-- Format task display
-	local display_lines
-	local index_map = {}
-	if grouped_tasks then
-		display_lines, index_map = M.format_grouped_tasks(grouped_tasks, group_order, opts)
-	else
-		display_lines = {}
-		for i, task in ipairs(tasks) do
-			table.insert(display_lines, M.format_task_for_display(task, i, opts))
-			index_map[i] = task
-		end
-	end
-	core.task_index_map[buf] = index_map
+	M.buffer_display_opts[buf] = opts
 
 	-- Set buffer content
-	vim.api.nvim_buf_set_lines(buf, 0, -1, false, display_lines)
+	local display_lines = M.render_tasks_to_buffer(buf, tasks, opts)
 
 	-- Make buffer editable
 	M.setup_editable_buffer(buf, tasks, opts)
@@ -796,6 +951,7 @@ function M.display_tasks_float(tasks, grouped_tasks, group_order, opts)
 			core.buffer_tasks[buf] = nil
 			core.task_index_map[buf] = nil
 			M.buffer_finder_opts[buf] = nil
+			M.buffer_display_opts[buf] = nil
 			M.buffer_header_line_count[buf] = nil
 		end,
 		once = true,
