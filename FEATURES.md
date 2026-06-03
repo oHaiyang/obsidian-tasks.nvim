@@ -91,7 +91,7 @@
 | F101 | Vault-wide cache | 启动后索引全 vault markdown tasks，缓存为 Task 对象。 | Partial：Phase 7.1 提供 opt-in vault task cache API，并接入 finder/preview/dependency/completion；默认仍可走旧扫描路径。 | P0 |
 | F102 | 增量更新 | 监听 create/delete/rename/change，更新单文件缓存。 | Partial：Phase 7.1 提供 `cache.update_file()` / `remove_file()` 手动 API；Phase 7.2 支持 `BufWritePost` 单文件自动更新。删除/重命名 watcher 待补。 | P1 |
 | F103 | Cold/Initializing/Warm 状态 | 查询渲染能感知 cache 状态。 | Partial：Phase 7.1 `cache.stats()` 暴露 cold/warm、file/task count；Phase 7.2 补 `last_update`。结果渲染暂不展示 cache 状态。 | P2 |
-| F104 | Debounced redraw | 文件变化后 debounce 通知查询重绘。 | Todo。 | P2 |
+| F104 | Debounced redraw | 文件变化后 debounce 通知查询重绘。 | Partial：Phase 7.3 明确 result refresh 读取 warm cache，并支持 `:ObsidianTasksRefreshCache!` 手动组合刷新 cache + 当前 result；自动重绘全部结果留后续。 | P2 |
 | F105 | 源文件定位 | 通过文件、line、section index 精准替换任务。 | Partial：按 line_number 写回。 | P0 |
 | F106 | 重试与冲突处理 | Obsidian metadata 不稳定时会重试，避免写错行。 | Todo。 | P2 |
 | F107 | 保留用户原格式 | 写回时保留缩进、list marker、status、metadata 排列。 | Partial：当前只替换 checkbox。 | P0 |
@@ -205,7 +205,7 @@
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`；Phase 6.6 与 completion 共用 task search 候选。 | P2 |
 | F415 | Add Query File Defaults props | 命令把全部 `TQ_*` 属性写入当前 note frontmatter。 | Done：Phase 5.10 支持只补缺失属性并保留已有值。 | P3 |
 | F416 | Save result edits | 查询结果中修改任务后写回源文件。 | Partial：已有 status 写回。 | P0 |
-| F417 | Refresh result view | 重新运行上一次查询。 | Done：已有 `<c-r>` 雏形。 | P0 |
+| F417 | Refresh result view | 重新运行上一次查询。 | Done：Phase 7.3 让 `<c-r>` / `:ObsidianTasksRefresh` 按当前 result buffer 自己的 finder opts 刷新，并支持 `:ObsidianTasksRefreshCache!`。 | P0 |
 
 ## 6. 设置项
 
@@ -350,7 +350,7 @@
 
 ### Phase 7: Cache, Incremental Updates, and Source Fidelity
 
-状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，详见 `PHASE_7.md`。
+状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，详见 `PHASE_7.md`。
 
 目标是让 nvim 插件从“每次查询全量扫描”推进到 cache-first 的底层模型，同时为后续自动刷新和更可靠写回做准备。
 
@@ -358,7 +358,7 @@
 
 1. Phase 7.1：Vault Cache API MVP。Done，详见 `PHASE_7_1.md`。
 2. Phase 7.2：`BufWritePost` 单文件 cache update。Done，详见 `PHASE_7_2.md`。
-3. Phase 7.3：Result refresh integration。
+3. Phase 7.3：Result refresh integration。Done，详见 `PHASE_7_3.md`。
 4. Phase 7.4：File watcher + debounce。
 5. Phase 7.5：Source location fidelity，减少旧 result buffer 写错行风险。
 6. Phase 7.6：Scanner parity cleanup。

@@ -277,10 +277,19 @@ function M.setup_commands()
 		force = true,
 	})
 
-	vim.api.nvim_create_user_command("ObsidianTasksRefreshCache", function()
-		local refreshed = require("obsidian-tasks").refresh_cache()
+	vim.api.nvim_create_user_command("ObsidianTasksRefresh", function()
+		require("obsidian-tasks.display").refresh_tasks_view()
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksRefreshCache", function(command)
+		local refreshed = require("obsidian-tasks").refresh_cache({
+			refresh_results = command.bang,
+		})
 		vim.notify(string.format("Obsidian Tasks cache refreshed: %d task(s)", #refreshed), vim.log.levels.INFO)
 	end, {
+		bang = true,
 		force = true,
 	})
 

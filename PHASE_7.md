@@ -80,6 +80,8 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 
 ### Phase 7.3: Result Refresh Integration
 
+状态：Done，详见 `PHASE_7_3.md` 和 `PHASE_7_3_TEST.md`。
+
 目标：
 
 1. `display.refresh_tasks_view()` 保留当前 query/source/layout 并走 cache。
@@ -157,6 +159,6 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 
 1. Phase 7.1 已完成。
 2. Phase 7.2 已完成。
-3. 下一步建议做 Phase 7.3 Result Refresh Integration，让 `<C-r>` / result refresh 和 warm cache 的关系更明确。
-4. 再做 Phase 7.5，避免 cache/result buffer 生命周期变长后写错源文件。
+3. Phase 7.3 已完成。
+4. 下一步建议做 Phase 7.5 Source Location Fidelity，避免 cache/result buffer 生命周期变长后写错源文件。
 5. Phase 7.4 watcher 和 Phase 7.6/7.7 parity 能力根据实际使用痛点排序。

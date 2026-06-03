@@ -486,76 +486,76 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 	return display_lines, index_map
 end
 
--- Refresh the current task list
-function M.refresh_tasks_view()
-	local buf = vim.api.nvim_get_current_buf()
-	local tasks = core.buffer_tasks[buf]
+local function window_for_buffer(buf)
+	local current_win = vim.api.nvim_get_current_win()
+	if vim.api.nvim_get_current_buf() == buf then
+		return current_win
+	end
+	for _, win in ipairs(vim.api.nvim_list_wins()) do
+		if vim.api.nvim_win_get_buf(win) == buf then
+			return win
+		end
+	end
+	return nil
+end
 
-	-- Store current window and cursor position
-	local win = vim.api.nvim_get_current_win()
-	local cursor_pos = vim.api.nvim_win_get_cursor(win)
+-- Refresh a task result buffer by re-running its original finder options.
+function M.refresh_tasks_view(opts)
+	opts = opts or {}
+	local buf = opts.buffer or opts.buf or vim.api.nvim_get_current_buf()
+	if not vim.api.nvim_buf_is_valid(buf) then
+		vim.notify("Tasks result buffer is no longer valid", vim.log.levels.ERROR)
+		return false
+	end
+	if vim.api.nvim_get_option_value("modified", { buf = buf }) then
+		vim.notify("Save task changes before refreshing results", vim.log.levels.WARN)
+		return false
+	end
 
-	-- Get the first task's file path to determine vault path
-	local finder_opts = M.buffer_finder_opts[buf] or M.last_finder_opts or {}
-	local vault_path = finder_opts.vault_path
+	local finder_opts = M.buffer_finder_opts[buf] or {}
+	if not next(finder_opts) then
+		finder_opts = M.last_finder_opts or {}
+	end
+	local vault_path = finder_opts.vault_path or (require("obsidian-tasks").config or {}).vault_path
 
 	if not vault_path then
 		vim.notify("Could not determine vault path for refresh", vim.log.levels.ERROR)
-		return
+		return false
 	end
 
-	-- Check if we're in a floating window
-	local win_config = vim.api.nvim_win_get_config(win)
-	local is_float = win_config.relative and win_config.relative ~= ""
-
-	-- Get current buffer options to preserve them
-	local hierarchical_headings = false
-
-	-- Try to determine current grouping from buffer content
-	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-	for _, line in ipairs(lines) do
-		if line:match("^## ") then
-			-- Found a heading, check if it's hierarchical
-			if line:match("> ") then
-				-- Traditional flat heading with ">"
-				hierarchical_headings = false
-			else
-				-- Likely hierarchical
-				hierarchical_headings = true
-			end
-			break
-		end
+	local win = window_for_buffer(buf)
+	local cursor_pos
+	local is_float = finder_opts.float or false
+	if win and vim.api.nvim_win_is_valid(win) then
+		cursor_pos = vim.api.nvim_win_get_cursor(win)
+		local win_config = vim.api.nvim_win_get_config(win)
+		is_float = win_config.relative and win_config.relative ~= ""
 	end
 
 	-- Re-run the finder with the same options as before
 	local finder = require("obsidian-tasks.finder")
 
-	-- Create options table for the finder
-	local opts = {
-		vault_path = vault_path,
-		float = is_float,
-		global_filter = finder_opts.global_filter,
-		hierarchical_headings = hierarchical_headings,
-		reuse_buffer = buf,
-	}
-
-	-- Reuse the last filter and group_by settings if available
+	local refresh_opts = {}
 	for key, value in pairs(finder_opts) do
-		if opts[key] == nil then
-			opts[key] = value
-		end
+		refresh_opts[key] = value
 	end
+	refresh_opts.vault_path = vault_path
+	refresh_opts.float = is_float
+	refresh_opts.reuse_buffer = buf
+	refresh_opts.buffer_name = refresh_opts.buffer_name or vim.api.nvim_buf_get_name(buf)
 
-	finder.find_tasks(opts)
+	finder.find_tasks(refresh_opts)
 
-	if vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf) then
+	if win and cursor_pos and vim.api.nvim_win_is_valid(win) and vim.api.nvim_buf_is_valid(buf) then
 		local line_count = vim.api.nvim_buf_line_count(buf)
 		local row = math.min(cursor_pos[1], line_count)
 		pcall(vim.api.nvim_win_set_cursor, win, { row, cursor_pos[2] })
 	end
 
-	-- Notify user
-	vim.notify("Tasks refreshed", vim.log.levels.INFO)
+	if opts.notify ~= false then
+		vim.notify("Tasks refreshed", vim.log.levels.INFO)
+	end
+	return true
 end
 
 local function display_opts_for_buffer(buf)
@@ -697,7 +697,9 @@ function M.setup_editable_buffer(buf, tasks, opts)
 	vim.keymap.set({ "n" }, "<c-s>", obsidian_tasks.save_current_tasks, { buffer = buf, noremap = true, silent = true })
 
 	-- Add refresh functionality
-	vim.keymap.set({ "n" }, "<c-r>", M.refresh_tasks_view, { buffer = buf, noremap = true, silent = true })
+	vim.keymap.set({ "n" }, "<c-r>", function()
+		M.refresh_tasks_view({ buffer = buf })
+	end, { buffer = buf, noremap = true, silent = true })
 
 	vim.keymap.set({ "n" }, "o", function()
 		require("obsidian-tasks.panel").select_query({ buffer = buf })

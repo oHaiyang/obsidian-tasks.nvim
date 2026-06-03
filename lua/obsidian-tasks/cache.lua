@@ -160,6 +160,22 @@ local function rebuild_tasks()
 	M.state.tasks = tasks
 end
 
+local function refresh_current_result(opts)
+	opts = opts or {}
+	local ok, display = pcall(require, "obsidian-tasks.display")
+	if not ok then
+		return false
+	end
+	local buf = vim.api.nvim_get_current_buf()
+	if not display.buffer_finder_opts or not display.buffer_finder_opts[buf] then
+		return false
+	end
+	return display.refresh_tasks_view({
+		buffer = buf,
+		notify = opts.notify,
+	})
+end
+
 function M.clear()
 	M.state = {
 		status = "cold",
@@ -194,6 +210,11 @@ function M.refresh(opts)
 		last_update = nil,
 	}
 	rebuild_tasks()
+	if opts.refresh_results or opts.refreshResults then
+		refresh_current_result({
+			notify = opts.notify_results or opts.notifyResults or false,
+		})
+	end
 	return copy_task_list(M.state.tasks)
 end
 
