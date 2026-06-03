@@ -129,6 +129,7 @@ function M.find_tasks(opts)
 				float = use_float,
 				vault_path = vault_path,
 				global_filter = global_filter,
+				remove_global_filter = opts.remove_global_filter or opts.removeGlobalFilter,
 				hierarchical_headings = opts.hierarchical_headings or false,
 				query = query_text,
 				query_name = opts.query_name,
@@ -175,6 +176,7 @@ function M.find_tasks(opts)
 		group_by = group_by,
 		toolbar_filter = opts.toolbar_filter,
 		use_cache = opts.use_cache or opts.useCache,
+		remove_global_filter = opts.remove_global_filter or opts.removeGlobalFilter,
 	}
 
 	display.last_finder_opts = {
@@ -183,6 +185,7 @@ function M.find_tasks(opts)
 		float = use_float,
 		vault_path = vault_path,
 		global_filter = global_filter,
+		remove_global_filter = opts.remove_global_filter or opts.removeGlobalFilter,
 		hierarchical_headings = opts.hierarchical_headings or false,
 		query = query_text,
 		query_name = opts.query_name,
@@ -221,6 +224,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 	local tasks = cache.tasks({
 		vault_path = vault_path,
 		global_filter = global_filter or "",
+		remove_global_filter = display_opts.remove_global_filter or display_opts.removeGlobalFilter,
 		today = display_opts.today,
 		use_cache = display_opts.use_cache,
 	})

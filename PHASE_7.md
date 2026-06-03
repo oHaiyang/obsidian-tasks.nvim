@@ -132,6 +132,8 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 
 ### Phase 7.6: Scanner Parity Cleanup
 
+状态：Done，详见 `PHASE_7_6.md` 和 `PHASE_7_6_TEST.md`。
+
 目标：
 
 1. 明确 code fence、HTML comment、Obsidian comment 中任务是否被扫描。
@@ -163,5 +165,5 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 2. Phase 7.2 已完成。
 3. Phase 7.3 已完成。
 4. Phase 7.5 已完成。
-5. 下一步建议做 Phase 7.6 Scanner Parity Cleanup，补齐 scanner 层与 `FEATURES.md` 的明显状态差异。
-6. Phase 7.4 watcher 和 Phase 7.7 recurrence grammar 能力根据实际使用痛点排序。
+5. Phase 7.6 已完成。
+6. 下一步建议按实际痛点选择 Phase 7.4 watcher 或 Phase 7.7 recurrence grammar；如果继续追原版 parity，优先做 Phase 7.7。

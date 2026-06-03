@@ -367,6 +367,40 @@ local function extract_tags(description)
 	return tags
 end
 
+local function remove_global_filter(description, opts)
+	opts = opts or {}
+	local global_filter = opts.global_filter or opts.globalFilter or ""
+	if global_filter == "" or not (opts.remove_global_filter or opts.removeGlobalFilter) then
+		return description
+	end
+	if global_filter:sub(1, 1) == "#" then
+		local parts = {}
+		for part in (description or ""):gmatch("%S+") do
+			if part ~= global_filter then
+				table.insert(parts, part)
+			end
+		end
+		return trim(table.concat(parts, " "))
+	end
+	description = (description or ""):gsub("%s*" .. global_filter:gsub("([^%w])", "%%%1"), "")
+	return trim(description)
+end
+
+local function has_global_filter(body, global_filter)
+	if global_filter == "" then
+		return true
+	end
+	if global_filter:sub(1, 1) == "#" then
+		for part in (body or ""):gmatch("%S+") do
+			if part == global_filter then
+				return true
+			end
+		end
+		return false
+	end
+	return (body or ""):find(global_filter, 1, true) ~= nil
+end
+
 local function enrich_file_fields(task, opts)
 	opts = opts or {}
 	local path = task.file_path or ""
@@ -410,7 +444,7 @@ function M.parse_line(opts)
 	end
 
 	local global_filter = opts.global_filter or opts.globalFilter or ""
-	if global_filter ~= "" and not body:find(global_filter, 1, true) then
+	if not has_global_filter(body, global_filter) then
 		return nil
 	end
 
@@ -480,9 +514,11 @@ function M.parse_line(opts)
 	if #state.trailing_tags > 0 then
 		description = trim(description .. " " .. table.concat(state.trailing_tags, " "))
 	end
+	description = remove_global_filter(description, opts)
 
 	task.text = description
 	task.description = description
+	task.display_text = remove_global_filter(task.display_text or task.body or "", opts)
 	task.tags = extract_tags(description)
 	task.links = links.extract(line)
 	task.outlinks = task.links

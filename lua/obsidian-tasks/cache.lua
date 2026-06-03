@@ -98,6 +98,11 @@ local function context(opts)
 	return {
 		vault_path = normalize_vault_path(opts.vault_path or config.vault_path),
 		global_filter = opts.global_filter or opts.globalFilter or config.global_filter or "",
+		remove_global_filter = opts.remove_global_filter
+			or opts.removeGlobalFilter
+			or config.remove_global_filter
+			or config.removeGlobalFilter
+			or false,
 		today = opts.today or config.today or date.today(),
 		task_format = config.task_format or config.taskFormat or "tasks",
 	}
@@ -109,6 +114,7 @@ local function same_context(left, right)
 	end
 	return left.vault_path == right.vault_path
 		and left.global_filter == right.global_filter
+		and left.remove_global_filter == right.remove_global_filter
 		and left.today == right.today
 		and left.task_format == right.task_format
 end
@@ -140,6 +146,7 @@ local function scan_file(path, ctx)
 		size = stat and stat.size or nil,
 		tasks = scanner.scan_file(normalized, {
 			global_filter = ctx.global_filter,
+			remove_global_filter = ctx.remove_global_filter,
 			today = ctx.today,
 		}),
 	}

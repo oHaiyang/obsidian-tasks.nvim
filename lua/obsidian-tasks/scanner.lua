@@ -31,6 +31,44 @@ local function is_fence(line)
 	return line:match("^%s*```") or line:match("^%s*~~~")
 end
 
+local function html_comment_state(line, in_comment)
+	local search_from = 1
+	local current = in_comment
+	while true do
+		if current then
+			local close_at = line:find("-->", search_from, true)
+			if not close_at then
+				return true
+			end
+			current = false
+			search_from = close_at + 3
+		else
+			local open_at = line:find("<!--", search_from, true)
+			if not open_at then
+				return false
+			end
+			local close_at = line:find("-->", open_at + 4, true)
+			if not close_at then
+				return true
+			end
+			search_from = close_at + 3
+		end
+	end
+end
+
+local function obsidian_comment_state(line, in_comment)
+	local search_from = 1
+	local current = in_comment
+	while true do
+		local marker = line:find("%%%%", search_from)
+		if not marker then
+			return current
+		end
+		current = not current
+		search_from = marker + 2
+	end
+end
+
 local function heading_text(line)
 	return line:match("^%s*#+%s+(.+)$")
 end
@@ -60,6 +98,19 @@ local function parse_list_item(line)
 		description = trim(description or body),
 		children = {},
 	}
+end
+
+local function blockquote_depth(line)
+	local prefix = line:match("^%s*([>%s]*)") or ""
+	local count = 0
+	for _ in prefix:gmatch(">") do
+		count = count + 1
+	end
+	return count
+end
+
+local function callout_type(line)
+	return line:match("^%s*>%s*%[!([%w%-]+)%]")
 end
 
 local function list_indent_depth(indentation)
@@ -103,7 +154,10 @@ function M.scan_file(path, opts)
 
 	local tasks = {}
 	local in_fence = false
+	local in_html_comment = false
+	local in_obsidian_comment = false
 	local current_heading = nil
+	local current_callout = nil
 	local list_stack = {}
 	local properties = frontmatter.parse(lines)
 	local file_fields = frontmatter.file_fields(properties)
@@ -112,6 +166,27 @@ function M.scan_file(path, opts)
 		if is_fence(line) then
 			in_fence = not in_fence
 		elseif not in_fence then
+			local next_obsidian_comment = obsidian_comment_state(line, in_obsidian_comment)
+			local skip_obsidian_line = in_obsidian_comment or line:find("%%%%") ~= nil
+			in_obsidian_comment = next_obsidian_comment
+			if skip_obsidian_line then
+				goto continue
+			end
+
+			local next_html_comment = html_comment_state(line, in_html_comment)
+			local skip_line = in_html_comment or line:find("<!--", 1, true) ~= nil
+			in_html_comment = next_html_comment
+			if skip_line then
+				goto continue
+			end
+
+			local callout = callout_type(line)
+			if callout then
+				current_callout = callout:lower()
+			elseif blockquote_depth(line) == 0 then
+				current_callout = nil
+			end
+
 			local heading = heading_text(line)
 			if heading then
 				current_heading = heading
@@ -121,6 +196,9 @@ function M.scan_file(path, opts)
 					list_item.file_path = path
 					list_item.line_number = line_number
 					list_item.heading = current_heading
+					list_item.blockquote_depth = blockquote_depth(line)
+					list_item.is_blockquote = list_item.blockquote_depth > 0
+					list_item.callout = current_callout
 					attach_to_tree(list_stack, list_item)
 				end
 
@@ -130,6 +208,7 @@ function M.scan_file(path, opts)
 					line_number = line_number,
 					heading = current_heading,
 					global_filter = opts.global_filter,
+					remove_global_filter = opts.remove_global_filter or opts.removeGlobalFilter,
 					today = opts.today,
 					frontmatter = file_fields.frontmatter,
 					properties = file_fields.properties,
@@ -139,6 +218,11 @@ function M.scan_file(path, opts)
 				})
 
 				if task then
+					task.blockquote_depth = blockquote_depth(line)
+					task.blockquoteDepth = task.blockquote_depth
+					task.is_blockquote = task.blockquote_depth > 0
+					task.isBlockquote = task.is_blockquote
+					task.callout = current_callout
 					if list_item then
 						list_item.task = task
 						task.list_item = list_item
@@ -148,6 +232,7 @@ function M.scan_file(path, opts)
 				end
 			end
 		end
+		::continue::
 	end
 
 	return tasks

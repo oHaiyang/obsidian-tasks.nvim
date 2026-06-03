@@ -15,6 +15,9 @@ function M.setup(config)
 	config.display = config.display or {}
 	config.display.hierarchical_headings = config.display.hierarchical_headings or false
 	config.global_filter = config.global_filter or config.globalFilter or ""
+	if config.remove_global_filter == nil then
+		config.remove_global_filter = config.removeGlobalFilter or false
+	end
 	config.global_query = config.global_query or config.globalQuery or ""
 	config.queries = config.queries or {}
 	config.default_query = config.default_query or config.defaultQuery
@@ -105,6 +108,9 @@ function M.find_tasks(opts)
 		end
 		if opts.global_filter == nil and opts.globalFilter == nil then
 			opts.global_filter = M.config.global_filter
+		end
+		if opts.remove_global_filter == nil and opts.removeGlobalFilter == nil then
+			opts.remove_global_filter = M.config.remove_global_filter
 		end
 	end
 

@@ -50,18 +50,18 @@
 | F001 | Markdown 任务识别 | 支持 `- [ ]`、`* [ ]`、`+ [ ]`、`1. [ ]`、`1) [ ]`，保留缩进和 list marker。 | Partial：已支持常见 marker，后续补更完整的 Obsidian metadata 行为。 | P0 |
 | F002 | 只处理 Markdown 文件 | 原插件只读取 `.md` 文件。 | Partial：由传入 vault + rg 决定。 | P0 |
 | F003 | 单行任务限制 | 原插件只解析单行 checklist item，多行正文不作为任务描述。 | Partial：当前逐行扫描天然单行。 | P0 |
-| F004 | code block / comment 排除 | 原插件依赖 Obsidian metadata，不读取 code block 和注释中的任务。 | Todo。 | P0 |
-| F005 | blockquote / callout 中任务 | 支持 `>` 缩进中的任务，并记录其位置。 | Todo。 | P1 |
+| F004 | code block / comment 排除 | 原插件依赖 Obsidian metadata，不读取 code block 和注释中的任务。 | Partial：Phase 7.6 排除 fenced code、HTML comment 和 Obsidian `%%` comment 中的任务。 | P0 |
+| F005 | blockquote / callout 中任务 | 支持 `>` 缩进中的任务，并记录其位置。 | Partial：Phase 7.6 支持 blockquote 任务扫描，并暴露 blockquote/callout metadata。 | P1 |
 | F006 | 父子 list item / task 树 | 记录父级 ListItem，用于 `show tree`。 | Done：Phase 6.3 记录 list item parent/children，并支持 `show tree` 展示命中 task 的 child tree。 | P1 |
-| F007 | 前置 heading | 记录任务前最近 heading，用于 backlink、filter/sort/group by heading。 | Todo。 | P0 |
-| F008 | Global Filter | 可设置全局字符串，如 `#task`，只追踪包含该字符串的 checklist item。 | Partial：已支持配置，后续补 removeGlobalFilter 等细节。 | P0 |
-| F009 | Remove global filter | 全局过滤 tag 可从描述和 `task.tags` 中移除。 | Todo。 | P1 |
+| F007 | 前置 heading | 记录任务前最近 heading，用于 backlink、filter/sort/group by heading。 | Done：scanner 记录最近 heading，并支持 filter/sort/group by heading。 | P0 |
+| F008 | Global Filter | 可设置全局字符串，如 `#task`，只追踪包含该字符串的 checklist item。 | Done：支持 `global_filter` / `globalFilter`，Phase 7.6 对 tag 型 filter 使用 token 精确匹配。 | P0 |
+| F009 | Remove global filter | 全局过滤 tag 可从描述和 `task.tags` 中移除。 | Done：Phase 7.6 支持 `remove_global_filter` / `removeGlobalFilter`。 | P1 |
 | F010 | Tasks Emoji Format | 默认格式：优先级、日期、循环、on completion、依赖均用 emoji 字段。 | Partial：只解析优先级和 due。 | P0 |
 | F011 | Dataview Format | 支持 `[due:: 2024-01-01]`、`[priority:: high]` 等 Dataview inline fields。 | Partial：Phase 6.7 支持 Dataview task format MVP 的解析、查询、主要编辑写回和补全入口。 | P2 |
 | F012 | 描述字段 | 解析任务正文，metadata 从行尾剥离，保留用户可见描述。 | Partial。 | P0 |
 | F013 | 解析顺序 | 从行尾向左解析 metadata；metadata 后只能继续放 tag/block link，否则左侧 metadata 不识别。 | Todo。 | P0 |
-| F014 | Tags | 识别 task description 中 tag；支持较 Obsidian 更宽松的 tag 规则。 | Todo。 | P0 |
-| F015 | Block link | 支持行尾 `^block-id`，保存并写回。 | Todo。 | P1 |
+| F014 | Tags | 识别 task description 中 tag；支持较 Obsidian 更宽松的 tag 规则。 | Partial：已提取 description tags；Phase 7.6 会在 removeGlobalFilter 后再提取 tags。 | P0 |
+| F015 | Block link | 支持行尾 `^block-id`，保存并写回。 | Partial：已解析 `^block-id`，并在 Phase 7.5 source location 中用于重定位；完整写回格式 parity 待补。 | P1 |
 | F016 | Priority | 支持 `🔺` highest、`⏫` high、`🔼` medium、`🔽` low、`⏬` lowest、none。 | Partial：已解析并排序部分 priority。 | P0 |
 | F017 | Date fields | 支持 created `➕`、start `🛫`、scheduled `⏳`、due `📅`、cancelled `❌`、done `✅`。 | Done：emoji format 常用日期已解析。 | P0 |
 | F018 | Invalid date | 日期固定 `YYYY-MM-DD`；无效日期可被查询发现。 | Todo。 | P1 |
@@ -350,7 +350,7 @@
 
 ### Phase 7: Cache, Incremental Updates, and Source Fidelity
 
-状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，Phase 7.5 已实现 source location fidelity MVP，详见 `PHASE_7.md`。
+状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，Phase 7.5 已实现 source location fidelity MVP，Phase 7.6 已实现 scanner parity cleanup，详见 `PHASE_7.md`。
 
 目标是让 nvim 插件从“每次查询全量扫描”推进到 cache-first 的底层模型，同时为后续自动刷新和更可靠写回做准备。
 
@@ -361,5 +361,5 @@
 3. Phase 7.3：Result refresh integration。Done，详见 `PHASE_7_3.md`。
 4. Phase 7.4：File watcher + debounce。
 5. Phase 7.5：Source location fidelity，减少旧 result buffer 写错行风险。Done，详见 `PHASE_7_5.md`。
-6. Phase 7.6：Scanner parity cleanup。
+6. Phase 7.6：Scanner parity cleanup。Done，详见 `PHASE_7_6.md`。
 7. Phase 7.7：Recurrence grammar expansion。
