@@ -291,12 +291,12 @@ function M.pick_date(buf)
 	end
 
 	local state = M.form_state[buf] or {}
-	date_picker.pick({
-		prompt = field .. " date",
+	date_picker.pick_for_form(buf, field, {
 		state = state,
-	}, function(value)
-		set_form_field(buf, field, value)
-	end)
+		on_select = function(value)
+			set_form_field(buf, field, value)
+		end,
+	})
 end
 
 function M.pick_dependency(buf, target_task)

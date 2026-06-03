@@ -168,7 +168,7 @@
 | F301 | 查询结果列表 | 在 Reading/Live Preview 中渲染 tasks block。 | Partial：有独立结果 buffer。 | P0 |
 | F302 | Backlink | 每条任务显示文件名和 heading，点击跳回源行。 | Partial：`gd/gf` 可跳转；Phase 5.4 支持 `show/hide backlink`。 | P0 |
 | F303 | Edit button | 结果里有铅笔按钮打开编辑 modal。 | Todo。 | P2 |
-| F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Partial：`p` / `:ObsidianTasksPostpone` 已支持基础推迟。 | P1 |
+| F304 | Postpone button | 结果里可一键或菜单推迟 due/scheduled/start。 | Partial：`p` / `:ObsidianTasksPostpone` 已支持基础推迟；Phase 6.5 date picker 对已有日期提供 advance/postpone 轻量菜单项。 | P1 |
 | F305 | Toolbar | 查询结果顶部可临时过滤 description、复制结果为 Markdown。 | Done：Phase 6.4 支持 result buffer toolbar、临时 description filter 和 copy markdown。 | P2 |
 | F306 | Task count | 显示命中数；limit 时显示 `shown of total`。 | Done：Phase 5.4 支持显示和 `show/hide task count`。 | P1 |
 | F307 | Task count location | 全局设置 count 在 top 或 bottom。 | Todo。 | P3 |
@@ -195,11 +195,11 @@
 | F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 已支持，规则 parser 待补全。 | P1 |
 | F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Done：`ObsidianTasksChangeStatus` 和 `ObsidianTasksStatus*`。 | P1 |
 | F406 | Status context menu | 右键 checkbox 可选择任意 status。 | Obsidian-only；nvim 可做 picker。 | P2 |
-| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP；Phase 5.5 补日期解析和轻量 picker；Phase 5.6 补 auto-suggest MVP；Phase 5.7 抽 completion core。 | P1 |
+| F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP；Phase 5.5 补日期解析和轻量 picker；Phase 5.6 补 auto-suggest MVP；Phase 5.7 抽 completion core；Phase 6.5 补 calendar date picker。 | P1 |
 | F408 | Modal field visibility | 可隐藏不用字段。 | Todo。 | P3 |
 | F409 | Date parsing in modal | 输入 `today`、`tomorrow`、`6 oct`、`2 weeks` 等自然语言日期。 | Done：Phase 5.5 支持常用自然日期并正规化保存。 | P1 |
-| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；calendar-style UI 待补。 | P2 |
-| F411 | Date context menu | 右键日期可 advance/postpone。 | Obsidian-only；nvim 可做 action menu。 | P2 |
+| F410 | Date picker | 点击任务日期打开 date picker，能修改或清空日期。 | Partial：Phase 5.9 扩展 form `gd` 并提供普通 task 行 `ObsidianTasksPickDate`；Phase 6.5 支持 floating calendar picker、选择和清空日期。 | P2 |
+| F411 | Date context menu | 右键日期可 advance/postpone。 | Partial：Phase 6.5 在 select picker 中提供已有日期的 `Advance 1 day` / `Postpone 1 day`，右键菜单本身不做。 | P2 |
 | F412 | Postpone | 对 due/scheduled/start 选择第一个存在日期，推迟到 tomorrow 或更多日期。 | Partial：基础 `:ObsidianTasksPostpone` 已支持。 | P1 |
 | F413 | Auto-suggest | 编辑任务时智能补 emoji、日期、recurrence、id/dependsOn、onCompletion。 | Partial：Phase 5.8 提供 completion core、form 补全、普通 Markdown task 行手动补全和可选 `nvim-cmp` source；Phase 6 Native Completion Adapter 支持原生补全、priority 前缀、due/scheduled 日期字段关键词和 Obsidian-style 常用日期语义；完整任务搜索待补。 | P1 |
 | F414 | Dependency editor | 在 modal 或 suggest 中搜索任务并自动生成 id/dependsOn。 | Partial：Phase 5.9 支持 form 和普通 task 行选择依赖，必要时自动补 `🆔 id`。 | P2 |
@@ -330,14 +330,13 @@
 后续继续补：
 
 1. 更完整 completion adapter 和任务搜索建议。
-2. Calendar-style date picker。
-3. XOR / bracket / quote Boolean delimiters。
-4. Dataview task format。
-5. Frontmatter properties 和 links。
+2. XOR / bracket / quote Boolean delimiters。
+3. Dataview task format。
+4. Frontmatter properties 和 links。
 
 ### Phase 6: Polish and Ecosystem
 
-状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
+状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，Phase 6.5 已实现 calendar date picker，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
 建议拆分：
 
@@ -345,7 +344,7 @@
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done。
 3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done。
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done。
-5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
+5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
 7. Phase 6.7：Dataview task format MVP。
 8. Phase 6.8：Frontmatter properties、links、scripting surface。

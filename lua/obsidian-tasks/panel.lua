@@ -352,8 +352,10 @@ function M.setup_commands()
 	vim.api.nvim_create_user_command("ObsidianTasksPickDate", function(command)
 		require("obsidian-tasks").pick_date_at_cursor({
 			field = command.args ~= "" and command.args or "due",
+			calendar = command.bang,
 		})
 	end, {
+		bang = true,
 		nargs = "?",
 		force = true,
 		complete = function()

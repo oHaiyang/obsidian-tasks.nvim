@@ -32,7 +32,7 @@ Phase 6 的原则：
 2. Phase 6 Native Completion Adapter：原生补全 adapter。Done，详见 `PHASE_6_NATIVE_COMPLETION.md`。
 3. Phase 6.3：`show tree`、父子 list item 与 sub-items。Done，详见 `PHASE_6_3.md`。
 4. Phase 6.4：Toolbar filter/copy 和 result view polishing。Done，详见 `PHASE_6_4.md`。
-5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。
+5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done，详见 `PHASE_6_5.md`。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。
 7. Phase 6.7：Dataview task format MVP。
 8. Phase 6.8：Frontmatter properties、links、scripting surface。
@@ -40,7 +40,7 @@ Phase 6 的原则：
 
 当前决策：Phase 6.1 先跳过。原因是 query diagnostics 和 `explain` 使用频率低，而且复杂查询写错时更适合到 Obsidian 原版里做权威验证。文档仍保留 6.1 的完整设计，作为后续 backlog。
 
-Phase 6.2 和 6.3 是最推荐优先做的，因为它们能明显提升查询结果排序和结果视图质量，并且都对应原版核心能力。Phase 6.7 和 6.8 涉及数据模型扩展，风险更高，建议放后面。
+当前 Phase 6.2、Native Completion Adapter、6.3、6.4、6.5 已完成。下一步优先做 6.6，因为它能在现有补全 adapter 和 dependency editor 基础上继续补齐原版 auto-suggest 的高频体验。Phase 6.7 和 6.8 涉及数据模型扩展，风险更高，建议放后面。
 
 ---
 
@@ -614,6 +614,8 @@ sh scripts/smoke_phase5_9.sh
 
 ## Phase 6.5: Calendar Date Picker + Date Menus
 
+状态：已实现，详见 `PHASE_6_5.md` 和 `PHASE_6_5_TEST.md`。
+
 ### 目标
 
 把 Phase 5.9 的 date picker 从“常用日期列表 + custom input”升级为更接近原版 date menu 的 Neovim 体验：
@@ -1101,10 +1103,10 @@ sh scripts/smoke_phase5.sh
 
 ## 推荐下一步
 
-建议下一步做 **Phase 6.5 Calendar Date Picker + Date Menus**。
+建议下一步做 **Phase 6.6 Auto-Suggest Polish + Task Search Suggestions**。
 
 理由：
 
-- Phase 5.9 已经有基础 date picker，Phase 6.5 可以在较小风险下把日期编辑体验继续打磨。
-- 原版 date menu/date picker 是编辑任务时的高频能力，和当前 `p` postpone、form date 字段能自然衔接。
-- Phase 6.4 已经补完 result toolbar，下一块最明显的交互 polish 是日期选择和日期动作菜单。
+- Phase 6.5 已经补完 calendar date picker，日期编辑的主路径先闭环。
+- Phase 6 Native Completion Adapter 已经接上原生补全，Phase 6.6 可以继续补任务搜索建议和上下文建议质量。
+- dependency editor 已有搜索与写回基础，下一步把它接入 auto-suggest 能明显减少手动输入 id/dependsOn 的成本。
