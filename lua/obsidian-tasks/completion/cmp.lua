@@ -41,16 +41,35 @@ local function completion_kind()
 	return nil
 end
 
+local function cmp_text(value)
+	if type(value) == "table" then
+		return table.concat(value, " ")
+	end
+	return value
+end
+
 local function to_cmp_item(item, kind)
 	local label = item.abbr or item.word
+	local documentation = item.menu and ("Obsidian Tasks " .. item.menu) or nil
+	local filter_text = cmp_text(item.filter_text) or item.abbr or item.word
+	if item.data and item.data.kind == "task" then
+		documentation = string.format(
+			"%s\n%s:%s%s",
+			item.abbr or item.word,
+			item.data.file_path or "",
+			item.data.line_number or "?",
+			item.data.needs_id and "\nNeeds an id before it can be used as a dependency." or ""
+		)
+	end
 	return {
 		label = label,
 		insertText = item.word,
-		filterText = item.filter_text or item.abbr or item.word,
-		sortText = item.filter_text or item.abbr or item.word,
+		filterText = filter_text,
+		sortText = filter_text,
 		detail = item.menu,
 		kind = kind,
-		documentation = item.menu and ("Obsidian Tasks " .. item.menu) or nil,
+		documentation = documentation,
+		data = item.data,
 	}
 end
 
@@ -94,6 +113,7 @@ function Source:complete(params, callback)
 		field = ctx.field,
 		base = ctx.base,
 		state = self.opts.state,
+		current_task = ctx.current_task,
 	})
 	local cmp_items = {}
 	for _, item in ipairs(items) do

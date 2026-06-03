@@ -3,6 +3,7 @@ local M = {}
 local date = require("obsidian-tasks.date")
 local parser = require("obsidian-tasks.parser")
 local task_model = require("obsidian-tasks.task")
+local task_search = require("obsidian-tasks.task_search")
 
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
@@ -102,13 +103,6 @@ local function set_task_line(task, line)
 	end
 	lines[task.line_number] = line
 	return write_file_lines(task.file_path, lines)
-end
-
-local function same_source(left, right)
-	return left
-		and right
-		and realpath(left.file_path or "") == realpath(right.file_path or "")
-		and left.line_number == right.line_number
 end
 
 local function all_ids(opts)
@@ -250,36 +244,7 @@ function M.current_task_at_cursor(buf)
 end
 
 function M.candidate_tasks(opts)
-	opts = opts or {}
-	local config = get_config()
-	local vault_path = opts.vault_path or config.vault_path
-	if not vault_path or vault_path == "" then
-		return {}
-	end
-
-	local tasks = {}
-	for _, task in ipairs(require("obsidian-tasks.scanner").scan_vault({
-		vault_path = vault_path,
-		global_filter = config.global_filter,
-	})) do
-		if not opts.exclude or not same_source(task, opts.exclude) then
-			table.insert(tasks, task)
-		end
-	end
-	table.sort(tasks, function(left, right)
-		if left.file_path == right.file_path then
-			return (left.line_number or 0) < (right.line_number or 0)
-		end
-		return (left.file_path or "") < (right.file_path or "")
-	end)
-	return tasks
-end
-
-local function format_candidate(task)
-	local id = trim(task.id)
-	local id_text = id ~= "" and ("🆔 " .. id) or "new id"
-	local file = task.file and task.file.filename or (task.file_path or ""):match("([^/]+)$") or ""
-	return string.format("%s  %s:%s  %s", task.description or task.text or "", file, task.line_number or "?", id_text)
+	return task_search.candidate_tasks(opts)
 end
 
 function M.select_dependency(opts, callback)
@@ -295,7 +260,7 @@ function M.select_dependency(opts, callback)
 
 	vim.ui.select(candidates, {
 		prompt = "Task dependency",
-		format_item = format_candidate,
+		format_item = task_search.format_candidate,
 	}, function(task)
 		if callback then
 			callback(task)

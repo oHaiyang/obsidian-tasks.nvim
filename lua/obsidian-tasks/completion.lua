@@ -3,6 +3,7 @@ local M = {}
 local date = require("obsidian-tasks.date")
 local status = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
+local task_search = require("obsidian-tasks.task_search")
 
 local DATE_SYMBOLS = {
 	created = "➕",
@@ -143,6 +144,7 @@ local function clone_item(item)
 		menu = item.menu,
 		kind = item.kind,
 		filter_text = item.filter_text,
+		data = item.data,
 	}
 end
 
@@ -157,7 +159,11 @@ local function append_unique_item(items, item, seen)
 		return
 	end
 	seen = seen or {}
-	local key = item.word .. "\t" .. (item.menu or "") .. "\t" .. tostring(item.filter_text or item.abbr or "")
+	local filter_text = item.filter_text or item.abbr or ""
+	if type(filter_text) == "table" then
+		filter_text = table.concat(filter_text, "\t")
+	end
+	local key = item.word .. "\t" .. (item.menu or "") .. "\t" .. tostring(filter_text)
 	if seen[key] then
 		return
 	end
@@ -277,12 +283,57 @@ local function id_suggestions(state)
 	return items
 end
 
-local function depends_on_suggestions(state)
+local function depends_on_suggestions(state, opts)
+	opts = opts or {}
 	local items = {}
-	for _, id in ipairs(existing_ids(state)) do
-		table.insert(items, { word = id, menu = "depends on", filter_text = id })
+	state = state_with_defaults(state)
+	for _, task in ipairs(task_search.candidate_tasks({
+		vault_path = state.vault_path,
+		exclude = opts.exclude or opts.current_task or opts.exclude_task or state.exclude_task or state.current_task or state,
+	})) do
+		local item = task_search.completion_item(task, {
+			require_id = true,
+			menu = "depends on",
+		})
+		if item then
+			table.insert(items, item)
+		end
 	end
 	return items
+end
+
+function M.task_search_items(opts)
+	opts = opts or {}
+	local state = state_with_defaults(opts.state)
+	local items = {}
+	for _, task in ipairs(task_search.candidate_tasks({
+		vault_path = opts.vault_path or state.vault_path,
+		exclude = opts.exclude or opts.current_task or state.exclude_task or state.current_task,
+		global_filter = opts.global_filter or opts.globalFilter,
+	})) do
+		local item = task_search.completion_item(task, {
+			require_id = opts.require_id ~= false,
+			menu = opts.menu or "task",
+			no_id_label = opts.no_id_label,
+			no_id_word = opts.no_id_word,
+		})
+		if item then
+			table.insert(items, item)
+		end
+	end
+	return items
+end
+
+function M.task_id_items(opts)
+	opts = opts or {}
+	opts.require_id = true
+	opts.menu = opts.menu or "existing id"
+	return M.task_search_items(opts)
+end
+
+function M.date_items(prefix, opts)
+	opts = opts or {}
+	return date_suggestions(opts.context, opts.state, prefix)
 end
 
 local function field_suggestions(field, state, opts)
@@ -304,7 +355,7 @@ local function field_suggestions(field, state, opts)
 	elseif field == "id" then
 		append_items(items, id_suggestions(state))
 	elseif field == "depends_on" then
-		append_items(items, depends_on_suggestions(state))
+		append_items(items, depends_on_suggestions(state, opts))
 	end
 	return items
 end
@@ -336,6 +387,17 @@ local function matches_base(item, base)
 		end
 	end
 	return false
+end
+
+function M.recurrence_items(prefix, opts)
+	opts = opts or {}
+	local items = {}
+	for _, item in ipairs(RECURRENCE_SUGGESTIONS) do
+		if matches_base(item, prefix or "") then
+			table.insert(items, clone_item(item))
+		end
+	end
+	return items
 end
 
 function M.suggest(opts)
@@ -455,14 +517,22 @@ function M.markdown_context(opts)
 	if not opts.cursor_col and not vim.api.nvim_get_mode().mode:match("^i") and col < #line then
 		col = col + 1
 	end
-	if not task_model.parse_line({ line = line, global_filter = "" }) then
+	local task = task_model.parse_line({
+		line = line,
+		file_path = vim.api.nvim_buf_get_name(buf),
+		line_number = row,
+		global_filter = "",
+	})
+	if not task then
 		return nil
 	end
 
 	local before_cursor = line:sub(1, col)
 	local symbol = latest_symbol(before_cursor)
 	if not symbol then
-		return current_token_context(line, before_cursor, row, col)
+		local ctx = current_token_context(line, before_cursor, row, col)
+		ctx.current_task = task
+		return ctx
 	end
 
 	local raw_value = before_cursor:sub(symbol.finish + 1)
@@ -487,6 +557,7 @@ function M.markdown_context(opts)
 		line_length = #line,
 		completefunc_start_col = start_col,
 		complete_start_col = start_col + 1,
+		current_task = task,
 	}
 end
 
@@ -541,6 +612,7 @@ function M.trigger_markdown_complete(opts)
 		field = ctx.field,
 		base = ctx.base,
 		state = opts.state,
+		current_task = ctx.current_task,
 	})
 	if #items == 0 then
 		vim.notify("No task suggestions", vim.log.levels.INFO)
@@ -575,6 +647,7 @@ function M.complete(findstart, base)
 		context = "markdown",
 		field = ctx.field,
 		base = base,
+		current_task = ctx.current_task,
 	})
 end
 

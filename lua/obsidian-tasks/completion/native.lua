@@ -285,6 +285,7 @@ function M.complete(findstart, base)
 			context = "markdown",
 			field = ctx.field,
 			base = base,
+			current_task = ctx.current_task,
 		})
 	end
 	return completion.complete(findstart, base)
@@ -307,6 +308,7 @@ function M.trigger(buf, opts)
 		field = ctx.field,
 		base = ctx.base,
 		state = opts.state,
+		current_task = ctx.current_task,
 	})
 	if #items == 0 then
 		if opts.notify then
