@@ -1,5 +1,6 @@
 local M = {}
 
+local links = require("obsidian-tasks.links")
 local urgency = require("obsidian-tasks.urgency")
 
 M.PRIORITY_EMOJIS = {
@@ -365,9 +366,11 @@ local function extract_tags(description)
 	return tags
 end
 
-local function enrich_file_fields(task)
+local function enrich_file_fields(task, opts)
+	opts = opts or {}
 	local path = task.file_path or ""
 	local filename = basename(path)
+	local frontmatter = opts.frontmatter or opts.properties or {}
 	task.file = {
 		path = path,
 		path_without_extension = without_extension(path),
@@ -377,7 +380,15 @@ local function enrich_file_fields(task)
 		filename = filename,
 		filename_without_extension = without_extension(filename),
 		filenameWithoutExtension = without_extension(filename),
+		frontmatter = frontmatter,
+		properties = frontmatter,
+		tags = opts.file_tags or opts.tags or {},
+		aliases = opts.file_aliases or opts.aliases or {},
+		cssclasses = opts.file_cssclasses or opts.cssclasses or {},
+		classes = opts.file_cssclasses or opts.cssclasses or {},
 	}
+	task.frontmatter = frontmatter
+	task.properties = frontmatter
 end
 
 function M.extract_priority(task_text)
@@ -419,6 +430,8 @@ function M.parse_line(opts)
 		priority_symbol = "",
 		dates = {},
 		tags = {},
+		links = {},
+		outlinks = {},
 		recurrence_rule = "",
 		is_recurring = false,
 		on_completion = "",
@@ -470,6 +483,8 @@ function M.parse_line(opts)
 	task.text = description
 	task.description = description
 	task.tags = extract_tags(description)
+	task.links = links.extract(line)
+	task.outlinks = task.links
 	task.due_date = task.dates.due
 	task.created_date = task.dates.created
 	task.start_date = task.dates.start
@@ -477,7 +492,7 @@ function M.parse_line(opts)
 	task.cancelled_date = task.dates.cancelled
 	task.done_date = task.dates.done
 
-	enrich_file_fields(task)
+	enrich_file_fields(task, opts)
 	urgency.enrich(task, opts)
 
 	return task

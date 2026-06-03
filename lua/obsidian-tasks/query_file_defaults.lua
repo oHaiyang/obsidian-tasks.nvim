@@ -1,5 +1,7 @@
 local M = {}
 
+local frontmatter = require("obsidian-tasks.frontmatter")
+
 local PROPERTIES = {
 	{ name = "TQ_show_toolbar", handler = "show_hide", display = "toolbar" },
 	{ name = "TQ_explain", handler = "instruction", true_value = "explain", false_value = "" },
@@ -174,25 +176,7 @@ local function block_value(lines, start_index)
 end
 
 function M.frontmatter(path)
-	local lines = frontmatter_lines(path)
-	local props = {}
-	local index = 1
-
-	while index <= #lines do
-		local key, value = lines[index]:match("^([%w_%-]+):%s*(.-)%s*$")
-		if key then
-			if value:match("^[|>]") then
-				props[key], index = block_value(lines, index)
-			else
-				props[key] = parse_scalar(value)
-				index = index + 1
-			end
-		else
-			index = index + 1
-		end
-	end
-
-	return props
+	return frontmatter.parse_file(path)
 end
 
 local function query_file_path(opts)

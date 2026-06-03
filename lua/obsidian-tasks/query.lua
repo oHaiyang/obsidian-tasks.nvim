@@ -2,6 +2,7 @@ local M = {}
 
 local date = require("obsidian-tasks.date")
 local dependencies = require("obsidian-tasks.dependencies")
+local frontmatter = require("obsidian-tasks.frontmatter")
 local sort = require("obsidian-tasks.sort")
 local status = require("obsidian-tasks.status")
 
@@ -175,6 +176,8 @@ local function query_file_context(opts)
 	end
 
 	local filename = basename(path)
+	local props = frontmatter.parse_file(path)
+	local fields = frontmatter.file_fields(props)
 	return {
 		path = path,
 		path_without_extension = without_extension(path),
@@ -184,6 +187,12 @@ local function query_file_context(opts)
 		filename = filename,
 		filename_without_extension = without_extension(filename),
 		filenameWithoutExtension = without_extension(filename),
+		frontmatter = props,
+		properties = props,
+		tags = fields.tags,
+		aliases = fields.aliases,
+		cssclasses = fields.cssclasses,
+		classes = fields.classes,
 	}
 end
 
@@ -335,6 +344,7 @@ local function compile_lua_filter(expr)
 		type = type,
 		ipairs = ipairs,
 		pairs = pairs,
+		vim = vim,
 	}
 	local chunk, err = load(source, "obsidian-tasks-filter", "t", env)
 	if not chunk then

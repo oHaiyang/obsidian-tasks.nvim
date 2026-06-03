@@ -35,12 +35,12 @@ Phase 6 的原则：
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done，详见 `PHASE_6_5.md`。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。Done，详见 `PHASE_6_6.md`。
 7. Phase 6.7：Dataview task format MVP。Done，详见 `PHASE_6_7.md`。
-8. Phase 6.8：Frontmatter properties、links、scripting surface。
+8. Phase 6.8：Frontmatter properties、links、scripting surface。Done，详见 `PHASE_6_8.md`。
 9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
 
 当前决策：Phase 6.1 先跳过。原因是 query diagnostics 和 `explain` 使用频率低，而且复杂查询写错时更适合到 Obsidian 原版里做权威验证。文档仍保留 6.1 的完整设计，作为后续 backlog。
 
-当前 Phase 6.2、Native Completion Adapter、6.3、6.4、6.5、6.6、6.7 已完成。下一步建议做 6.8 Frontmatter Properties + Links + Scripting Surface。Phase 6.8 继续涉及数据模型扩展，实施时要保持 MVP 边界。
+当前 Phase 6.2、Native Completion Adapter、6.3、6.4、6.5、6.6、6.7、6.8 已完成。Phase 6.1 仍按用户决策暂缓；除非明确要补 query diagnostics / explain，否则下一步建议进入 Phase 7 规划。
 
 ---
 
@@ -963,6 +963,8 @@ sh scripts/smoke_phase5.sh
 
 ## Phase 6.8: Frontmatter Properties + Links + Scripting Surface
 
+状态：已实现，详见 `PHASE_6_8.md` 和 `PHASE_6_8_TEST.md`。
+
 ### 目标
 
 扩展 task/query scripting surface，让 Lua function filters 更接近原版 JS custom filters 可读取的数据：
@@ -1107,10 +1109,10 @@ sh scripts/smoke_phase5.sh
 
 ## 推荐下一步
 
-建议下一步做 **Phase 6.8 Frontmatter Properties + Links + Scripting Surface**。
+建议下一步先做 **Phase 7 规划**，或在确实需要时回头做 **Phase 6.1 Query Diagnostics + Explain**。
 
 理由：
 
-- Phase 6.7 已经补上 Dataview task format MVP，task model 已经开始承载更多原版字段形态。
-- Phase 6.8 继续补原版 custom filter/scripting surface 中常用的 file frontmatter 和 links。
-- Phase 6.8 也能服务后续更完整的 custom filter/sort/group by function。
+- Phase 6.2 到 6.8 的主线能力已经完成，剩下的 6.1 是之前明确暂缓的低频诊断能力。
+- Phase 7 可以重新评估更大的架构项，例如 cache/incremental update、完整 recurrence grammar 或更完整 Dataview/format strategy。
+- 如果实际使用中 query 错误解释开始变痛，再回补 6.1 会更有针对性。

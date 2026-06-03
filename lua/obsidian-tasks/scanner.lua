@@ -1,5 +1,6 @@
 local M = {}
 
+local frontmatter = require("obsidian-tasks.frontmatter")
 local task_model = require("obsidian-tasks.task")
 
 local function is_markdown_file(path)
@@ -104,6 +105,8 @@ function M.scan_file(path, opts)
 	local in_fence = false
 	local current_heading = nil
 	local list_stack = {}
+	local properties = frontmatter.parse(lines)
+	local file_fields = frontmatter.file_fields(properties)
 
 	for line_number, line in ipairs(lines) do
 		if is_fence(line) then
@@ -128,6 +131,11 @@ function M.scan_file(path, opts)
 					heading = current_heading,
 					global_filter = opts.global_filter,
 					today = opts.today,
+					frontmatter = file_fields.frontmatter,
+					properties = file_fields.properties,
+					file_tags = file_fields.tags,
+					file_aliases = file_fields.aliases,
+					file_cssclasses = file_fields.cssclasses,
 				})
 
 				if task then

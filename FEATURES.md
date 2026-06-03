@@ -79,9 +79,9 @@
 | F030 | Unknown status | 未配置的 status 默认为 name `Unknown`、type `TODO`、next `x`。 | Done。 | P1 |
 | F031 | Status types | `TODO`、`IN_PROGRESS`、`ON_HOLD`、`DONE`、`CANCELLED`、`NON_TASK` 决定完成语义。 | Done：done/not done、toggle、dependencies 使用 status type。 | P1 |
 | F032 | Urgency | 根据 due、priority、scheduled、start 计算数值分数。 | Done：Phase 6.2 支持原版 urgency score、`show urgency`、`sort/group by urgency` 和 `task.urgency`。 | P1 |
-| F033 | File properties | 暴露 path/root/folder/filename/pathWithoutExtension 等。 | Partial：当前只有 file_path。 | P0 |
-| F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Todo。 | P2 |
-| F035 | Links | 解析 task line、file body、frontmatter 中 outlinks。 | Todo。 | P3 |
+| F033 | File properties | 暴露 path/root/folder/filename/pathWithoutExtension 等。 | Partial：已暴露 task.file 的 path/folder/filename/pathWithoutExtension 等常用字段，root 暂未建模。 | P0 |
+| F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Partial：Phase 6.8 读取 Markdown YAML frontmatter，并暴露到 `task.frontmatter` / `task.properties` / `task.file.*` 和 `query.file.*`。JSON frontmatter 暂不支持。 | P2 |
+| F035 | Links | 解析 task line、file body、frontmatter 中 outlinks。 | Partial：Phase 6.8 解析 task line 中的 wikilink 和 Markdown link，暴露为 `task.links` / `task.outlinks`；file body/frontmatter outlinks 暂未扫描。 | P3 |
 | F036 | Filename as scheduled date | 从文件名推导 undated task 的 scheduled date。 | Todo。 | P2 |
 
 ## 2. Vault 扫描与缓存
@@ -234,8 +234,8 @@
 
 | ID | 功能 | 原插件行为 | nvim 状态 | 优先级 |
 | --- | --- | --- | --- | --- |
-| F601 | Task properties | `task.*` 暴露 status、dates、dependencies、description、priority、file、frontmatter、links 等。 | Partial：当前已有基础字段、`task.file`、dependencies 和 Phase 6.2 的 `task.urgency`；frontmatter/links 待补。 | P2 |
-| F602 | Query properties | `query.file.*` 和 `query.allTasks`。 | Partial：Phase 5/5.2 在 Lua function filter 中提供 `query.allTasks`、`query.all_tasks`、`query.file`。 | P2 |
+| F601 | Task properties | `task.*` 暴露 status、dates、dependencies、description、priority、file、frontmatter、links 等。 | Partial：已有基础字段、`task.file`、dependencies、Phase 6.2 `task.urgency`，Phase 6.8 补 `task.frontmatter` / `task.properties` / `task.links` / `task.outlinks`。 | P2 |
+| F602 | Query properties | `query.file.*` 和 `query.allTasks`。 | Partial：Phase 5/5.2 提供 `query.allTasks`、`query.all_tasks`、`query.file`；Phase 6.8 补 query file frontmatter/tags/aliases/cssclasses。 | P2 |
 | F603 | JavaScript expressions | custom filter/sort/group 运行 JS，需要显式启用。 | Obsidian-only；nvim 建议 Lua 表达式。 | P2 |
 | F604 | TasksDate helper | 日期对象支持 `format()`、`category`、`fromNow` 等。 | Todo。 | P2 |
 | F605 | API v1 | `createTaskLineModal()`、`editTaskLineModal()`、`executeToggleTaskDoneCommand()`。 | Todo；nvim 可提供 Lua API。 | P2 |
@@ -330,11 +330,11 @@
 后续继续补：
 
 1. XOR / bracket / quote Boolean delimiters。
-2. Frontmatter properties 和 links。
+2. 更完整的 Boolean parser delimiters、JSON frontmatter、file body/frontmatter outlinks。
 
 ### Phase 6: Polish and Ecosystem
 
-状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，Phase 6.5 已实现 calendar date picker，Phase 6.6 已实现 task search suggestions，Phase 6.7 已实现 Dataview task format MVP，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
+状态：进行中，Phase 6.2 已实现 urgency，Phase 6.3 已实现 `show tree` / `exclude sub-items`，Phase 6.4 已实现 toolbar filter/copy，Phase 6.5 已实现 calendar date picker，Phase 6.6 已实现 task search suggestions，Phase 6.7 已实现 Dataview task format MVP，Phase 6.8 已实现 frontmatter/links scripting surface MVP，详见 `PHASE_6.md`。Phase 6 的目标是补齐原版 Obsidian Tasks 中对日常使用影响最大的 polish、diagnostics 和生态兼容能力。
 
 建议拆分：
 
@@ -345,5 +345,5 @@
 5. Phase 6.5：Calendar-style date picker、date action menu、postpone/advance polish。Done。
 6. Phase 6.6：Auto-suggest polish 和任务搜索建议。Done。
 7. Phase 6.7：Dataview task format MVP。Done。
-8. Phase 6.8：Frontmatter properties、links、scripting surface。
+8. Phase 6.8：Frontmatter properties、links、scripting surface。Done。
 9. Phase 6.1：Query diagnostics、`explain` 和错误渲染增强，暂缓。
