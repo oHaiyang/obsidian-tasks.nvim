@@ -2,6 +2,7 @@ local M = {}
 
 local date = require("obsidian-tasks.date")
 local recurrence = require("obsidian-tasks.recurrence")
+local source = require("obsidian-tasks.source")
 local status = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
 
@@ -163,8 +164,27 @@ local function recurrence_opts(opts)
 	}
 end
 
+local function locate_line(lines, line_number, opts)
+	opts = opts or {}
+	local source_task = opts.source_task or opts.sourceTask or opts.original_task or opts.originalTask or opts.task
+	if not source_task then
+		return line_number, nil
+	end
+
+	local located, err = source.locate_in_lines(lines, source_task)
+	if not located then
+		return nil, err
+	end
+	return located, nil
+end
+
 function M.apply_status_change_to_lines(lines, line_number, next_symbol, opts)
 	opts = opts or {}
+	local locate_err
+	line_number, locate_err = locate_line(lines, line_number, opts)
+	if not line_number then
+		return false, locate_err or "Task source not found"
+	end
 	local line = lines[line_number]
 	if not line then
 		return false, "Line not found"
@@ -266,6 +286,11 @@ end
 
 function M.apply_postpone_to_lines(lines, line_number, expr, opts)
 	opts = opts or {}
+	local locate_err
+	line_number, locate_err = locate_line(lines, line_number, opts)
+	if not line_number then
+		return false, locate_err or "Task source not found"
+	end
 	local line = lines[line_number]
 	if not line then
 		return false, "Line not found"

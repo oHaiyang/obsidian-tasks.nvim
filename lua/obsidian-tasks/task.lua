@@ -1,6 +1,7 @@
 local M = {}
 
 local links = require("obsidian-tasks.links")
+local source = require("obsidian-tasks.source")
 local urgency = require("obsidian-tasks.urgency")
 
 M.PRIORITY_EMOJIS = {
@@ -494,6 +495,7 @@ function M.parse_line(opts)
 
 	enrich_file_fields(task, opts)
 	urgency.enrich(task, opts)
+	source.enrich(task)
 
 	return task
 end

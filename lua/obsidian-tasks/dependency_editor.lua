@@ -3,6 +3,7 @@ local M = {}
 local date = require("obsidian-tasks.date")
 local cache = require("obsidian-tasks.cache")
 local parser = require("obsidian-tasks.parser")
+local source = require("obsidian-tasks.source")
 local task_model = require("obsidian-tasks.task")
 local task_search = require("obsidian-tasks.task_search")
 
@@ -90,7 +91,12 @@ local function set_task_line(task, line)
 
 	local buf = loaded_buffer_for_file(task.file_path)
 	if buf then
-		vim.api.nvim_buf_set_lines(buf, task.line_number - 1, task.line_number, false, { line })
+		local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+		local line_number, locate_err = source.locate_in_lines(lines, task)
+		if not line_number then
+			return false, locate_err
+		end
+		vim.api.nvim_buf_set_lines(buf, line_number - 1, line_number, false, { line })
 		vim.api.nvim_set_option_value("modified", true, { buf = buf })
 		return true
 	end
@@ -99,10 +105,11 @@ local function set_task_line(task, line)
 	if not lines then
 		return false, err
 	end
-	if not lines[task.line_number] then
-		return false, "Line not found in file: " .. task.file_path
+	local line_number, locate_err = source.locate_in_lines(lines, task)
+	if not line_number then
+		return false, locate_err
 	end
-	lines[task.line_number] = line
+	lines[line_number] = line
 	local ok, err = write_file_lines(task.file_path, lines)
 	if ok then
 		cache.on_file_changed(task.file_path)

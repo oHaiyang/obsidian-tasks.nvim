@@ -9,6 +9,7 @@ M.TASK_VIEW_HELP_LINES = {
 
 local core = require("obsidian-tasks.core")
 local parser = require("obsidian-tasks.parser")
+local source = require("obsidian-tasks.source")
 local task_model = require("obsidian-tasks.task")
 local urgency = require("obsidian-tasks.urgency")
 
@@ -767,12 +768,25 @@ function M.setup_editable_buffer(buf, tasks, opts)
 	local function jump_to_task_source()
 		local line = vim.api.nvim_get_current_line()
 		local file_path, line_number = line:match("%[%[([^#]+)#L(%d+)%]%]")
+		local task
 
 		if not file_path then
 			local index = tonumber(line:match("^%s*(%d+)%. "))
-			local task = index and (core.task_index_map[buf] or {})[index] or nil
+			task = index and (core.task_index_map[buf] or {})[index] or nil
 			file_path = task and task.file_path or nil
 			line_number = task and task.line_number or nil
+		else
+			local index = tonumber(line:match("^%s*(%d+)%. "))
+			task = index and (core.task_index_map[buf] or {})[index] or nil
+		end
+
+		if task then
+			local located, locate_err = source.locate_in_file(task)
+			if not located then
+				vim.notify(locate_err or "Task source line changed; refresh results before jumping", vim.log.levels.WARN)
+				return
+			end
+			line_number = located
 		end
 
 		if file_path and line_number then

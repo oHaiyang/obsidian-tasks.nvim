@@ -155,6 +155,7 @@ function M.apply_task_changes(original_task, updated_task)
 
 	local ok, new_lines_or_err = mutation.apply_status_change_to_lines(lines, line_number, updated_task.status_symbol or updated_task.status, {
 		file_path = file_path,
+		source_task = original_task,
 	})
 	if not ok then
 		vim.notify(new_lines_or_err .. ": " .. file_path, vim.log.levels.ERROR)
@@ -242,6 +243,7 @@ function M.apply_postpone_changes(original_task, expr)
 
 	local ok, new_lines_or_err, _, field, target = mutation.apply_postpone_to_lines(lines, line_number, expr, {
 		file_path = file_path,
+		source_task = original_task,
 	})
 	if not ok then
 		vim.notify(new_lines_or_err .. ": " .. file_path, vim.log.levels.ERROR)

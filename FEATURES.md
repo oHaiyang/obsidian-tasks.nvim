@@ -92,7 +92,7 @@
 | F102 | 增量更新 | 监听 create/delete/rename/change，更新单文件缓存。 | Partial：Phase 7.1 提供 `cache.update_file()` / `remove_file()` 手动 API；Phase 7.2 支持 `BufWritePost` 单文件自动更新。删除/重命名 watcher 待补。 | P1 |
 | F103 | Cold/Initializing/Warm 状态 | 查询渲染能感知 cache 状态。 | Partial：Phase 7.1 `cache.stats()` 暴露 cold/warm、file/task count；Phase 7.2 补 `last_update`。结果渲染暂不展示 cache 状态。 | P2 |
 | F104 | Debounced redraw | 文件变化后 debounce 通知查询重绘。 | Partial：Phase 7.3 明确 result refresh 读取 warm cache，并支持 `:ObsidianTasksRefreshCache!` 手动组合刷新 cache + 当前 result；自动重绘全部结果留后续。 | P2 |
-| F105 | 源文件定位 | 通过文件、line、section index 精准替换任务。 | Partial：按 line_number 写回。 | P0 |
+| F105 | 源文件定位 | 通过文件、line、section index 精准替换任务。 | Partial：Phase 7.5 支持 source signature，并在 result save/postpone/dependency/edit/jump 时按 line、id、block link、original markdown 重定位；复杂 diff/rename 仍待补。 | P0 |
 | F106 | 重试与冲突处理 | Obsidian metadata 不稳定时会重试，避免写错行。 | Todo。 | P2 |
 | F107 | 保留用户原格式 | 写回时保留缩进、list marker、status、metadata 排列。 | Partial：当前只替换 checkbox。 | P0 |
 | F108 | 多文件修改 | 依赖编辑可一次修改多个文件。 | Todo。 | P2 |
@@ -350,7 +350,7 @@
 
 ### Phase 7: Cache, Incremental Updates, and Source Fidelity
 
-状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，详见 `PHASE_7.md`。
+状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，Phase 7.5 已实现 source location fidelity MVP，详见 `PHASE_7.md`。
 
 目标是让 nvim 插件从“每次查询全量扫描”推进到 cache-first 的底层模型，同时为后续自动刷新和更可靠写回做准备。
 
@@ -360,6 +360,6 @@
 2. Phase 7.2：`BufWritePost` 单文件 cache update。Done，详见 `PHASE_7_2.md`。
 3. Phase 7.3：Result refresh integration。Done，详见 `PHASE_7_3.md`。
 4. Phase 7.4：File watcher + debounce。
-5. Phase 7.5：Source location fidelity，减少旧 result buffer 写错行风险。
+5. Phase 7.5：Source location fidelity，减少旧 result buffer 写错行风险。Done，详见 `PHASE_7_5.md`。
 6. Phase 7.6：Scanner parity cleanup。
 7. Phase 7.7：Recurrence grammar expansion。

@@ -6,6 +6,7 @@ local date = require("obsidian-tasks.date")
 local date_picker = require("obsidian-tasks.date_picker")
 local dependency_editor = require("obsidian-tasks.dependency_editor")
 local parser = require("obsidian-tasks.parser")
+local source = require("obsidian-tasks.source")
 local status = require("obsidian-tasks.status")
 local task_model = require("obsidian-tasks.task")
 
@@ -528,7 +529,16 @@ local function save_to_source_buffer(state, line)
 	if state.mode == "create" then
 		vim.api.nvim_buf_set_lines(state.source_buf, row, row, false, { line })
 	else
-		vim.api.nvim_buf_set_lines(state.source_buf, row - 1, row, false, { line })
+		local line_number = row
+		if state.source_task then
+			local lines = vim.api.nvim_buf_get_lines(state.source_buf, 0, -1, false)
+			local locate_err
+			line_number, locate_err = source.locate_in_lines(lines, state.source_task)
+			if not line_number then
+				return false, locate_err
+			end
+		end
+		vim.api.nvim_buf_set_lines(state.source_buf, line_number - 1, line_number, false, { line })
 	end
 	vim.api.nvim_set_option_value("modified", true, { buf = state.source_buf })
 	return true
@@ -544,10 +554,18 @@ local function save_to_file(state, line)
 	if state.mode == "create" then
 		table.insert(lines, (state.line_number or #lines) + 1, line)
 	else
-		if not lines[state.line_number] then
+		local line_number = state.line_number
+		if state.source_task then
+			local locate_err
+			line_number, locate_err = source.locate_in_lines(lines, state.source_task)
+			if not line_number then
+				return false, locate_err
+			end
+		end
+		if not lines[line_number] then
 			return false, "Line not found in file: " .. file_path
 		end
-		lines[state.line_number] = line
+		lines[line_number] = line
 	end
 
 	local ok, err = write_file_lines(file_path, lines)
@@ -615,6 +633,7 @@ function M.edit_current_task()
 			line_number = row,
 			indentation = task.indentation,
 			list_marker = task.list_marker,
+			source_task = task,
 			today = get_config().today,
 			vault_path = get_config().vault_path,
 			task_format = task.task_format or task.taskFormat or task_model.task_format(),
@@ -631,6 +650,7 @@ function M.edit_current_task()
 			line_number = task.line_number,
 			indentation = task.indentation,
 			list_marker = task.list_marker,
+			source_task = task,
 			today = get_config().today,
 			vault_path = get_config().vault_path,
 			task_format = task.task_format or task.taskFormat or task_model.task_format(),
