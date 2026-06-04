@@ -112,7 +112,7 @@
 | F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Done：Phase 5 支持 `preset name`；Phase 5.2 支持单行 `{{preset.name}}`。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Partial：Phase 5.2 支持 `query.file.*` 和 `preset.*`；其它 placeholder 待补。 | P2 |
 | F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Done：Phase 5.3 支持读取并注入；Phase 5.10 支持属性写入命令。 | P2 |
-| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Partial：Phase 5.1 支持括号 AND/OR/NOT；XOR 和其它 delimiter 待补。 | P1 |
+| F212 | Boolean filters | 支持 `(filter A) AND/OR/XOR/NOT (filter B)`，也支持 quoted delimiters。 | Done：Phase 5.1 支持括号 AND/OR/NOT；Phase 8.1 补 `XOR` 和 `[]` / `{}` / quote delimiters。 | P1 |
 | F213 | Regex filters | `regex matches /.../i` 和 `regex does not match /.../i`。 | Partial：Phase 5 基于 `vim.regex()` 支持常用字段。 | P1 |
 | F214 | Custom filters | `filter by function ...` 执行 JavaScript 表达式。 | Partial：Phase 5 支持 opt-in Lua 表达式。 | P2 |
 | F215 | Custom sorting | `sort by function ...`。 | Todo；nvim 可考虑 Lua 表达式。 | P2 |
@@ -364,3 +364,13 @@
 6. Phase 7.6：Scanner parity cleanup。Done，详见 `PHASE_7_6.md`。
 7. Phase 7.7：Recurrence grammar expansion。Done，详见 `PHASE_7_7.md`。
 8. Phase 7.8：Auto refresh result buffers。Done，详见 `PHASE_7_8.md`。
+
+### Phase 8: Query Parity and Diagnostics
+
+状态：进行中，Phase 8.1 已实现 Boolean parser hardening，详见 `PHASE_8.md`。
+
+建议拆分：
+
+1. Phase 8.1：Boolean parser hardening。Done，详见 `PHASE_8_1.md`。
+2. Phase 8.2：File/frontmatter/link query surface。
+3. Phase 8.3：Query diagnostics and explain。

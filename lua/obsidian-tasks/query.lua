@@ -441,7 +441,13 @@ local function exclude_sub_items_matches(task)
 	return indentation:sub(last_blockquote + 1):match("^ ?$") ~= nil
 end
 
-local function matching_close_index(value, open_index)
+local function matching_close_index(value, open_index, open_char, close_char)
+	open_char = open_char or value:sub(open_index, open_index)
+	close_char = close_char or ({ ["("] = ")", ["["] = "]", ["{"] = "}" })[open_char]
+	if not close_char then
+		return nil
+	end
+
 	local depth = 0
 	local quote = nil
 	local escaped = false
@@ -458,9 +464,9 @@ local function matching_close_index(value, open_index)
 			end
 		elseif char == '"' or char == "'" then
 			quote = char
-		elseif char == "(" then
+		elseif char == open_char then
 			depth = depth + 1
-		elseif char == ")" then
+		elseif char == close_char then
 			depth = depth - 1
 			if depth == 0 then
 				return index
@@ -473,11 +479,45 @@ local function matching_close_index(value, open_index)
 	return nil
 end
 
-local function strip_outer_parentheses(value)
+local function matching_quote_index(value, open_index)
+	local quote = value:sub(open_index, open_index)
+	local escaped = false
+	for index = open_index + 1, #value do
+		local char = value:sub(index, index)
+		if escaped then
+			escaped = false
+		elseif char == "\\" then
+			escaped = true
+		elseif char == quote then
+			return index
+		end
+	end
+	return nil
+end
+
+local function outer_delimiter(value)
 	value = trim(value)
-	while value:sub(1, 1) == "(" do
-		local close_index = matching_close_index(value, 1)
-		if close_index ~= #value then
+	local first = value:sub(1, 1)
+	if first == "(" or first == "[" or first == "{" then
+		local close_char = ({ ["("] = ")", ["["] = "]", ["{"] = "}" })[first]
+		local close_index = matching_close_index(value, 1, first, close_char)
+		if close_index == #value then
+			return first, close_char
+		end
+	elseif first == '"' or first == "'" then
+		local close_index = matching_quote_index(value, 1)
+		if close_index == #value then
+			return first, first
+		end
+	end
+	return nil
+end
+
+local function strip_outer_delimiters(value)
+	value = trim(value)
+	while true do
+		local open_char = outer_delimiter(value)
+		if not open_char then
 			break
 		end
 		value = trim(value:sub(2, #value - 1))
@@ -494,12 +534,14 @@ local function operator_at(value, index, operator)
 	local after_index = index + #operator
 	local after = after_index > #value and "" or value:sub(after_index, after_index)
 	local before_ok = before == "" or before:match("%s") ~= nil or before == "("
-	local after_ok = after == "" or after:match("%s") ~= nil or after == "("
+	local after_ok = after == "" or after:match("%s") ~= nil or after == "(" or after == "[" or after == "{" or after == '"' or after == "'"
 	return before_ok and after_ok
 end
 
 local function find_top_level_operator(value, operator)
-	local depth = 0
+	local paren_depth = 0
+	local bracket_depth = 0
+	local brace_depth = 0
 	local quote = nil
 	local escaped = false
 
@@ -516,29 +558,52 @@ local function find_top_level_operator(value, operator)
 		elseif char == '"' or char == "'" then
 			quote = char
 		elseif char == "(" then
-			depth = depth + 1
+			paren_depth = paren_depth + 1
 		elseif char == ")" then
-			depth = depth - 1
-			if depth < 0 then
+			paren_depth = paren_depth - 1
+			if paren_depth < 0 then
 				return nil, "Unmatched closing parenthesis"
 			end
-		elseif depth == 0 and operator_at(value, index, operator) then
+		elseif char == "[" then
+			bracket_depth = bracket_depth + 1
+		elseif char == "]" then
+			bracket_depth = bracket_depth - 1
+			if bracket_depth < 0 then
+				return nil, "Unmatched closing bracket"
+			end
+		elseif char == "{" then
+			brace_depth = brace_depth + 1
+		elseif char == "}" then
+			brace_depth = brace_depth - 1
+			if brace_depth < 0 then
+				return nil, "Unmatched closing brace"
+			end
+		elseif paren_depth == 0 and bracket_depth == 0 and brace_depth == 0 and operator_at(value, index, operator) then
 			return index
 		end
 	end
 
-	if depth > 0 then
+	if paren_depth > 0 then
 		return nil, "Unmatched opening parenthesis"
+	elseif bracket_depth > 0 then
+		return nil, "Unmatched opening bracket"
+	elseif brace_depth > 0 then
+		return nil, "Unmatched opening brace"
 	end
 	return nil
 end
 
 local function boolean_operand_shape(value)
 	value = trim(value)
-	return value:sub(1, 1) == "(" or value:match("^NOT%s+%(") ~= nil
+	if outer_delimiter(value) then
+		return true
+	end
+	local rest = value:match("^NOT%s+(.+)$")
+	return rest and outer_delimiter(trim(rest)) ~= nil
 end
 
 local function parse_subfilter(value, opts)
+	value = strip_outer_delimiters(value)
 	local temp = {
 		raw = value,
 		filters = {},
@@ -580,7 +645,7 @@ local function parse_boolean_expr(value, opts)
 		return nil, "Empty Boolean expression", false
 	end
 
-	local stripped = strip_outer_parentheses(value)
+	local stripped = strip_outer_delimiters(value)
 	if stripped ~= value then
 		local node, err, is_boolean = parse_boolean_expr(stripped, opts)
 		return node, err, is_boolean or true
@@ -601,7 +666,7 @@ local function parse_boolean_expr(value, opts)
 		}, nil, true
 	end
 
-	for _, operator in ipairs({ "OR", "AND" }) do
+	for _, operator in ipairs({ "OR", "XOR", "AND" }) do
 		local index, err = find_top_level_operator(value, operator)
 		if err then
 			return nil, err, true
@@ -649,7 +714,7 @@ local function add_boolean_filter(plan, line_number, original_line, opts)
 		return true
 	end
 
-	if node and (is_boolean or trim(original_line):sub(1, 1) == "(") then
+	if node and (is_boolean or outer_delimiter(trim(original_line))) then
 		add_filter(plan, {
 			type = "boolean",
 			node = node,
@@ -1241,6 +1306,8 @@ function boolean_node_matches(node, task, context)
 		return boolean_node_matches(node.left, task, context) and boolean_node_matches(node.right, task, context)
 	elseif node.type == "or" then
 		return boolean_node_matches(node.left, task, context) or boolean_node_matches(node.right, task, context)
+	elseif node.type == "xor" then
+		return boolean_node_matches(node.left, task, context) ~= boolean_node_matches(node.right, task, context)
 	elseif node.type == "not" then
 		return not boolean_node_matches(node.child, task, context)
 	end
