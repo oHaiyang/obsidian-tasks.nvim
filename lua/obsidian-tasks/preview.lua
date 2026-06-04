@@ -68,6 +68,11 @@ local function preview_lines_for(source, opts)
 		query_plan = plan,
 	}
 	local lines = {}
+	if plan.explain then
+		table.insert(lines, {
+			{ require("obsidian-tasks.explain").summary(plan), "Comment" },
+		})
+	end
 	if display.should_show(preview_opts, "task count", true) then
 		table.insert(lines, {
 			{ string.format("Tasks preview: Showing %d of %d", math.min(#tasks, limit), #tasks), "Comment" },

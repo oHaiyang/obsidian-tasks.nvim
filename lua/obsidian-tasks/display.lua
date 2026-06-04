@@ -392,8 +392,15 @@ function M.render_tasks_to_buffer(buf, tasks, opts)
 
 	local display_lines, index_map = render_task_lines(visible_tasks, opts)
 	local header_lines = build_header_lines(opts)
+	local explain_lines = {}
+	if opts.query_plan and opts.query_plan.explain then
+		explain_lines = require("obsidian-tasks.explain").lines(opts.query_plan, opts)
+	end
 	local lines = {}
 	for _, line in ipairs(header_lines) do
+		table.insert(lines, line)
+	end
+	for _, line in ipairs(explain_lines) do
 		table.insert(lines, line)
 	end
 	for _, line in ipairs(display_lines) do
@@ -401,7 +408,7 @@ function M.render_tasks_to_buffer(buf, tasks, opts)
 	end
 
 	core.task_index_map[buf] = index_map
-	M.buffer_header_line_count[buf] = #header_lines
+	M.buffer_header_line_count[buf] = #header_lines + #explain_lines
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	return display_lines, index_map
 end
@@ -1043,19 +1050,10 @@ function M.display_query_errors(errors, opts)
 		"Tasks: " .. (opts.query_name or "Query error"),
 		"Source: " .. (opts.query_source and (opts.query_source.source_type or tostring(opts.query_source)) or "manual"),
 		"",
-		"Query errors:",
-		"",
 	}
 
-	for _, err in ipairs(errors or {}) do
-		table.insert(lines, string.format("- line %d: %s", err.line_number or 0, err.message or "Unknown error"))
-		if err.line and err.line ~= "" then
-			table.insert(lines, "  " .. err.line)
-		end
-	end
-
-	if #errors == 0 then
-		table.insert(lines, "- Unknown query error")
+	for _, line in ipairs(require("obsidian-tasks.explain").error_lines(errors, opts)) do
+		table.insert(lines, line)
 	end
 
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)

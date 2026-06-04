@@ -108,7 +108,7 @@
 | F205 | Comments | `# ...` 查询行作为注释忽略。 | Done：query parser 已忽略注释行。 | P0 |
 | F206 | Line continuations | 反斜杠续行，便于长表达式。 | Todo。 | P2 |
 | F207 | Limit | `limit <n>`、`limit groups <n>`。 | Partial：已支持 `limit <n>`。 | P0 |
-| F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Todo。 | P2 |
+| F208 | Explain | `explain` 显示查询如何被解析、日期如何展开、placeholder 如何替换。 | Partial：Phase 8.3 支持 result buffer explain 摘要、composition 状态、filters/sorts/groups/limit/layout 摘要和 preview 短摘要。完整逐 token/逐日期解释待补。 | P2 |
 | F209 | Presets | 设置中定义命名查询片段，用 `preset name` 或 `{{preset.name}}` 复用。 | Done：Phase 5 支持 `preset name`；Phase 5.2 支持单行 `{{preset.name}}`。 | P2 |
 | F210 | Placeholders | `{{query.file.path}}` 等占位符按查询文件展开。 | Partial：Phase 5.2 支持 `query.file.*` 和 `preset.*`；其它 placeholder 待补。 | P2 |
 | F211 | Query File Defaults | 文件 frontmatter 中 `TQ_*` 属性自动生成查询指令。 | Done：Phase 5.3 支持读取并注入；Phase 5.10 支持属性写入命令。 | P2 |
@@ -179,7 +179,7 @@
 | F311 | Short mode | 只显示 emoji，具体值靠 tooltip。 | Partial：Phase 5.4 对 metadata 做轻量 short mode；tooltip 待补。 | P2 |
 | F312 | Show tree | 展示匹配任务及其子任务/list item 树。 | Done：Phase 6.3 支持 `show tree` / `hide tree`。 | P1 |
 | F313 | Styling hooks | HTML/CSS class 和 data attributes 支持自定义样式。 | Obsidian-only；nvim 可映射 highlights/extmarks。 | P3 |
-| F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Todo。 | P1 |
+| F314 | Error rendering | 查询错误、加载状态、explain 输出显示在结果中。 | Partial：Phase 8.3 提供结构化 query error buffer 和 explain block；加载状态暂未做。 | P1 |
 | F315 | Global Tasks panel | 在任意 buffer 打开任务面板，不需要先定位到 query block。 | Done：`:ObsidianTasks` 已支持。 | P0 |
 | F316 | Query picker | 在任务面板中选择 config query、block query、recent query。 | Done：Phase 3 已支持三类 source。 | P0 |
 | F317 | Pinned query results | 同时保留多个查询结果 buffer，例如 `:ObsidianTasks! due_soon`。 | Done：已支持 pinned result buffer。 | P1 |
@@ -368,10 +368,10 @@
 
 ### Phase 8: Query Parity and Diagnostics
 
-状态：进行中，Phase 8.1 已实现 Boolean parser hardening，Phase 8.2 已实现 file/frontmatter/link query surface，详见 `PHASE_8.md`。
+状态：完成当前计划，Phase 8.1 已实现 Boolean parser hardening，Phase 8.2 已实现 file/frontmatter/link query surface，Phase 8.3 已实现 query diagnostics/explain MVP，详见 `PHASE_8.md`。
 
 建议拆分：
 
 1. Phase 8.1：Boolean parser hardening。Done，详见 `PHASE_8_1.md`。
 2. Phase 8.2：File/frontmatter/link query surface。Done，详见 `PHASE_8_2.md`。
-3. Phase 8.3：Query diagnostics and explain。
+3. Phase 8.3：Query diagnostics and explain。Done，详见 `PHASE_8_3.md`。

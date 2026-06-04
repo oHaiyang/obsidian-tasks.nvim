@@ -35,7 +35,7 @@
 
 ## Phase 8.3: Query Diagnostics and Explain
 
-状态：Planned。
+状态：Done，详见 `PHASE_8_3.md` 和 `PHASE_8_3_TEST.md`。
 
 目标：
 
@@ -48,4 +48,4 @@
 
 1. Phase 8.1 已完成。
 2. Phase 8.2 已完成。
-3. 下一步做 Phase 8.3。
+3. Phase 8.3 已完成。
