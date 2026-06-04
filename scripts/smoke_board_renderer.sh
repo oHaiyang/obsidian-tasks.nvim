@@ -132,6 +132,7 @@ assert_contains(text(), "No tasks query blocks found")
 assert(vim.bo[0].filetype == "markdown", vim.bo[0].filetype)
 LUA
 
+NVIM_LOG_FILE="${NVIM_LOG_FILE:-/private/tmp/obsidian-tasks-nvim-board-renderer.log}" \
 nvim --headless -u NONE -i NONE \
   --cmd "set noswapfile" \
   --cmd "set rtp+=$PLUGIN_DIR" \
