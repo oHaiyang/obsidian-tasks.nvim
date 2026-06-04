@@ -156,6 +156,17 @@ local function assert_board_unchanged(label)
   assert(vim.api.nvim_get_current_buf() == buf, label .. " changed current buffer")
 end
 
+local dependency_editor = require("obsidian-tasks.dependency_editor")
+local ensured_id, ensure_err = dependency_editor.ensure_task_id(index_map[1], { id = "board-guard-smoke-id" })
+assert(ensured_id == nil, "dependency_editor.ensure_task_id should reject board buffers")
+assert(ensure_err == "board task actions are not wired yet", "unexpected ensure_task_id error: " .. tostring(ensure_err))
+assert_board_unchanged("dependency_editor.ensure_task_id")
+
+local added_dependency, add_err = dependency_editor.add_dependency_to_task(index_map[1], "board-guard-dependency")
+assert(added_dependency == false, "dependency_editor.add_dependency_to_task should reject board buffers")
+assert(add_err == "board task actions are not wired yet", "unexpected add_dependency_to_task error: " .. tostring(add_err))
+assert_board_unchanged("dependency_editor.add_dependency_to_task")
+
 assert(tasks.toggle_task_at_cursor() == false, "toggle_task_at_cursor should reject board buffers")
 assert(tasks.change_task_status_at_cursor("x") == false, "change_task_status_at_cursor should reject board buffers")
 assert(tasks.postpone_task_at_cursor("+1 day") == false, "postpone_task_at_cursor should reject board buffers")

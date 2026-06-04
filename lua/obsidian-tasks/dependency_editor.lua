@@ -7,6 +7,8 @@ local source = require("obsidian-tasks.source")
 local task_model = require("obsidian-tasks.task")
 local task_search = require("obsidian-tasks.task_search")
 
+local BOARD_ACTIONS_UNAVAILABLE = "board task actions are not wired yet"
+
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
 end
@@ -177,6 +179,11 @@ function M.add_id_to_line(line, id)
 end
 
 function M.ensure_task_id(task, opts)
+	local rejected = require("obsidian-tasks.core").reject_board_action()
+	if rejected ~= nil then
+		return nil, BOARD_ACTIONS_UNAVAILABLE
+	end
+
 	opts = opts or {}
 	if trim(task and task.id) ~= "" then
 		return task.id, false
@@ -299,6 +306,11 @@ function M.select_dependency(opts, callback)
 end
 
 function M.add_dependency_to_task(task, dependency_id)
+	local rejected = require("obsidian-tasks.core").reject_board_action()
+	if rejected ~= nil then
+		return false, BOARD_ACTIONS_UNAVAILABLE
+	end
+
 	local line, err = get_task_line(task)
 	if not line then
 		return false, err
