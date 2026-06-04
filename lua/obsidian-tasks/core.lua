@@ -118,7 +118,7 @@ end
 ---@param tasks ObsidianTask[] # Tasks to save
 ---@return boolean success # Whether the save was successful
 function M.save_tasks_changes(buf, tasks)
-	if is_board_buffer(buf) then
+	if is_board_buffer(buf) or is_board_buffer(vim.api.nvim_get_current_buf()) then
 		return notify_board_actions_unavailable()
 	end
 

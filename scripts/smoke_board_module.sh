@@ -152,6 +152,15 @@ assert(tasks.toggle_task_at_cursor() == false, "toggle_task_at_cursor should rej
 assert(tasks.change_task_status_at_cursor("x") == false, "change_task_status_at_cursor should reject board buffers")
 assert(tasks.postpone_task_at_cursor("+1 day") == false, "postpone_task_at_cursor should reject board buffers")
 assert(core.save_tasks_changes(buf, { index_map[1], index_map[2] }) == false, "save_tasks_changes should reject board buffers")
+local non_board_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(non_board_buf, 0, -1, false, { "1. [ ] #task Alpha [[" .. tasks_path .. "#L2]]" })
+core.task_index_map[non_board_buf] = { [1] = index_map[1] }
+assert(board.is_board_buffer(non_board_buf) == false, "regression fixture must use a non-board task buffer")
+assert(vim.api.nvim_get_current_buf() == buf, "regression fixture must remain focused in the board buffer")
+assert(
+  core.save_tasks_changes(non_board_buf, { index_map[1] }) == false,
+  "save_tasks_changes should reject non-board buffers while focused in a board buffer"
+)
 assert(core.apply_task_changes(index_map[1], vim.tbl_extend("force", index_map[1], { status = "[x]", status_symbol = "x" })) == false, "apply_task_changes should reject board buffers")
 assert(core.apply_postpone_changes(index_map[1], "+1 day") == false, "apply_postpone_changes should reject board buffers")
 assert(file_text(tasks_path) == source_before, "board actions mutated source file")
