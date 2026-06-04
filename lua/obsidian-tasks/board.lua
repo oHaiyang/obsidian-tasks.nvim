@@ -144,7 +144,7 @@ local function markdown_files_with_queries(vault_path)
 	table.sort(files)
 	local result = {}
 	for _, path in ipairs(files) do
-		if #require("obsidian-tasks.query_block").scan_file(path) > 0 then
+		if inside_vault(path, vault_path) and #require("obsidian-tasks.query_block").scan_file(path) > 0 then
 			table.insert(result, path)
 		end
 	end
@@ -422,7 +422,9 @@ local function open_resolved_path(path)
 			once = true,
 			callback = function()
 				M.state[buf] = nil
-				require("obsidian-tasks.core").task_index_map[buf] = nil
+				local core = require("obsidian-tasks.core")
+				core.task_index_map[buf] = nil
+				core.buffer_tasks[buf] = nil
 			end,
 		})
 	end
@@ -474,7 +476,10 @@ function M.open(opts)
 			end,
 		}, function(choice)
 			if choice then
-				open_resolved_path(choice)
+				local resolved = resolve_path(choice)
+				if resolved then
+					open_resolved_path(resolved)
+				end
 			end
 		end)
 		return nil
