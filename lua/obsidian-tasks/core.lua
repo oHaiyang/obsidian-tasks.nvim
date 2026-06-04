@@ -118,6 +118,10 @@ end
 ---@param tasks ObsidianTask[] # Tasks to save
 ---@return boolean success # Whether the save was successful
 function M.save_tasks_changes(buf, tasks)
+	if is_board_buffer(buf) then
+		return notify_board_actions_unavailable()
+	end
+
 	local current_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	local updated_count = 0
 	local failed_count = 0
@@ -155,6 +159,10 @@ end
 ---@param updated_task ObsidianTask # Updated task from display
 ---@return boolean success # Whether the changes were applied successfully
 function M.apply_task_changes(original_task, updated_task)
+	if is_board_buffer(vim.api.nvim_get_current_buf()) then
+		return notify_board_actions_unavailable()
+	end
+
 	-- Read file content
 	---@type string[]
 	local lines = {}
@@ -251,6 +259,10 @@ local function write_file_lines(file_path, lines)
 end
 
 function M.apply_postpone_changes(original_task, expr)
+	if is_board_buffer(vim.api.nvim_get_current_buf()) then
+		return notify_board_actions_unavailable()
+	end
+
 	local file_path = original_task.file_path
 	local line_number = original_task.line_number
 	local lines, read_err = read_file_lines(file_path)
