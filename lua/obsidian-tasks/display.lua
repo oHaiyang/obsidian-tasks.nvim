@@ -503,13 +503,20 @@ end
 -- Refresh a task result buffer by re-running its original finder options.
 function M.refresh_tasks_view(opts)
 	opts = opts or {}
+	local should_notify = opts.notify ~= false
+	local function notify(message, level)
+		if should_notify then
+			vim.notify(message, level)
+		end
+	end
+
 	local buf = opts.buffer or opts.buf or vim.api.nvim_get_current_buf()
 	if not vim.api.nvim_buf_is_valid(buf) then
-		vim.notify("Tasks result buffer is no longer valid", vim.log.levels.ERROR)
+		notify("Tasks result buffer is no longer valid", vim.log.levels.ERROR)
 		return false
 	end
 	if vim.api.nvim_get_option_value("modified", { buf = buf }) then
-		vim.notify("Save task changes before refreshing results", vim.log.levels.WARN)
+		notify("Save task changes before refreshing results", vim.log.levels.WARN)
 		return false
 	end
 
@@ -520,7 +527,7 @@ function M.refresh_tasks_view(opts)
 	local vault_path = finder_opts.vault_path or (require("obsidian-tasks").config or {}).vault_path
 
 	if not vault_path then
-		vim.notify("Could not determine vault path for refresh", vim.log.levels.ERROR)
+		notify("Could not determine vault path for refresh", vim.log.levels.ERROR)
 		return false
 	end
 
@@ -553,10 +560,57 @@ function M.refresh_tasks_view(opts)
 		pcall(vim.api.nvim_win_set_cursor, win, { row, cursor_pos[2] })
 	end
 
-	if opts.notify ~= false then
-		vim.notify("Tasks refreshed", vim.log.levels.INFO)
-	end
+	notify("Tasks refreshed", vim.log.levels.INFO)
 	return true
+end
+
+function M.refresh_all_task_views(opts)
+	opts = opts or {}
+	local current_win = vim.api.nvim_get_current_win()
+	local current_buf = vim.api.nvim_get_current_buf()
+	local refreshed = 0
+	local skipped_modified = 0
+	local skipped_invalid = 0
+
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if M.buffer_finder_opts[buf] then
+			if not vim.api.nvim_buf_is_valid(buf) then
+				skipped_invalid = skipped_invalid + 1
+			elseif vim.api.nvim_get_option_value("modified", { buf = buf }) then
+				skipped_modified = skipped_modified + 1
+			elseif M.refresh_tasks_view({ buffer = buf, notify = false }) then
+				refreshed = refreshed + 1
+			else
+				skipped_invalid = skipped_invalid + 1
+			end
+		end
+	end
+
+	if vim.api.nvim_win_is_valid(current_win) then
+		pcall(vim.api.nvim_set_current_win, current_win)
+		if vim.api.nvim_buf_is_valid(current_buf) then
+			pcall(vim.api.nvim_win_set_buf, current_win, current_buf)
+		end
+	elseif vim.api.nvim_buf_is_valid(current_buf) then
+		pcall(vim.api.nvim_set_current_buf, current_buf)
+	end
+
+	if opts.notify then
+		local parts = { string.format("Tasks auto-refreshed: %d buffer(s)", refreshed) }
+		if skipped_modified > 0 then
+			table.insert(parts, string.format("%d modified skipped", skipped_modified))
+		end
+		if skipped_invalid > 0 then
+			table.insert(parts, string.format("%d unavailable skipped", skipped_invalid))
+		end
+		vim.notify(table.concat(parts, ", "), vim.log.levels.INFO)
+	end
+
+	return {
+		refreshed = refreshed,
+		skipped_modified = skipped_modified,
+		skipped_invalid = skipped_invalid,
+	}
 end
 
 local function display_opts_for_buffer(buf)

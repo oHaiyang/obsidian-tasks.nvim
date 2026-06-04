@@ -53,6 +53,15 @@ function M.setup(config)
 		config.cache.watch = config.cache.watch_vault or config.cache.watchVault or false
 	end
 	config.cache.watch_debounce_ms = config.cache.watch_debounce_ms or config.cache.watchDebounceMs or config.cache.debounce_ms
+	if config.cache.auto_refresh_results == nil then
+		config.cache.auto_refresh_results = config.cache.autoRefreshResults
+	end
+	if config.cache.auto_refresh_results == nil then
+		config.cache.auto_refresh_results = config.cache.refresh_results_on_update or config.cache.refreshResultsOnUpdate or false
+	end
+	config.cache.refresh_results_debounce_ms = config.cache.refresh_results_debounce_ms
+		or config.cache.refreshResultsDebounceMs
+		or config.cache.debounce_ms
 	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
 	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses

@@ -166,6 +166,23 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 - `every!` 当前先被解析并保留 strict 标记；完整 strict/non-strict 差异留后续。
 - 多日期仍沿用各日期字段独立推进策略，offset-preserving recurrence 留后续。
 
+### Phase 7.8: Auto Refresh Result Buffers
+
+状态：Done，详见 `PHASE_7_8.md` 和 `PHASE_7_8_TEST.md`。
+
+目标：
+
+1. cache 更新后可选自动刷新已打开的 result buffers。
+2. 多个 result buffer 各自复用自己的 finder/query opts，不互相串 query。
+3. 跳过有未保存修改的 result buffer，避免覆盖用户编辑。
+4. 支持 debounce，合并短时间内多次 cache update。
+
+边界：
+
+- 默认关闭，需要显式 `cache.auto_refresh_results = true`。
+- 自动刷新只刷新已打开 result buffer，不创建新 buffer。
+- cache cold 时单文件事件仍不会触发 full refresh，因此不会自动刷新结果。
+
 ## 当前推荐顺序
 
 1. Phase 7.1 已完成。
@@ -175,4 +192,5 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 5. Phase 7.6 已完成。
 6. Phase 7.7 已完成。
 7. Phase 7.4 已完成。
-8. 下一步建议收尾 Phase 7 的剩余细节：自动刷新 result buffers、watcher 跨平台真实手测，或继续补 recurrence 的 `every!` strict 语义和更复杂的 natural-language 规则。
+8. Phase 7.8 已完成。
+9. 下一步建议进入 Phase 8 规划，或继续补 recurrence 的 `every!` strict 语义和更复杂的 natural-language 规则。

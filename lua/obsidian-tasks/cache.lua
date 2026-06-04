@@ -15,6 +15,7 @@ M.state = {
 }
 M.pending_updates = {}
 M.pending_watch_events = {}
+M.pending_result_refresh = 0
 M.watcher = {
 	handle = nil,
 	status = "stopped",
@@ -111,6 +112,31 @@ local function cache_watch_debounce_ms(config)
 			or cache_debounce_ms(config)
 	end
 	return tonumber(cache.watch_debounce_ms or cache.watchDebounceMs) or cache_debounce_ms(config)
+end
+
+local function cache_auto_refresh_results_enabled(config)
+	local cache = cache_config(config)
+	if cache.enabled ~= true then
+		return false
+	end
+	if cache.auto_refresh_results ~= nil then
+		return cache.auto_refresh_results == true
+	end
+	if cache.autoRefreshResults ~= nil then
+		return cache.autoRefreshResults == true
+	end
+	if cache.refresh_results_on_update ~= nil then
+		return cache.refresh_results_on_update == true
+	end
+	if cache.refreshResultsOnUpdate ~= nil then
+		return cache.refreshResultsOnUpdate == true
+	end
+	return false
+end
+
+local function cache_result_refresh_debounce_ms(config)
+	local cache = cache_config(config)
+	return tonumber(cache.refresh_results_debounce_ms or cache.refreshResultsDebounceMs) or cache_debounce_ms(config)
 end
 
 local function join_path(root, child)
@@ -236,6 +262,39 @@ local function refresh_current_result(opts)
 	})
 end
 
+function M.refresh_result_buffers(opts)
+	opts = opts or {}
+	local ok, display = pcall(require, "obsidian-tasks.display")
+	if not ok then
+		return nil
+	end
+	return display.refresh_all_task_views({
+		notify = opts.notify,
+	})
+end
+
+local function maybe_refresh_result_buffers(config)
+	if not cache_auto_refresh_results_enabled(config) then
+		return
+	end
+
+	local debounce_ms = cache_result_refresh_debounce_ms(config)
+	if debounce_ms <= 0 then
+		M.refresh_result_buffers({ notify = false })
+		return
+	end
+
+	local token = M.pending_result_refresh + 1
+	M.pending_result_refresh = token
+	vim.defer_fn(function()
+		if M.pending_result_refresh ~= token then
+			return
+		end
+		M.pending_result_refresh = 0
+		M.refresh_result_buffers({ notify = false })
+	end, debounce_ms)
+end
+
 function M.clear()
 	M.state = {
 		status = "cold",
@@ -318,18 +377,21 @@ function M.update_file(path, opts)
 		M.state.files[normalized] = nil
 		rebuild_tasks()
 		M.state.last_update = os.time()
+		maybe_refresh_result_buffers(opts.config or get_config())
 		return {}
 	end
 	if normalized:sub(-3) ~= ".md" then
 		M.state.files[normalized] = nil
 		rebuild_tasks()
 		M.state.last_update = os.time()
+		maybe_refresh_result_buffers(opts.config or get_config())
 		return {}
 	end
 
 	M.state.files[normalized] = scan_file(normalized, M.state.context or ctx)
 	rebuild_tasks()
 	M.state.last_update = os.time()
+	maybe_refresh_result_buffers(opts.config or get_config())
 	return copy_task_list(M.state.files[normalized].tasks)
 end
 
@@ -340,6 +402,7 @@ function M.remove_file(path)
 	M.state.files[realpath(path) or path] = nil
 	rebuild_tasks()
 	M.state.last_update = os.time()
+	maybe_refresh_result_buffers(get_config())
 end
 
 function M.on_file_changed(path, opts)
@@ -442,6 +505,7 @@ function M.stop_watcher()
 		error = nil,
 	}
 	M.pending_watch_events = {}
+	M.pending_result_refresh = 0
 end
 
 function M.start_watcher(config)
@@ -542,6 +606,8 @@ function M.stats()
 			error = M.watcher.error,
 			pending_count = vim.tbl_count(M.pending_watch_events or {}),
 		},
+		auto_refresh_results = cache_auto_refresh_results_enabled(get_config()),
+		pending_result_refresh = M.pending_result_refresh ~= 0,
 	}
 end
 
