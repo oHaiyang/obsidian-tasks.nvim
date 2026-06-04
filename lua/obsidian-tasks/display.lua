@@ -413,11 +413,13 @@ function M.format_task_result_section(tasks, opts)
 	end
 
 	if M.should_show(opts, "task count", true) then
+		local shown = opts.shown_count
+		local total = opts.total_count
 		local count_line
-		if opts.limit and #visible_tasks ~= opts.total_count then
-			count_line = string.format("Showing %d of %d tasks", #visible_tasks, opts.total_count)
+		if opts.limit and shown ~= total then
+			count_line = string.format("Showing %d of %d tasks", shown, total)
 		else
-			count_line = string.format("Showing %d tasks", #visible_tasks)
+			count_line = string.format("Showing %d tasks", shown)
 		end
 		table.insert(lines, count_line)
 	end
