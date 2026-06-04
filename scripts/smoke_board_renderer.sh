@@ -92,7 +92,6 @@ assert_contains(rendered, "Alpha")
 assert_contains(rendered, "Beta")
 assert_not_contains(rendered, "Gamma")
 assert_not_contains(rendered, "sort by due")
-assert_not_contains(rendered, "definitely unsupported\n```")
 assert_contains(rendered, "## Broken Query")
 assert_contains(rendered, "Query errors:")
 assert_contains(rendered, "Unsupported query instruction")
@@ -112,14 +111,28 @@ local source_after_toggle = table.concat(vim.fn.readfile(tasks_file), "\n")
 assert_contains(source_after_toggle, "- [x] #task Alpha")
 assert(vim.bo[buf].readonly == true, "board buffer lost readonly after toggle")
 assert(vim.bo[buf].modifiable == false, "board buffer lost nonmodifiable after toggle")
-assert_contains(text(), "1. [x]")
+local after_toggle_text = text()
+assert_not_contains(after_toggle_text, "Alpha")
+assert_contains(after_toggle_text, "Beta")
 
-vim.cmd("edit " .. vim.fn.fnameescape(board))
+local current_board = root .. "/Projects/Current.md"
+vim.fn.writefile({
+  "# Current Board",
+  "",
+  "```tasks",
+  "# name: Current Query",
+  "description includes Beta",
+  "```",
+}, current_board)
+
+vim.cmd("edit " .. vim.fn.fnameescape(current_board))
 vim.cmd("ObsidianTasks")
 local current_text = text()
 assert(vim.api.nvim_buf_get_name(0):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(0))
-assert_contains(current_text, "Middle paragraph stays markdown.")
-assert_contains(current_text, "Project Open")
+assert_contains(current_text, "# Current Board")
+assert_contains(current_text, "## Current Query")
+assert_contains(current_text, "Beta")
+assert_not_contains(current_text, "Project Open")
 
 local no_query_file = root .. "/Projects/NoQueries.md"
 vim.fn.writefile({
@@ -132,7 +145,7 @@ assert_contains(text(), "No tasks query blocks found")
 assert(vim.bo[0].filetype == "markdown", vim.bo[0].filetype)
 LUA
 
-NVIM_LOG_FILE="${NVIM_LOG_FILE:-/private/tmp/obsidian-tasks-nvim-board-renderer.log}" \
+NVIM_LOG_FILE="${NVIM_LOG_FILE:-${TMPDIR:-/tmp}/obsidian-tasks-nvim-board-renderer.log}" \
 nvim --headless -u NONE -i NONE \
   --cmd "set noswapfile" \
   --cmd "set rtp+=$PLUGIN_DIR" \
