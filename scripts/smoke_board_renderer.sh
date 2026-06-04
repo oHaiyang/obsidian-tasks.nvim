@@ -135,5 +135,5 @@ LUA
 nvim --headless -u NONE -i NONE \
   --cmd "set noswapfile" \
   --cmd "set rtp+=$PLUGIN_DIR" \
-  -c "luafile $SMOKE_LUA" \
+  -c "lua local ok, err = pcall(dofile, [[$SMOKE_LUA]]); if not ok then vim.api.nvim_err_writeln(tostring(err)); vim.cmd('cquit') end" \
   -c "qa!"
