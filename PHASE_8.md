@@ -20,7 +20,7 @@
 
 ## Phase 8.2: File, Frontmatter, and Link Query Surface
 
-状态：Planned。
+状态：Done，详见 `PHASE_8_2.md` 和 `PHASE_8_2_TEST.md`。
 
 目标：
 
@@ -47,5 +47,5 @@
 ## 当前推荐顺序
 
 1. Phase 8.1 已完成。
-2. 下一步做 Phase 8.2。
-3. 然后做 Phase 8.3。
+2. Phase 8.2 已完成。
+3. 下一步做 Phase 8.3。

@@ -1,6 +1,7 @@
 local M = {}
 
 local frontmatter = require("obsidian-tasks.frontmatter")
+local links = require("obsidian-tasks.links")
 local task_model = require("obsidian-tasks.task")
 
 local function is_markdown_file(path)
@@ -161,6 +162,7 @@ function M.scan_file(path, opts)
 	local list_stack = {}
 	local properties = frontmatter.parse(lines)
 	local file_fields = frontmatter.file_fields(properties)
+	local file_outlinks = links.extract(table.concat(lines, "\n"))
 
 	for line_number, line in ipairs(lines) do
 		if is_fence(line) then
@@ -215,6 +217,7 @@ function M.scan_file(path, opts)
 					file_tags = file_fields.tags,
 					file_aliases = file_fields.aliases,
 					file_cssclasses = file_fields.cssclasses,
+					file_outlinks = file_outlinks,
 				})
 
 				if task then

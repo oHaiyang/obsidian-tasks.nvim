@@ -421,9 +421,15 @@ local function enrich_file_fields(task, opts)
 		aliases = opts.file_aliases or opts.aliases or {},
 		cssclasses = opts.file_cssclasses or opts.cssclasses or {},
 		classes = opts.file_cssclasses or opts.cssclasses or {},
+		links = opts.file_links or opts.file_outlinks or opts.outlinks or {},
+		outlinks = opts.file_outlinks or opts.file_links or opts.outlinks or {},
 	}
 	task.frontmatter = frontmatter
 	task.properties = frontmatter
+	task.file_links = task.file.links
+	task.fileLinks = task.file.links
+	task.file_outlinks = task.file.outlinks
+	task.fileOutlinks = task.file.outlinks
 end
 
 function M.extract_priority(task_text)

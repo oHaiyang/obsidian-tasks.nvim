@@ -418,6 +418,23 @@ local function add_date_exists_filter(plan, line_number, original_line, field, e
 	})
 end
 
+local function is_dynamic_text_field(field)
+	field = trim(field)
+	return field == "links"
+		or field == "outlinks"
+		or field == "file.links"
+		or field == "file.outlinks"
+		or field == "file.tags"
+		or field == "file.aliases"
+		or field == "file.classes"
+		or field == "file.cssclasses"
+		or field:match("^frontmatter%.") ~= nil
+		or field:match("^properties%.") ~= nil
+		or field:match("^property%.") ~= nil
+		or field:match("^file%.frontmatter%.") ~= nil
+		or field:match("^file%.properties%.") ~= nil
+end
+
 local function exclude_sub_items_matches(task)
 	local indentation = task.indentation or ""
 	if indentation == "" then
@@ -913,6 +930,67 @@ function parse_line(plan, line_number, line, opts)
 		end
 	end
 
+	local dynamic_field
+	dynamic_field, value = line:match("^([%w_%.%-]+)%s+does%s+not%s+include%s+(.+)$")
+	if not dynamic_field then
+		dynamic_field, value = line:match("^([%w_%.%-]+)%s+does%s+not%s+includes%s+(.+)$")
+	end
+	if dynamic_field and is_dynamic_text_field(dynamic_field) then
+		add_filter(plan, {
+			type = "includes",
+			field = dynamic_field,
+			value = trim(value),
+			negate = true,
+		})
+		return
+	end
+
+	dynamic_field, value = line:match("^([%w_%.%-]+)%s+include%s+(.+)$")
+	if not dynamic_field then
+		dynamic_field, value = line:match("^([%w_%.%-]+)%s+includes%s+(.+)$")
+	end
+	if dynamic_field and is_dynamic_text_field(dynamic_field) then
+		add_filter(plan, {
+			type = "includes",
+			field = dynamic_field,
+			value = trim(value),
+			negate = false,
+		})
+		return
+	end
+
+	dynamic_field, value = line:match("^([%w_%.%-]+)%s+regex%s+does%s+not%s+match%s+(.+)$")
+	if dynamic_field and is_dynamic_text_field(dynamic_field) then
+		local regex, err = parse_regex_expr(value)
+		if not regex then
+			add_error(plan, line_number, original_line, "Invalid regex: " .. tostring(err))
+		else
+			add_filter(plan, {
+				type = "regex",
+				field = dynamic_field,
+				regex = regex,
+				negate = true,
+			})
+		end
+		return
+	end
+
+	dynamic_field, value = line:match("^([%w_%.%-]+)%s+regex%s+matches%s+(.+)$")
+	if dynamic_field and is_dynamic_text_field(dynamic_field) then
+		local regex, err = parse_regex_expr(value)
+		if not regex then
+			add_error(plan, line_number, original_line, "Invalid regex: " .. tostring(err))
+		else
+			add_filter(plan, {
+				type = "regex",
+				field = dynamic_field,
+				regex = regex,
+				negate = false,
+			})
+		end
+		return
+	end
+
 	value = line_lower:match("^priority%s+is%s+above%s+(.+)$")
 	if value then
 		local priority = normalize_priority(value)
@@ -1144,6 +1222,40 @@ local function task_status_symbol(task)
 end
 
 local function field_text(task, field)
+	local function value_text(value)
+		if value == nil then
+			return ""
+		elseif type(value) == "table" then
+			local parts = {}
+			for key, item in pairs(value) do
+				if type(item) == "table" and (item.destination or item.path or item.display or item.raw) then
+					table.insert(parts, item.destination or "")
+					table.insert(parts, item.path or "")
+					table.insert(parts, item.display or "")
+					table.insert(parts, item.raw or "")
+				elseif type(key) == "string" then
+					table.insert(parts, key)
+					table.insert(parts, value_text(item))
+				else
+					table.insert(parts, value_text(item))
+				end
+			end
+			return table.concat(parts, " ")
+		end
+		return tostring(value)
+	end
+
+	local function nested_value(root, path)
+		local value = root
+		for part in (path or ""):gmatch("[^%.]+") do
+			if type(value) ~= "table" then
+				return nil
+			end
+			value = value[part]
+		end
+		return value
+	end
+
 	if field == "description" then
 		return task.description or task.text or ""
 	elseif field == "path" then
@@ -1168,6 +1280,28 @@ local function field_text(task, field)
 		return status.get(task_status_symbol(task)).name
 	elseif field == "status.type" then
 		return status.type(task_status_symbol(task))
+	elseif field == "links" or field == "outlinks" then
+		return value_text(task.outlinks or task.links or {})
+	elseif field == "file.links" or field == "file.outlinks" then
+		return value_text((task.file and (task.file.outlinks or task.file.links)) or task.file_outlinks or {})
+	elseif field == "file.tags" then
+		return value_text(task.file and task.file.tags or {})
+	elseif field == "file.aliases" then
+		return value_text(task.file and task.file.aliases or {})
+	elseif field == "file.classes" or field == "file.cssclasses" then
+		return value_text(task.file and (task.file.classes or task.file.cssclasses) or {})
+	elseif field:match("^frontmatter%.") then
+		return value_text(nested_value(task.frontmatter or task.properties or {}, field:sub(#"frontmatter." + 1)))
+	elseif field:match("^properties%.") then
+		return value_text(nested_value(task.properties or task.frontmatter or {}, field:sub(#"properties." + 1)))
+	elseif field:match("^property%.") then
+		return value_text(nested_value(task.properties or task.frontmatter or {}, field:sub(#"property." + 1)))
+	elseif field:match("^file%.frontmatter%.") then
+		return value_text(nested_value(task.file and (task.file.frontmatter or task.file.properties) or {}, field:sub(#"file.frontmatter." + 1)))
+	elseif field:match("^file%.properties%.") then
+		return value_text(nested_value(task.file and (task.file.properties or task.file.frontmatter) or {}, field:sub(#"file.properties." + 1)))
+	elseif field:match("^file%.") then
+		return value_text(nested_value(task.file or {}, field:sub(#"file." + 1)))
 	end
 	return ""
 end

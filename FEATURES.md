@@ -80,8 +80,8 @@
 | F031 | Status types | `TODO`、`IN_PROGRESS`、`ON_HOLD`、`DONE`、`CANCELLED`、`NON_TASK` 决定完成语义。 | Done：done/not done、toggle、dependencies 使用 status type。 | P1 |
 | F032 | Urgency | 根据 due、priority、scheduled、start 计算数值分数。 | Done：Phase 6.2 支持原版 urgency score、`show urgency`、`sort/group by urgency` 和 `task.urgency`。 | P1 |
 | F033 | File properties | 暴露 path/root/folder/filename/pathWithoutExtension 等。 | Partial：已暴露 task.file 的 path/folder/filename/pathWithoutExtension 等常用字段，root 暂未建模。 | P0 |
-| F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Partial：Phase 6.8 读取 Markdown YAML frontmatter，并暴露到 `task.frontmatter` / `task.properties` / `task.file.*` 和 `query.file.*`。JSON frontmatter 暂不支持。 | P2 |
-| F035 | Links | 解析 task line、file body、frontmatter 中 outlinks。 | Partial：Phase 6.8 解析 task line 中的 wikilink 和 Markdown link，暴露为 `task.links` / `task.outlinks`；file body/frontmatter outlinks 暂未扫描。 | P3 |
+| F034 | Obsidian Properties | 读取 YAML/JSON frontmatter，供 custom query 使用。 | Partial：Phase 6.8 读取 Markdown YAML frontmatter，并暴露到 `task.frontmatter` / `task.properties` / `task.file.*` 和 `query.file.*`；Phase 8.2 支持普通 query 直接过滤 frontmatter/property 字段。JSON frontmatter 暂不支持。 | P2 |
+| F035 | Links | 解析 task line、file body、frontmatter 中 outlinks。 | Partial：Phase 6.8 解析 task line 中的 wikilink 和 Markdown link，暴露为 `task.links` / `task.outlinks`；Phase 8.2 扫描 file-level outlinks 并支持普通 query 过滤 `links` / `outlinks` / `file.outlinks`。 | P3 |
 | F036 | Filename as scheduled date | 从文件名推导 undated task 的 scheduled date。 | Todo。 | P2 |
 
 ## 2. Vault 扫描与缓存
@@ -131,8 +131,9 @@
 | Priority | `priority is/above/below/not lowest|low|none|medium|high|highest`。 |
 | Recurrence | `is recurring`、`is not recurring`、`recurrence includes/regex...`。 |
 | Tags | `has tags`、`no tags`、`tag/tags include/do not include/regex...`。 |
-| File | `path`、`root`、`folder`、`filename`、`heading` 的 include/regex 查询。 |
-| Other via function | `originalMarkdown`、`lineNumber`、`listMarker`、frontmatter、links 等主要通过 custom function 查询。 |
+| File | `path`、`root`、`folder`、`filename`、`heading`、`file.tags`、`file.aliases`、`file.outlinks` 的 include/regex 查询。 |
+| Frontmatter / Links | `frontmatter.<key>`、`property.<key>`、`links`、`outlinks`、`file.outlinks` 的 include/regex 查询。 |
+| Other via function | `originalMarkdown`、`lineNumber`、`listMarker` 等主要通过 custom function 查询。 |
 | Sub-items | `exclude sub-items`。已支持 Phase 6.3 MVP。 |
 
 ### 3.2 内置 sorting
@@ -367,10 +368,10 @@
 
 ### Phase 8: Query Parity and Diagnostics
 
-状态：进行中，Phase 8.1 已实现 Boolean parser hardening，详见 `PHASE_8.md`。
+状态：进行中，Phase 8.1 已实现 Boolean parser hardening，Phase 8.2 已实现 file/frontmatter/link query surface，详见 `PHASE_8.md`。
 
 建议拆分：
 
 1. Phase 8.1：Boolean parser hardening。Done，详见 `PHASE_8_1.md`。
-2. Phase 8.2：File/frontmatter/link query surface。
+2. Phase 8.2：File/frontmatter/link query surface。Done，详见 `PHASE_8_2.md`。
 3. Phase 8.3：Query diagnostics and explain。
