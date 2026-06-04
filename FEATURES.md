@@ -67,7 +67,7 @@
 | F018 | Invalid date | 日期固定 `YYYY-MM-DD`；无效日期可被查询发现。 | Todo。 | P1 |
 | F019 | Happens date | `happens` 为 start/scheduled/due 中最早的有效日期。 | Done：query/sort/group 可使用 happens。 | P1 |
 | F020 | Created/done/cancelled 自动日期 | 新建或状态变化时按设置自动写入日期。 | Partial：done/cancelled 已支持；created 支持新 recurrence。 | P1 |
-| F021 | Recurrence | 支持 `🔁 every ...`，基于 rrule 计算下一次任务。 | Partial：覆盖基础 every day/week/month/year。 | P1 |
+| F021 | Recurrence | 支持 `🔁 every ...`，基于 rrule 计算下一次任务。 | Partial：覆盖基础 every day/week/month/year；Phase 7.7 补常用 weekday/weekend、指定 weekday、`every N weeks on <weekday>` 和 monthday 规则。 | P1 |
 | F022 | Recurrence `when done` | 可选择基于原日期或完成日期计算下一次。 | Partial：基础 `when done` 已支持。 | P1 |
 | F023 | Recurrence 多日期联动 | due/scheduled/start 的相对偏移会随下一次任务一起平移。 | Partial：现按每个字段独立推进。 | P2 |
 | F024 | Recurrence 插入位置 | 下一次任务可插入原任务上方或下方。 | Done。 | P2 |
@@ -192,7 +192,7 @@
 | F401 | Toggle task done | `Tasks: Toggle task done`，按 status registry 切换 next status。 | Done：Phase 4 已按 status registry 切换。 | P0 |
 | F402 | 源文件 task toggle | 在普通 Markdown buffer 光标所在任务上切换并写回。 | Done：Phase 4 已支持 status-aware toggle。 | P0 |
 | F403 | Done/cancelled date | 切换到 DONE/CANCELLED type 时自动添加日期，切出时移除。 | Done：`set_done_date` / `set_cancelled_date`。 | P1 |
-| F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 已支持，规则 parser 待补全。 | P1 |
+| F404 | Recurring completion | 完成循环任务时创建下一次任务，并处理 done date、created date、依赖清空等。 | Partial：基础 recurrence 和 Phase 7.7 常用 weekday/monthday 规则已支持；复杂 natural-language recurrence 待补。 | P1 |
 | F405 | Change status commands | 为每个 registered status 生成 `Change status to...` 命令。 | Done：`ObsidianTasksChangeStatus` 和 `ObsidianTasksStatus*`。 | P1 |
 | F406 | Status context menu | 右键 checkbox 可选择任意 status。 | Obsidian-only；nvim 可做 picker。 | P2 |
 | F407 | Create/Edit task modal | 新建或编辑任务字段：description、status、priority、recurrence、dates、dependencies。 | Partial：Phase 5 已支持 buffer form MVP；Phase 5.5 补日期解析和轻量 picker；Phase 5.6 补 auto-suggest MVP；Phase 5.7 抽 completion core；Phase 6.5 补 calendar date picker。 | P1 |
@@ -350,7 +350,7 @@
 
 ### Phase 7: Cache, Incremental Updates, and Source Fidelity
 
-状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，Phase 7.5 已实现 source location fidelity MVP，Phase 7.6 已实现 scanner parity cleanup，详见 `PHASE_7.md`。
+状态：进行中，Phase 7.1 已实现 Vault Cache API MVP，Phase 7.2 已实现 `BufWritePost` 单文件 cache update，Phase 7.3 已实现 result refresh integration，Phase 7.5 已实现 source location fidelity MVP，Phase 7.6 已实现 scanner parity cleanup，Phase 7.7 已实现 recurrence grammar expansion，详见 `PHASE_7.md`。
 
 目标是让 nvim 插件从“每次查询全量扫描”推进到 cache-first 的底层模型，同时为后续自动刷新和更可靠写回做准备。
 
@@ -362,4 +362,4 @@
 4. Phase 7.4：File watcher + debounce。
 5. Phase 7.5：Source location fidelity，减少旧 result buffer 写错行风险。Done，详见 `PHASE_7_5.md`。
 6. Phase 7.6：Scanner parity cleanup。Done，详见 `PHASE_7_6.md`。
-7. Phase 7.7：Recurrence grammar expansion。
+7. Phase 7.7：Recurrence grammar expansion。Done，详见 `PHASE_7_7.md`。
