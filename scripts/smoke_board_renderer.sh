@@ -113,8 +113,11 @@ assert(tasks.toggle_task_at_cursor())
 
 local source_after_toggle = table.concat(vim.fn.readfile(tasks_file), "\n")
 assert_contains(source_after_toggle, "- [x] #task Alpha")
-assert(vim.bo[buf].readonly == true, "board buffer lost readonly after toggle")
-assert(vim.bo[buf].modifiable == false, "board buffer lost nonmodifiable after toggle")
+local refreshed_buf = vim.api.nvim_get_current_buf()
+assert(vim.api.nvim_buf_get_name(refreshed_buf):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(refreshed_buf))
+assert(vim.b[refreshed_buf].obsidian_tasks_board == true, "refreshed board marker missing")
+assert(vim.bo[refreshed_buf].readonly == true, "board buffer lost readonly after toggle")
+assert(vim.bo[refreshed_buf].modifiable == false, "board buffer lost nonmodifiable after toggle")
 local after_toggle_text = text()
 assert_not_contains(after_toggle_text, "Alpha")
 assert_contains(after_toggle_text, "Beta")
@@ -145,8 +148,13 @@ vim.fn.writefile({
   "This file has no task query blocks.",
 }, no_query_file)
 vim.cmd("ObsidianTasks " .. vim.fn.fnameescape(no_query_file))
+local no_query_buf = vim.api.nvim_get_current_buf()
+assert(vim.api.nvim_buf_get_name(no_query_buf):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(no_query_buf))
+assert(vim.b[no_query_buf].obsidian_tasks_board == true, "no-query board marker missing")
+assert(vim.bo[no_query_buf].readonly == true, "no-query board must be readonly")
+assert(vim.bo[no_query_buf].modifiable == false, "no-query board must be nonmodifiable")
 assert_contains(text(), "No tasks query blocks found")
-assert(vim.bo[0].filetype == "markdown", vim.bo[0].filetype)
+assert(vim.bo[no_query_buf].filetype == "markdown", vim.bo[no_query_buf].filetype)
 LUA
 
 NVIM_LOG_FILE="${NVIM_LOG_FILE:-${TMPDIR:-/tmp}/obsidian-tasks-nvim-board-renderer.log}" \
