@@ -82,6 +82,11 @@ local function is_board_buffer(buf)
 	return ok and board.is_board_buffer(buf)
 end
 
+local function notify_board_actions_unavailable()
+	vim.notify("obsidian-tasks.nvim: board task actions are not wired yet", vim.log.levels.WARN)
+	return false
+end
+
 local function refresh_board_after_mutation(buf)
 	local ok, board = pcall(require, "obsidian-tasks.board")
 	if ok and board.is_board_buffer(buf) then
@@ -302,6 +307,10 @@ end
 ---@return boolean success # Whether the toggle was successful
 function M.toggle_task_at_cursor()
 	local buf = vim.api.nvim_get_current_buf()
+	if is_board_buffer(buf) then
+		return notify_board_actions_unavailable()
+	end
+
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 
@@ -331,13 +340,17 @@ function M.toggle_task_at_cursor()
 end
 
 function M.change_task_status_at_cursor(status)
+	local buf = vim.api.nvim_get_current_buf()
+	if is_board_buffer(buf) then
+		return notify_board_actions_unavailable()
+	end
+
 	local next_symbol = status_model.resolve_symbol(status, get_config())
 	if not next_symbol then
 		vim.notify("Unknown task status: " .. tostring(status), vim.log.levels.ERROR)
 		return false
 	end
 
-	local buf = vim.api.nvim_get_current_buf()
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 
@@ -360,6 +373,10 @@ end
 
 function M.postpone_task_at_cursor(expr)
 	local buf = vim.api.nvim_get_current_buf()
+	if is_board_buffer(buf) then
+		return notify_board_actions_unavailable()
+	end
+
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 

@@ -64,8 +64,21 @@ local function slug(value)
 	return tostring(value or "board"):gsub("[^%w_%-%./:]+", "_")
 end
 
+local function stable_hash(value)
+	if vim.fn and vim.fn.sha256 then
+		return vim.fn.sha256(tostring(value or "")):sub(1, 12)
+	end
+
+	local text = tostring(value or "")
+	local hash = 5381
+	for index = 1, #text do
+		hash = ((hash * 33) + text:byte(index)) % 4294967296
+	end
+	return string.format("%08x", hash)
+end
+
 local function buffer_name(path)
-	return "obsidian-tasks://board/" .. slug(path)
+	return string.format("obsidian-tasks://board/%s-%s", slug(path), stable_hash(path))
 end
 
 local function buffer_name_exists(name)
@@ -180,7 +193,7 @@ local function execute_source(source, opts)
 	if #plan.errors > 0 then
 		local lines = { "## " .. section_title(source), "Query errors:" }
 		for _, err in ipairs(plan.errors) do
-			table.insert(lines, string.format("- line %s: %s", err.line or "?", err.message or "Unknown query error"))
+			table.insert(lines, string.format("- line %s: %s", err.line_number or err.line or "?", err.message or "Unknown query error"))
 			if err.instruction and err.instruction ~= "" then
 				table.insert(lines, "  instruction: " .. err.instruction)
 			end
@@ -188,7 +201,11 @@ local function execute_source(source, opts)
 		return lines, {}, opts.start_index or 1, plan
 	end
 
-	local tasks = cache.tasks({
+	local tasks = opts.tasks
+	if not tasks and opts.get_tasks then
+		tasks = opts.get_tasks()
+	end
+	tasks = tasks or cache.tasks({
 		vault_path = config.vault_path,
 		global_filter = config.global_filter,
 		remove_global_filter = config.remove_global_filter,
@@ -221,14 +238,30 @@ local function merge_index_map(target, source)
 	end
 end
 
-local function build_board_lines(path, source_lines)
+local function build_board_lines(path, source_lines, opts)
+	opts = opts or {}
 	local query_block = require("obsidian-tasks.query_block")
+	local cache = require("obsidian-tasks.cache")
+	local config = get_config()
 	local sources = query_block.scan_lines(source_lines, path)
 	local lines = {}
 	local sections = {}
 	local index_map = {}
 	local next_source_line = 1
 	local next_task_index = 1
+	local shared_tasks = opts.tasks
+	local function get_tasks()
+		if not shared_tasks then
+			shared_tasks = cache.tasks({
+				vault_path = config.vault_path,
+				global_filter = config.global_filter,
+				remove_global_filter = config.remove_global_filter,
+				today = opts.today,
+				use_cache = opts.use_cache or opts.useCache,
+			})
+		end
+		return shared_tasks
+	end
 
 	for _, source in ipairs(sources) do
 		for line_number = next_source_line, source.source_line - 1 do
@@ -238,6 +271,11 @@ local function build_board_lines(path, source_lines)
 		local render_start = #lines + 1
 		local section_lines, section_index_map, next_index = execute_source(source, {
 			start_index = next_task_index,
+			today = opts.today,
+			use_cache = opts.use_cache,
+			useCache = opts.useCache,
+			tasks = opts.tasks,
+			get_tasks = get_tasks,
 		})
 		for _, line in ipairs(section_lines) do
 			table.insert(lines, line)
