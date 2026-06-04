@@ -77,6 +77,19 @@ local function get_config()
 	return require("obsidian-tasks").config or {}
 end
 
+local function is_board_buffer(buf)
+	local ok, board = pcall(require, "obsidian-tasks.board")
+	return ok and board.is_board_buffer(buf)
+end
+
+local function refresh_board_after_mutation(buf)
+	local ok, board = pcall(require, "obsidian-tasks.board")
+	if ok and board.is_board_buffer(buf) then
+		return board.refresh_after_mutation(buf)
+	end
+	return false
+end
+
 local function format_display_line(parsed)
 	local priority_text = ""
 	if parsed.priority and parsed.priority ~= "normal" then
