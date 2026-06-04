@@ -14,6 +14,13 @@ M.state = {
 	last_update = nil,
 }
 M.pending_updates = {}
+M.pending_watch_events = {}
+M.watcher = {
+	handle = nil,
+	status = "stopped",
+	path = nil,
+	error = nil,
+}
 
 local function get_config()
 	local ok, plugin = pcall(require, "obsidian-tasks")
@@ -75,6 +82,52 @@ end
 local function cache_debounce_ms(config)
 	local cache = cache_config(config)
 	return tonumber(cache.debounce_ms or cache.debounceMs or 0) or 0
+end
+
+local function cache_watch_enabled(config)
+	local cache = cache_config(config)
+	if cache.enabled ~= true then
+		return false
+	end
+	if type(cache.watcher) == "table" and cache.watcher.enabled ~= nil then
+		return cache.watcher.enabled == true
+	end
+	if cache.watch ~= nil then
+		return cache.watch == true
+	end
+	if cache.watch_vault ~= nil then
+		return cache.watch_vault == true
+	end
+	if cache.watchVault ~= nil then
+		return cache.watchVault == true
+	end
+	return false
+end
+
+local function cache_watch_debounce_ms(config)
+	local cache = cache_config(config)
+	if type(cache.watcher) == "table" then
+		return tonumber(cache.watcher.debounce_ms or cache.watcher.debounceMs or cache.watch_debounce_ms or cache.watchDebounceMs)
+			or cache_debounce_ms(config)
+	end
+	return tonumber(cache.watch_debounce_ms or cache.watchDebounceMs) or cache_debounce_ms(config)
+end
+
+local function join_path(root, child)
+	if not child or child == "" then
+		return root
+	end
+	if child:sub(1, 1) == "/" then
+		return child
+	end
+	if vim.fs and vim.fs.joinpath then
+		return vim.fs.joinpath(root, child)
+	end
+	return root:gsub("/+$", "") .. "/" .. child
+end
+
+local function is_markdown_path(path)
+	return type(path) == "string" and path:sub(-3) == ".md"
 end
 
 function M.is_enabled(opts)
@@ -308,6 +361,41 @@ function M.on_file_changed(path, opts)
 	return true
 end
 
+function M.on_fs_event(filename, events, opts)
+	opts = opts or {}
+	local config = opts.config or get_config()
+	if not cache_watch_enabled(config) then
+		return false
+	end
+
+	local ctx = context({ config = config })
+	if not ctx.vault_path or ctx.vault_path == "" then
+		return false
+	end
+
+	local path = opts.path or join_path(ctx.vault_path, filename or "")
+	if not is_markdown_path(path) or not M.is_path_in_vault(path, ctx.vault_path) then
+		return false
+	end
+
+	local debounce_ms = cache_watch_debounce_ms(config)
+	local normalized = realpath(path) or path
+	if debounce_ms <= 0 then
+		return M.on_file_changed(normalized, { config = config })
+	end
+
+	local token = (M.pending_watch_events[normalized] or 0) + 1
+	M.pending_watch_events[normalized] = token
+	vim.defer_fn(function()
+		if M.pending_watch_events[normalized] ~= token then
+			return
+		end
+		M.pending_watch_events[normalized] = nil
+		M.on_file_changed(normalized, { config = config })
+	end, debounce_ms)
+	return true
+end
+
 function M.on_buf_write(path, opts)
 	opts = opts or {}
 	local config = opts.config or get_config()
@@ -338,10 +426,91 @@ function M.on_buf_write(path, opts)
 	return true
 end
 
+function M.stop_watcher()
+	if M.watcher and M.watcher.handle then
+		pcall(function()
+			M.watcher.handle:stop()
+		end)
+		pcall(function()
+			M.watcher.handle:close()
+		end)
+	end
+	M.watcher = {
+		handle = nil,
+		status = "stopped",
+		path = nil,
+		error = nil,
+	}
+	M.pending_watch_events = {}
+end
+
+function M.start_watcher(config)
+	config = config or get_config()
+	M.stop_watcher()
+	if not cache_watch_enabled(config) then
+		return false
+	end
+
+	local ctx = context({ config = config })
+	if not ctx.vault_path or ctx.vault_path == "" then
+		M.watcher.status = "unavailable"
+		M.watcher.error = "Missing vault_path"
+		return false
+	end
+
+	local uv = vim.uv or vim.loop
+	if not uv or not uv.new_fs_event then
+		M.watcher.status = "unavailable"
+		M.watcher.path = ctx.vault_path
+		M.watcher.error = "libuv fs_event is unavailable"
+		return false
+	end
+
+	local handle = uv.new_fs_event()
+	if not handle then
+		M.watcher.status = "unavailable"
+		M.watcher.path = ctx.vault_path
+		M.watcher.error = "Could not create fs_event handle"
+		return false
+	end
+
+	local ok, err = pcall(function()
+		handle:start(ctx.vault_path, { recursive = true }, vim.schedule_wrap(function(error_message, filename, events)
+			if error_message then
+				M.watcher.status = "error"
+				M.watcher.error = tostring(error_message)
+				return
+			end
+			M.on_fs_event(filename, events, { config = config })
+		end))
+	end)
+	if not ok then
+		pcall(function()
+			handle:close()
+		end)
+		M.watcher.status = "unavailable"
+		M.watcher.path = ctx.vault_path
+		M.watcher.error = tostring(err)
+		return false
+	end
+
+	M.watcher = {
+		handle = handle,
+		status = "running",
+		path = ctx.vault_path,
+		error = nil,
+	}
+	return true
+end
+
 function M.setup(config)
 	config = config or get_config()
 	local group = vim.api.nvim_create_augroup(AUGROUP, { clear = true })
+	M.stop_watcher()
 	if not cache_auto_update_enabled(config) then
+		if cache_watch_enabled(config) then
+			M.start_watcher(config)
+		end
 		return
 	end
 
@@ -352,6 +521,7 @@ function M.setup(config)
 			M.on_buf_write(args.file, { config = config })
 		end,
 	})
+	M.start_watcher(config)
 end
 
 function M.stats()
@@ -366,6 +536,12 @@ function M.stats()
 		task_count = #(M.state.tasks or {}),
 		last_refresh = M.state.last_refresh,
 		last_update = M.state.last_update,
+		watcher = {
+			status = M.watcher.status,
+			path = M.watcher.path,
+			error = M.watcher.error,
+			pending_count = vim.tbl_count(M.pending_watch_events or {}),
+		},
 	}
 end
 

@@ -41,6 +41,18 @@ function M.setup(config)
 		config.cache.auto_update_on_write = true
 	end
 	config.cache.debounce_ms = config.cache.debounce_ms or config.cache.debounceMs or 0
+	if type(config.cache.watcher) == "table" then
+		if config.cache.watch == nil then
+			config.cache.watch = config.cache.watcher.enabled or false
+		end
+		config.cache.watch_debounce_ms = config.cache.watch_debounce_ms
+			or config.cache.watcher.debounce_ms
+			or config.cache.watcher.debounceMs
+	end
+	if config.cache.watch == nil then
+		config.cache.watch = config.cache.watch_vault or config.cache.watchVault or false
+	end
+	config.cache.watch_debounce_ms = config.cache.watch_debounce_ms or config.cache.watchDebounceMs or config.cache.debounce_ms
 	config.enable_lua_filters = config.enable_lua_filters or config.enableLuaFilters or false
 	config.inbox_file = config.inbox_file or config.inboxFile
 	config.status_settings = config.status_settings or config.statusSettings or config.statuses
@@ -177,6 +189,14 @@ end
 
 function M.cache_stats()
 	return require("obsidian-tasks.cache").stats()
+end
+
+function M.start_cache_watcher()
+	return require("obsidian-tasks.cache").start_watcher(M.config)
+end
+
+function M.stop_cache_watcher()
+	return require("obsidian-tasks.cache").stop_watcher()
 end
 
 function M.setup_cmp(opts)

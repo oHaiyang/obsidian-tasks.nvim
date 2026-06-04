@@ -300,15 +300,41 @@ function M.setup_commands()
 		force = true,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksStartCacheWatcher", function()
+		local ok = require("obsidian-tasks").start_cache_watcher()
+		vim.notify(
+			ok and "Obsidian Tasks cache watcher started" or "Obsidian Tasks cache watcher unavailable",
+			ok and vim.log.levels.INFO or vim.log.levels.WARN
+		)
+	end, {
+		force = true,
+	})
+
+	vim.api.nvim_create_user_command("ObsidianTasksStopCacheWatcher", function()
+		require("obsidian-tasks").stop_cache_watcher()
+		vim.notify("Obsidian Tasks cache watcher stopped", vim.log.levels.INFO)
+	end, {
+		force = true,
+	})
+
 	vim.api.nvim_create_user_command("ObsidianTasksCacheInfo", function()
 		local stats = require("obsidian-tasks").cache_stats()
 		local context = stats.context or {}
+		local watcher = stats.watcher or {}
+		local watcher_info = ""
+		if watcher.status then
+			watcher_info = string.format(", watcher: %s", watcher.status)
+			if watcher.error then
+				watcher_info = watcher_info .. " (" .. watcher.error .. ")"
+			end
+		end
 		local message = string.format(
-			"Obsidian Tasks cache: %s, %d file(s), %d task(s)%s",
+			"Obsidian Tasks cache: %s, %d file(s), %d task(s)%s%s",
 			stats.status or "cold",
 			stats.file_count or 0,
 			stats.task_count or 0,
-			context.vault_path and (", " .. context.vault_path) or ""
+			context.vault_path and (", " .. context.vault_path) or "",
+			watcher_info
 		)
 		vim.notify(message, vim.log.levels.INFO)
 	end, {

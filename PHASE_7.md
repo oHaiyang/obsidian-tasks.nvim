@@ -96,6 +96,8 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 
 ### Phase 7.4: File Watcher + Debounce
 
+状态：Done，详见 `PHASE_7_4.md` 和 `PHASE_7_4_TEST.md`。
+
 目标：
 
 1. 用 libuv fs_event 或 Neovim autocmd 方案监听 vault 内 Markdown 文件变化。
@@ -105,8 +107,9 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 
 边界：
 
-- 跨平台 watcher 差异大，先做可关闭。
-- 大 vault 下 watch root 还是 watch files 需要测试后决定。
+- watcher 默认关闭，需要显式 `cache.watch = true`。
+- 跨平台 watcher 差异大；如果 libuv watcher 不可用，会标记为 `unavailable`，不影响手动 refresh 和 BufWritePost 更新。
+- 文件事件只更新 warm cache，不会在 cache cold 时自动触发全 vault refresh。
 
 ### Phase 7.5: Source Location Fidelity
 
@@ -171,4 +174,5 @@ Phase 6.1 Query diagnostics / explain 仍按用户决策暂缓。
 4. Phase 7.5 已完成。
 5. Phase 7.6 已完成。
 6. Phase 7.7 已完成。
-7. 下一步建议按实际痛点选择 Phase 7.4 watcher，或继续补 recurrence 的 `every!` strict 语义和更复杂的 natural-language 规则。
+7. Phase 7.4 已完成。
+8. 下一步建议收尾 Phase 7 的剩余细节：自动刷新 result buffers、watcher 跨平台真实手测，或继续补 recurrence 的 `every!` strict 语义和更复杂的 natural-language 规则。
