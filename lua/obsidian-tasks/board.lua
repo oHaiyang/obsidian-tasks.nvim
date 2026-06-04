@@ -366,14 +366,14 @@ local function setup_keymaps(buf)
 		end)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Change task status" })
 	vim.keymap.set("n", "p", function()
-		require("obsidian-tasks").postpone_task_at_cursor()
+		vim.notify("obsidian-tasks.nvim: postponing tasks from board buffers is not available yet", vim.log.levels.WARN)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Postpone task" })
 	vim.keymap.set("n", "e", function()
-		require("obsidian-tasks").edit_current_task()
+		vim.notify("obsidian-tasks.nvim: editing tasks from board buffers is not available yet", vim.log.levels.WARN)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Edit task" })
 end
 
-function M.open_path(path)
+local function open_resolved_path(path)
 	local source_lines, err = read_lines(path)
 	if not source_lines then
 		vim.notify(err, vim.log.levels.ERROR)
@@ -408,6 +408,18 @@ function M.open_path(path)
 	return buf
 end
 
+function M.open_path(path)
+	local resolved, mode = resolve_path(path)
+	if mode == "pick" then
+		vim.notify("obsidian-tasks.nvim: board path is required", vim.log.levels.ERROR)
+		return nil
+	end
+	if not resolved then
+		return nil
+	end
+	return open_resolved_path(resolved)
+end
+
 function M.open(opts)
 	opts = opts or {}
 	if type(opts) == "string" then
@@ -431,7 +443,7 @@ function M.open(opts)
 			end,
 		}, function(choice)
 			if choice then
-				M.open_path(choice)
+				open_resolved_path(choice)
 			end
 		end)
 		return nil
@@ -439,7 +451,7 @@ function M.open(opts)
 	if not path then
 		return nil
 	end
-	return M.open_path(path)
+	return open_resolved_path(path)
 end
 
 local function section_at_row(state, row)
