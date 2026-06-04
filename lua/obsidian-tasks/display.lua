@@ -383,6 +383,57 @@ local function render_task_lines(tasks, opts)
 	return M.format_grouped_tasks(grouped_tasks, group_order, opts)
 end
 
+local function max_index(index_map, fallback)
+	local max = fallback or 0
+	for index, _ in pairs(index_map or {}) do
+		if type(index) == "number" and index > max then
+			max = index
+		end
+	end
+	return max
+end
+
+function M.format_task_result_section(tasks, opts)
+	opts = vim.tbl_extend("force", opts or {}, {})
+	tasks = tasks or {}
+	local visible_tasks = M.filter_tasks_for_toolbar(tasks, opts.toolbar_filter)
+	opts.shown_count = opts.shown_count or #visible_tasks
+	opts.total_count = opts.total_count or #tasks
+	opts.start_index = tonumber(opts.start_index or opts.startIndex) or 1
+
+	local lines = {}
+	if trim(opts.section_title) ~= "" then
+		table.insert(lines, "## " .. trim(opts.section_title))
+	end
+
+	if opts.query_plan and opts.query_plan.explain then
+		for _, line in ipairs(require("obsidian-tasks.explain").lines(opts.query_plan, opts)) do
+			table.insert(lines, line)
+		end
+	end
+
+	if M.should_show(opts, "task count", true) then
+		local count_line
+		if opts.limit and #visible_tasks ~= opts.total_count then
+			count_line = string.format("Showing %d of %d tasks", #visible_tasks, opts.total_count)
+		else
+			count_line = string.format("Showing %d tasks", #visible_tasks)
+		end
+		table.insert(lines, count_line)
+	end
+
+	local display_lines, index_map = render_task_lines(visible_tasks, opts)
+	if #display_lines == 0 then
+		table.insert(lines, "_No tasks found._")
+	else
+		for _, line in ipairs(display_lines) do
+			table.insert(lines, line)
+		end
+	end
+
+	return lines, index_map, max_index(index_map, opts.start_index - 1) + 1
+end
+
 function M.render_tasks_to_buffer(buf, tasks, opts)
 	opts = vim.tbl_extend("force", opts or {}, {})
 	tasks = tasks or {}
@@ -421,7 +472,7 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 
 	local display_lines = {}
 	local index_map = {} -- Map display indices to original tasks
-	local current_index = 1
+	local current_index = tonumber(opts.start_index or opts.startIndex) or 1
 
 	-- For hierarchical headings, we need to track which headings we've already displayed
 	local displayed_headings = {}
