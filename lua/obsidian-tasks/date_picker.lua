@@ -466,6 +466,11 @@ end
 function M.set_date_at_cursor(field, value, opts)
 	opts = opts or {}
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
+	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	local row = opts.row or vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
 	local updated, err = M.set_date_in_line(line, field, value)
@@ -484,6 +489,11 @@ function M.pick_at_cursor(opts)
 	opts = opts or {}
 	local field = normalize_field(opts.field or "due")
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
+	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	local row = opts.row or vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
 	M.pick({

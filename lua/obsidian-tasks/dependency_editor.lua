@@ -316,6 +316,11 @@ end
 function M.add_dependency_at_cursor(opts)
 	opts = opts or {}
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
+	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	local current = opts.task or M.current_task_at_cursor(buf)
 	if not current then
 		vim.notify("Cursor is not on a task", vim.log.levels.ERROR)

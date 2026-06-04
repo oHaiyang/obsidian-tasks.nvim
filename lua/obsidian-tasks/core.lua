@@ -87,6 +87,13 @@ local function notify_board_actions_unavailable()
 	return false
 end
 
+function M.reject_board_action(buf)
+	if is_board_buffer(buf) or is_board_buffer(vim.api.nvim_get_current_buf()) then
+		return notify_board_actions_unavailable()
+	end
+	return nil
+end
+
 local function refresh_board_after_mutation(buf)
 	local ok, board = pcall(require, "obsidian-tasks.board")
 	if ok and board.is_board_buffer(buf) then

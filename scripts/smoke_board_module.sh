@@ -148,10 +148,43 @@ end
 assert(alpha_row, rendered)
 vim.api.nvim_win_set_cursor(0, { alpha_row, 0 })
 
+local function assert_board_unchanged(label)
+  assert(file_text(tasks_path) == source_before, label .. " mutated source file")
+  assert(text(buf) == rendered, label .. " mutated board buffer")
+  assert(vim.bo[buf].readonly == true, label .. " changed board readonly")
+  assert(vim.bo[buf].modifiable == false, label .. " changed board modifiable")
+  assert(vim.api.nvim_get_current_buf() == buf, label .. " changed current buffer")
+end
+
 assert(tasks.toggle_task_at_cursor() == false, "toggle_task_at_cursor should reject board buffers")
 assert(tasks.change_task_status_at_cursor("x") == false, "change_task_status_at_cursor should reject board buffers")
 assert(tasks.postpone_task_at_cursor("+1 day") == false, "postpone_task_at_cursor should reject board buffers")
 assert(core.save_tasks_changes(buf, { index_map[1], index_map[2] }) == false, "save_tasks_changes should reject board buffers")
+assert(require("obsidian-tasks.edit").edit_current_task() == false, "edit.edit_current_task should reject board buffers")
+assert(require("obsidian-tasks").edit_current_task() == false, "public edit_current_task should reject board buffers")
+assert(require("obsidian-tasks.edit").create_task({ file_path = tasks_path }) == false, "edit.create_task should reject board buffers")
+assert(require("obsidian-tasks").create_task({ file_path = tasks_path }) == false, "public create_task should reject board buffers")
+assert(
+  require("obsidian-tasks.dependency_editor").add_dependency_at_cursor({}) == false,
+  "dependency_editor.add_dependency_at_cursor should reject board buffers"
+)
+assert(
+  require("obsidian-tasks").add_dependency_at_cursor({}) == false,
+  "public add_dependency_at_cursor should reject board buffers"
+)
+assert(
+  require("obsidian-tasks.date_picker").set_date_at_cursor("due", "2026-06-05", {}) == false,
+  "date_picker.set_date_at_cursor should reject board buffers"
+)
+assert(
+  require("obsidian-tasks.date_picker").pick_at_cursor({}) == false,
+  "date_picker.pick_at_cursor should reject board buffers"
+)
+assert(
+  require("obsidian-tasks").pick_date_at_cursor({}) == false,
+  "public pick_date_at_cursor should reject board buffers"
+)
+assert_board_unchanged("direct public board mutation guards")
 local non_board_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(non_board_buf, 0, -1, false, { "1. [ ] #task Alpha [[" .. tasks_path .. "#L2]]" })
 core.task_index_map[non_board_buf] = { [1] = index_map[1] }

@@ -615,6 +615,11 @@ end
 
 function M.edit_current_task()
 	local buf = vim.api.nvim_get_current_buf()
+	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 	local task = task_model.parse_line({
@@ -663,6 +668,11 @@ end
 function M.create_task(opts)
 	opts = opts or {}
 	local buf = vim.api.nvim_get_current_buf()
+	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local file_path = opts.file_path or vim.api.nvim_buf_get_name(buf)
 	local source_buf = buf

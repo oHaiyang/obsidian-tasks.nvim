@@ -6,10 +6,6 @@ local function get_config()
 	return require("obsidian-tasks").config or {}
 end
 
-local function trim(value)
-	return (value or ""):match("^%s*(.-)%s*$")
-end
-
 local function realpath(path)
 	if not path or path == "" then
 		return path
@@ -499,9 +495,22 @@ local function section_at_row(state, row)
 	return nil
 end
 
+local function navigation_buffer(opts)
+	local current = vim.api.nvim_get_current_buf()
+	local requested = opts and (opts.buffer or opts.buf)
+	if requested and requested ~= 0 and requested ~= current then
+		vim.notify("obsidian-tasks.nvim: board navigation requires the target board to be the current buffer", vim.log.levels.WARN)
+		return nil
+	end
+	return current
+end
+
 function M.go_to_query_source(opts)
 	opts = opts or {}
-	local buf = opts.buffer or opts.buf or vim.api.nvim_get_current_buf()
+	local buf = navigation_buffer(opts)
+	if not buf then
+		return false
+	end
 	local state = state_for(buf)
 	if not state then
 		vim.notify("obsidian-tasks.nvim: current buffer is not a board", vim.log.levels.WARN)
@@ -525,7 +534,10 @@ end
 
 function M.go_to_task_source(opts)
 	opts = opts or {}
-	local buf = opts.buffer or opts.buf or vim.api.nvim_get_current_buf()
+	local buf = navigation_buffer(opts)
+	if not buf then
+		return false
+	end
 	local task = task_at_cursor(buf)
 	if not task then
 		vim.notify("obsidian-tasks.nvim: cursor is not on a rendered task", vim.log.levels.WARN)
