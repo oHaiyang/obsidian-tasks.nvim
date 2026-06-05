@@ -25,6 +25,31 @@ local function get_config()
 	return {}
 end
 
+local function current_board_contains_task(task)
+	if not task then
+		return false
+	end
+	local current_buf = vim.api.nvim_get_current_buf()
+	local ok, board = pcall(require, "obsidian-tasks.board")
+	if not ok or not board.is_board_buffer(current_buf) then
+		return false
+	end
+	local index_map = require("obsidian-tasks.core").task_index_map[current_buf] or {}
+	for _, indexed_task in pairs(index_map) do
+		if indexed_task == task then
+			return true
+		end
+	end
+	return false
+end
+
+local function reject_current_board_task_action(task)
+	if current_board_contains_task(task) then
+		return require("obsidian-tasks.core").reject_current_board_action()
+	end
+	return nil
+end
+
 local function read_file_lines(file_path)
 	local file = io.open(file_path, "r")
 	if not file then
@@ -179,7 +204,7 @@ function M.add_id_to_line(line, id)
 end
 
 function M.ensure_task_id(task, opts)
-	local rejected = require("obsidian-tasks.core").reject_board_action()
+	local rejected = reject_current_board_task_action(task)
 	if rejected ~= nil then
 		return nil, BOARD_ACTIONS_UNAVAILABLE
 	end
@@ -306,7 +331,7 @@ function M.select_dependency(opts, callback)
 end
 
 function M.add_dependency_to_task(task, dependency_id)
-	local rejected = require("obsidian-tasks.core").reject_board_action()
+	local rejected = reject_current_board_task_action(task)
 	if rejected ~= nil then
 		return false, BOARD_ACTIONS_UNAVAILABLE
 	end
@@ -328,7 +353,7 @@ end
 function M.add_dependency_at_cursor(opts)
 	opts = opts or {}
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	local rejected = require("obsidian-tasks.core").reject_board_buffer_action(buf)
 	if rejected ~= nil then
 		return rejected
 	end

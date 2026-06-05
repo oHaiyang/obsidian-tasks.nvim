@@ -87,11 +87,22 @@ local function notify_board_actions_unavailable()
 	return false
 end
 
-function M.reject_board_action(buf)
-	if is_board_buffer(buf) or is_board_buffer(vim.api.nvim_get_current_buf()) then
+function M.reject_current_board_action()
+	if is_board_buffer(vim.api.nvim_get_current_buf()) then
 		return notify_board_actions_unavailable()
 	end
 	return nil
+end
+
+function M.reject_board_buffer_action(buf)
+	if buf and is_board_buffer(buf) then
+		return notify_board_actions_unavailable()
+	end
+	return nil
+end
+
+function M.reject_board_action()
+	return M.reject_current_board_action()
 end
 
 local function refresh_board_after_mutation(buf)
@@ -125,8 +136,9 @@ end
 ---@param tasks ObsidianTask[] # Tasks to save
 ---@return boolean success # Whether the save was successful
 function M.save_tasks_changes(buf, tasks)
-	if is_board_buffer(buf) or is_board_buffer(vim.api.nvim_get_current_buf()) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_board_buffer_action(buf)
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local current_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
@@ -147,7 +159,7 @@ function M.save_tasks_changes(buf, tasks)
 				-- Check if there are changes
 				if original_task.status ~= parsed.status then
 					-- Apply changes
-					if M.apply_task_changes(original_task, parsed) then
+					if M.apply_task_changes_to_source(original_task, parsed) then
 						updated_count = updated_count + 1
 					else
 						failed_count = failed_count + 1
@@ -166,10 +178,15 @@ end
 ---@param updated_task ObsidianTask # Updated task from display
 ---@return boolean success # Whether the changes were applied successfully
 function M.apply_task_changes(original_task, updated_task)
-	if is_board_buffer(vim.api.nvim_get_current_buf()) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_current_board_action()
+	if rejected ~= nil then
+		return rejected
 	end
 
+	return M.apply_task_changes_to_source(original_task, updated_task)
+end
+
+function M.apply_task_changes_to_source(original_task, updated_task)
 	-- Read file content
 	---@type string[]
 	local lines = {}
@@ -266,8 +283,9 @@ local function write_file_lines(file_path, lines)
 end
 
 function M.apply_postpone_changes(original_task, expr)
-	if is_board_buffer(vim.api.nvim_get_current_buf()) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_current_board_action()
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local file_path = original_task.file_path
@@ -326,8 +344,9 @@ end
 ---@return boolean success # Whether the toggle was successful
 function M.toggle_task_at_cursor()
 	local buf = vim.api.nvim_get_current_buf()
-	if is_board_buffer(buf) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_current_board_action()
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local row = vim.api.nvim_win_get_cursor(0)[1]
@@ -360,8 +379,9 @@ end
 
 function M.change_task_status_at_cursor(status)
 	local buf = vim.api.nvim_get_current_buf()
-	if is_board_buffer(buf) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_current_board_action()
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local next_symbol = status_model.resolve_symbol(status, get_config())
@@ -392,8 +412,9 @@ end
 
 function M.postpone_task_at_cursor(expr)
 	local buf = vim.api.nvim_get_current_buf()
-	if is_board_buffer(buf) then
-		return notify_board_actions_unavailable()
+	local rejected = M.reject_current_board_action()
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local row = vim.api.nvim_win_get_cursor(0)[1]

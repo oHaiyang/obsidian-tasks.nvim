@@ -576,16 +576,16 @@ local function save_to_file(state, line)
 end
 
 function M.save_form(buf)
-	local rejected = require("obsidian-tasks.core").reject_board_action()
-	if rejected ~= nil then
-		return rejected
-	end
-
 	buf = buf or vim.api.nvim_get_current_buf()
 	local state = M.form_state[buf]
 	if not state then
 		vim.notify("No task form state for this buffer", vim.log.levels.ERROR)
 		return false
+	end
+
+	local rejected = require("obsidian-tasks.core").reject_board_buffer_action(state.source_buf)
+	if rejected ~= nil then
+		return rejected
 	end
 
 	local fields = parse_form_lines(vim.api.nvim_buf_get_lines(buf, 0, -1, false))
@@ -620,7 +620,7 @@ end
 
 function M.edit_current_task()
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	local rejected = require("obsidian-tasks.core").reject_current_board_action()
 	if rejected ~= nil then
 		return rejected
 	end
@@ -673,7 +673,7 @@ end
 function M.create_task(opts)
 	opts = opts or {}
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	local rejected = require("obsidian-tasks.core").reject_current_board_action()
 	if rejected ~= nil then
 		return rejected
 	end

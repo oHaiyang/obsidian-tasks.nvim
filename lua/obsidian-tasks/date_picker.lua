@@ -466,7 +466,7 @@ end
 function M.set_date_at_cursor(field, value, opts)
 	opts = opts or {}
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	local rejected = require("obsidian-tasks.core").reject_board_buffer_action(buf)
 	if rejected ~= nil then
 		return rejected
 	end
@@ -489,7 +489,7 @@ function M.pick_at_cursor(opts)
 	opts = opts or {}
 	local field = normalize_field(opts.field or "due")
 	local buf = opts.buf or opts.buffer or vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_board_action(buf)
+	local rejected = require("obsidian-tasks.core").reject_board_buffer_action(buf)
 	if rejected ~= nil then
 		return rejected
 	end

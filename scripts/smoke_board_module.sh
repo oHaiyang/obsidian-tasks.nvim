@@ -218,21 +218,59 @@ edit.form_state[form_buf] = {
   line_number = 2,
   indentation = "",
   list_marker = "-",
+  source_buf = buf,
 }
-assert(board.is_board_buffer(form_buf) == false, "form save regression fixture must use a non-board form buffer")
+assert(board.is_board_buffer(form_buf) == false, "board form save regression fixture must use a non-board form buffer")
 assert(vim.api.nvim_get_current_buf() == buf, "form save regression fixture must remain focused in the board buffer")
-assert(edit.save_form(form_buf) == false, "edit.save_form should reject when focused in a board buffer")
+assert(edit.save_form(form_buf) == false, "edit.save_form should reject when source buffer is a board")
 assert(vim.api.nvim_buf_is_valid(form_buf), "rejected save_form should leave form buffer valid")
+
+local normal_source_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_name(normal_source_buf, root .. "/Projects/FormSource.md")
+vim.api.nvim_buf_set_lines(normal_source_buf, 0, -1, false, { "- [ ] #task Form source" })
+local normal_form_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(normal_form_buf, 0, -1, false, {
+  "description: Form source #task",
+  "status: Todo",
+  "priority:",
+  "created:",
+  "start:",
+  "scheduled:",
+  "due:",
+  "done:",
+  "cancelled:",
+  "recurrence:",
+  "id:",
+  "depends_on:",
+  "on_completion:",
+})
+edit.form_state[normal_form_buf] = {
+  mode = "edit",
+  file_path = vim.api.nvim_buf_get_name(normal_source_buf),
+  line_number = 1,
+  indentation = "",
+  list_marker = "-",
+  source_buf = normal_source_buf,
+}
+assert(board.is_board_buffer(normal_source_buf) == false, "normal form source must be non-board")
+assert(vim.api.nvim_get_current_buf() == buf, "normal form save fixture must remain focused in the board buffer")
+assert(edit.save_form(normal_form_buf) == true, "edit.save_form should allow explicit non-board source buffers")
+assert(not vim.api.nvim_buf_is_valid(normal_form_buf), "successful save_form should close normal form buffer")
 assert_board_unchanged("direct public board mutation guards")
+
 local non_board_buf = vim.api.nvim_create_buf(false, true)
-vim.api.nvim_buf_set_lines(non_board_buf, 0, -1, false, { "1. [ ] #task Alpha [[" .. tasks_path .. "#L2]]" })
-core.task_index_map[non_board_buf] = { [1] = index_map[1] }
+vim.api.nvim_buf_set_lines(non_board_buf, 0, -1, false, { "- [ ] #task Explicit non-board" })
 assert(board.is_board_buffer(non_board_buf) == false, "regression fixture must use a non-board task buffer")
 assert(vim.api.nvim_get_current_buf() == buf, "regression fixture must remain focused in the board buffer")
 assert(
-  core.save_tasks_changes(non_board_buf, { index_map[1] }) == false,
-  "save_tasks_changes should reject non-board buffers while focused in a board buffer"
+  require("obsidian-tasks.date_picker").set_date_at_cursor("due", "2026-06-05", { buf = non_board_buf, row = 1 }) == true,
+  "date_picker.set_date_at_cursor should allow explicit non-board buffers while focused in a board buffer"
 )
+assert(
+  vim.api.nvim_buf_get_lines(non_board_buf, 0, 1, false)[1]:find("📅 2026%-06%-05") ~= nil,
+  "explicit non-board date update did not apply"
+)
+assert(core.save_tasks_changes(non_board_buf, {}) == true, "save_tasks_changes should allow explicit non-board buffers while focused in a board buffer")
 assert(core.apply_task_changes(index_map[1], vim.tbl_extend("force", index_map[1], { status = "[x]", status_symbol = "x" })) == false, "apply_task_changes should reject board buffers")
 assert(core.apply_postpone_changes(index_map[1], "+1 day") == false, "apply_postpone_changes should reject board buffers")
 assert(file_text(tasks_path) == source_before, "board actions mutated source file")
