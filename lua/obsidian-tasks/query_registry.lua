@@ -10,51 +10,6 @@ local function get_config()
 	return require("obsidian-tasks").config or {}
 end
 
-local function normalize_config_source(id, value)
-	if type(value) == "string" then
-		return {
-			id = id,
-			name = id,
-			query = value,
-			source_type = "config",
-		}
-	elseif type(value) == "table" then
-		return {
-			id = value.id or id,
-			name = value.name or value.id or id,
-			query = value.query or value.text or "",
-			source_type = value.source_type or "config",
-			source_path = value.source_path,
-			source_line = value.source_line,
-			end_line = value.end_line,
-		}
-	end
-	return nil
-end
-
-local function config_sources()
-	local queries = get_config().queries or {}
-	local sources = {}
-
-	if #queries > 0 then
-		for index, item in ipairs(queries) do
-			local source = normalize_config_source(item.id or item.name or tostring(index), item)
-			if source and source.query ~= "" then
-				table.insert(sources, source)
-			end
-		end
-	else
-		for id, value in pairs(queries) do
-			local source = normalize_config_source(id, value)
-			if source and source.query ~= "" then
-				table.insert(sources, source)
-			end
-		end
-	end
-
-	return sources
-end
-
 local function source_path_label(source)
 	if source.source_path and source.source_line then
 		local filename = source.source_path:match("([^/]+)$") or source.source_path
@@ -132,10 +87,6 @@ function M.get_sources(opts)
 	opts = opts or {}
 	local sources = {}
 
-	for _, source in ipairs(config_sources()) do
-		table.insert(sources, decorate(source))
-	end
-
 	for _, source in ipairs(block_sources(opts)) do
 		table.insert(sources, decorate(source))
 	end
@@ -147,7 +98,6 @@ function M.get_sources(opts)
 	table.sort(sources, function(left, right)
 		if left.source_type ~= right.source_type then
 			local order = {
-				config = 1,
 				block = 2,
 				recent = 3,
 			}

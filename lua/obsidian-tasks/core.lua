@@ -83,7 +83,7 @@ local function is_board_buffer(buf)
 end
 
 local function notify_board_actions_unavailable()
-	vim.notify("obsidian-tasks.nvim: board task actions are not wired yet", vim.log.levels.WARN)
+	vim.notify("obsidian-tasks.nvim: board task action is not supported here", vim.log.levels.WARN)
 	return false
 end
 
@@ -216,21 +216,18 @@ end
 ---@param original_task ObsidianTask # Original task from file
 ---@param updated_task ObsidianTask # Updated task from display
 ---@return boolean success # Whether the changes were applied successfully
+local apply_task_changes_to_source
+
 function M.apply_task_changes(original_task, updated_task)
 	local rejected = reject_board_task_objects(original_task, updated_task)
 	if rejected ~= nil then
 		return rejected
 	end
 
-	return M.apply_task_changes_to_source(original_task, updated_task)
+	return apply_task_changes_to_source(original_task, updated_task)
 end
 
-function M.apply_task_changes_to_source(original_task, updated_task)
-	local rejected = reject_board_task_objects(original_task, updated_task)
-	if rejected ~= nil then
-		return rejected
-	end
-
+apply_task_changes_to_source = function(original_task, updated_task)
 	-- Read file content
 	---@type string[]
 	local lines = {}
@@ -272,6 +269,15 @@ function M.apply_task_changes_to_source(original_task, updated_task)
 	return true
 end
 
+function M.apply_task_changes_to_source(original_task, updated_task)
+	local rejected = reject_board_task_objects(original_task, updated_task)
+	if rejected ~= nil then
+		return rejected
+	end
+
+	return apply_task_changes_to_source(original_task, updated_task)
+end
+
 local function update_display_status_line(buf, row, parsed, next_symbol)
 	parsed.status_symbol = status_model.normalize_symbol(next_symbol)
 	parsed.status = status_model.status_text(parsed.status_symbol)
@@ -283,6 +289,24 @@ local function update_display_status_line(buf, row, parsed, next_symbol)
 	vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { updated })
 	vim.api.nvim_set_option_value("modified", true, { buf = buf })
 	return true
+end
+
+local function apply_display_status_to_source(buf, parsed, next_symbol)
+	local index_map = M.task_index_map[buf] or {}
+	local original_task = parsed.index and index_map[parsed.index] or nil
+	if not original_task then
+		vim.notify("No source task for display line", vim.log.levels.ERROR)
+		return false
+	end
+	local normalized = status_model.normalize_symbol(next_symbol)
+	local ok = apply_task_changes_to_source(original_task, {
+		status_symbol = normalized,
+		status = status_model.status_text(normalized),
+	})
+	if ok then
+		refresh_board_after_mutation(buf)
+	end
+	return ok
 end
 
 local function apply_status_change_to_source_buffer(buf, row, next_symbol)
@@ -326,12 +350,7 @@ local function write_file_lines(file_path, lines)
 	return true
 end
 
-function M.apply_postpone_changes(original_task, expr)
-	local rejected = reject_board_task_object(original_task)
-	if rejected ~= nil then
-		return rejected
-	end
-
+local function apply_postpone_changes_to_source(original_task, expr)
 	local file_path = original_task.file_path
 	local line_number = original_task.line_number
 	local lines, read_err = read_file_lines(file_path)
@@ -358,6 +377,15 @@ function M.apply_postpone_changes(original_task, expr)
 
 	vim.notify(string.format("Postponed %s date to %s", field, target), vim.log.levels.INFO)
 	return true
+end
+
+function M.apply_postpone_changes(original_task, expr)
+	local rejected = reject_board_task_object(original_task)
+	if rejected ~= nil then
+		return rejected
+	end
+
+	return apply_postpone_changes_to_source(original_task, expr)
 end
 
 -- Add this new function to save current buffer's tasks
@@ -388,11 +416,7 @@ end
 ---@return boolean success # Whether the toggle was successful
 function M.toggle_task_at_cursor()
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = M.reject_current_board_action()
-	if rejected ~= nil then
-		return rejected
-	end
-
+	local board_buf = is_board_buffer(buf)
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 
@@ -405,7 +429,15 @@ function M.toggle_task_at_cursor()
 	local parsed = parser.parse_display_line(line)
 	if parsed then
 		local next_symbol = status_model.next_symbol(parsed.status_symbol, get_config())
+		if board_buf then
+			return apply_display_status_to_source(buf, parsed, next_symbol)
+		end
 		return update_display_status_line(buf, row, parsed, next_symbol)
+	end
+
+	if board_buf then
+		vim.notify("Cursor is not on a rendered task", vim.log.levels.WARN)
+		return false
 	end
 
 	local source_task = task_model.parse_line({
@@ -423,11 +455,7 @@ end
 
 function M.change_task_status_at_cursor(status)
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = M.reject_current_board_action()
-	if rejected ~= nil then
-		return rejected
-	end
-
+	local board_buf = is_board_buffer(buf)
 	local next_symbol = status_model.resolve_symbol(status, get_config())
 	if not next_symbol then
 		vim.notify("Unknown task status: " .. tostring(status), vim.log.levels.ERROR)
@@ -439,7 +467,15 @@ function M.change_task_status_at_cursor(status)
 
 	local parsed = parser.parse_display_line(line)
 	if parsed then
+		if board_buf then
+			return apply_display_status_to_source(buf, parsed, next_symbol)
+		end
 		return update_display_status_line(buf, row, parsed, next_symbol)
+	end
+
+	if board_buf then
+		vim.notify("Cursor is not on a rendered task", vim.log.levels.WARN)
+		return false
 	end
 
 	local source_task = task_model.parse_line({
@@ -456,11 +492,7 @@ end
 
 function M.postpone_task_at_cursor(expr)
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = M.reject_current_board_action()
-	if rejected ~= nil then
-		return rejected
-	end
-
+	local board_buf = is_board_buffer(buf)
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
 
@@ -472,10 +504,22 @@ function M.postpone_task_at_cursor(expr)
 			vim.notify("No source task for display line", vim.log.levels.ERROR)
 			return false
 		end
+		if board_buf then
+			if apply_postpone_changes_to_source(original_task, expr) then
+				refresh_board_after_mutation(buf)
+				return true
+			end
+			return false
+		end
 		if M.apply_postpone_changes(original_task, expr) then
 			require("obsidian-tasks.display").refresh_tasks_view()
 			return true
 		end
+		return false
+	end
+
+	if board_buf then
+		vim.notify("Cursor is not on a rendered task", vim.log.levels.WARN)
 		return false
 	end
 

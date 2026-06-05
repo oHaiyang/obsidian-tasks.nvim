@@ -74,6 +74,15 @@ local function assert_not_contains(haystack, needle)
   assert(not haystack:find(needle, 1, true), haystack .. "\nunexpected: " .. needle)
 end
 
+local function find_row(buf, needle)
+  for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+    if line:find(needle, 1, true) then
+      return row
+    end
+  end
+  return nil
+end
+
 vim.cmd("ObsidianTasks " .. vim.fn.fnameescape(board))
 local buf = vim.api.nvim_get_current_buf()
 assert(vim.api.nvim_buf_get_name(buf):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(buf))
@@ -100,13 +109,7 @@ assert_contains(rendered, "## Broken Query")
 assert_contains(rendered, "Query errors:")
 assert_contains(rendered, "Unsupported query instruction")
 
-local alpha_row
-for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
-  if line:find("Alpha", 1, true) then
-    alpha_row = row
-    break
-  end
-end
+local alpha_row = find_row(buf, "Alpha")
 assert(alpha_row, rendered)
 vim.api.nvim_win_set_cursor(0, { alpha_row, 0 })
 assert(tasks.toggle_task_at_cursor())
@@ -121,6 +124,22 @@ assert(vim.bo[refreshed_buf].modifiable == false, "board buffer lost nonmodifiab
 local after_toggle_text = text()
 assert_not_contains(after_toggle_text, "Alpha")
 assert_contains(after_toggle_text, "Beta")
+
+local beta_row = find_row(refreshed_buf, "Beta")
+assert(beta_row, after_toggle_text)
+vim.api.nvim_win_set_cursor(0, { beta_row, 0 })
+assert(tasks.postpone_task_at_cursor("2026-06-07"))
+
+local source_after_postpone = table.concat(vim.fn.readfile(tasks_file), "\n")
+assert_contains(source_after_postpone, "- [ ] #task Beta 📅 2026-06-07")
+local after_postpone_buf = vim.api.nvim_get_current_buf()
+assert(vim.api.nvim_buf_get_name(after_postpone_buf):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(after_postpone_buf))
+assert(vim.b[after_postpone_buf].obsidian_tasks_board == true, "postponed board marker missing")
+assert(vim.bo[after_postpone_buf].readonly == true, "board buffer lost readonly after postpone")
+assert(vim.bo[after_postpone_buf].modifiable == false, "board buffer lost nonmodifiable after postpone")
+local after_postpone_text = text()
+assert_contains(after_postpone_text, "Beta")
+assert_contains(after_postpone_text, "2026-06-07")
 
 local current_board = root .. "/Projects/Current.md"
 vim.fn.writefile({

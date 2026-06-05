@@ -27,6 +27,7 @@ vim.fn.writefile({
   "# Board",
   "",
   "Intro paragraph stays markdown.",
+  "- [ ] Plain markdown task stays readonly.",
   "",
   "```lua",
   "print('keep me')",
@@ -81,6 +82,8 @@ tasks.setup({
   vault_path = root,
   global_filter = "#task",
   cache = { enabled = false },
+  queries = { legacy = "not done" },
+  default_query = "legacy",
 })
 
 local board = require("obsidian-tasks.board")
@@ -106,11 +109,38 @@ local function file_text(path)
   return table.concat(vim.fn.readfile(path), "\n")
 end
 
+local function find_row(buf, needle)
+  for row, line in ipairs(lines(buf)) do
+    if line:find(needle, 1, true) then
+      return row
+    end
+  end
+  return nil
+end
+
+local function set_field_line(buf, key, value)
+  for row, line in ipairs(lines(buf)) do
+    if line:match("^" .. key .. ":") then
+      vim.api.nvim_buf_set_lines(buf, row - 1, row, false, { key .. ": " .. value })
+      return true
+    end
+  end
+  return false
+end
+
 local source_before = file_text(tasks_path)
+local board_source_before = file_text(board_path)
 local buf = board.open_path(board_path)
 assert(buf and vim.api.nvim_buf_is_valid(buf), "board.open_path did not open a buffer")
 assert(vim.api.nvim_get_current_buf() == buf, "opened board is not current")
 assert(board.is_board_buffer(buf) == true, "board.is_board_buffer(buf) must be true")
+
+local before_legacy_open_query = vim.api.nvim_get_current_buf()
+assert(tasks.open_query("legacy") == nil, "open_query should not open Lua-config named queries")
+assert(vim.api.nvim_get_current_buf() == before_legacy_open_query, "open_query changed current buffer for a Lua-config named query")
+for _, source in ipairs(require("obsidian-tasks.query_registry").get_sources({ refresh = true })) do
+  assert(source.source_type ~= "config", "query_registry should ignore Lua-config queries: " .. vim.inspect(source))
+end
 
 local name = vim.api.nvim_buf_get_name(buf)
 assert(name:sub(1, #"obsidian-tasks://board/") == "obsidian-tasks://board/", name)
@@ -121,6 +151,7 @@ assert(vim.bo[buf].modifiable == false, "board buffer must be nonmodifiable")
 local rendered = text(buf)
 assert_contains(rendered, "# Board")
 assert_contains(rendered, "Intro paragraph stays markdown.")
+assert_contains(rendered, "- [ ] Plain markdown task stays readonly.")
 assert_contains(rendered, "Middle paragraph stays markdown.")
 assert_contains(rendered, "Closing paragraph stays markdown.")
 assert_contains(rendered, "```lua")
@@ -140,13 +171,7 @@ assert(type(index_map) == "table", "board task index map missing")
 assert(index_map[1] and index_map[1].description:find("Alpha", 1, true), vim.inspect(index_map))
 assert(index_map[2] and index_map[2].description:find("Beta", 1, true), vim.inspect(index_map))
 
-local alpha_row
-for row, line in ipairs(lines(buf)) do
-  if line:find("Alpha", 1, true) then
-    alpha_row = row
-    break
-  end
-end
+local alpha_row = find_row(buf, "Alpha")
 assert(alpha_row, rendered)
 vim.api.nvim_win_set_cursor(0, { alpha_row, 0 })
 
@@ -161,20 +186,15 @@ end
 local dependency_editor = require("obsidian-tasks.dependency_editor")
 local ensured_id, ensure_err = dependency_editor.ensure_task_id(index_map[1], { id = "board-guard-smoke-id" })
 assert(ensured_id == nil, "dependency_editor.ensure_task_id should reject board buffers")
-assert(ensure_err == "board task actions are not wired yet", "unexpected ensure_task_id error: " .. tostring(ensure_err))
+assert(ensure_err == "board task action is not supported here", "unexpected ensure_task_id error: " .. tostring(ensure_err))
 assert_board_unchanged("dependency_editor.ensure_task_id")
 
 local added_dependency, add_err = dependency_editor.add_dependency_to_task(index_map[1], "board-guard-dependency")
 assert(added_dependency == false, "dependency_editor.add_dependency_to_task should reject board buffers")
-assert(add_err == "board task actions are not wired yet", "unexpected add_dependency_to_task error: " .. tostring(add_err))
+assert(add_err == "board task action is not supported here", "unexpected add_dependency_to_task error: " .. tostring(add_err))
 assert_board_unchanged("dependency_editor.add_dependency_to_task")
 
-assert(tasks.toggle_task_at_cursor() == false, "toggle_task_at_cursor should reject board buffers")
-assert(tasks.change_task_status_at_cursor("x") == false, "change_task_status_at_cursor should reject board buffers")
-assert(tasks.postpone_task_at_cursor("+1 day") == false, "postpone_task_at_cursor should reject board buffers")
 assert(core.save_tasks_changes(buf, { index_map[1], index_map[2] }) == false, "save_tasks_changes should reject board buffers")
-assert(require("obsidian-tasks.edit").edit_current_task() == false, "edit.edit_current_task should reject board buffers")
-assert(require("obsidian-tasks").edit_current_task() == false, "public edit_current_task should reject board buffers")
 assert(require("obsidian-tasks.edit").create_task({ file_path = tasks_path }) == false, "edit.create_task should reject board buffers")
 assert(require("obsidian-tasks").create_task({ file_path = tasks_path }) == false, "public create_task should reject board buffers")
 assert(
@@ -339,7 +359,7 @@ assert(core.apply_postpone_changes(board_task, "+1 day") == false, "apply_postpo
 assert(file_text(tasks_path) == source_before, "apply_postpone_changes mutated source file")
 local off_board_ensured_id, off_board_ensure_err = dependency_editor.ensure_task_id(board_task, { id = "board-off-focus-guard-smoke-id" })
 assert(off_board_ensured_id == nil, "dependency_editor.ensure_task_id should reject indexed board task objects off board focus")
-assert(off_board_ensure_err == "board task actions are not wired yet", "unexpected off-board ensure_task_id error: " .. tostring(off_board_ensure_err))
+assert(off_board_ensure_err == "board task action is not supported here", "unexpected off-board ensure_task_id error: " .. tostring(off_board_ensure_err))
 assert(file_text(tasks_path) == source_before, "dependency_editor.ensure_task_id off board focus mutated source file")
 vim.api.nvim_set_current_buf(buf)
 assert_board_unchanged("direct board task object mutation guards")
@@ -417,6 +437,55 @@ for _, item in ipairs(select_items) do
 end
 assert(selected_rejected, "picker callback opened symlinked outside-vault markdown file")
 assert(vim.api.nvim_get_current_buf() == buf, "picker symlink rejection changed current buffer")
+
+vim.api.nvim_set_current_buf(buf)
+assert(board.refresh({ buffer = buf }) == true, "board refresh failed before controlled cursor action test")
+local plain_task_row = find_row(buf, "Plain markdown task")
+assert(plain_task_row, text(buf))
+local before_plain_task_action = text(buf)
+vim.api.nvim_win_set_cursor(0, { plain_task_row, 0 })
+assert(tasks.toggle_task_at_cursor() == false, "plain markdown task lines in board files should stay readonly")
+assert(file_text(board_path) == board_source_before, "plain markdown task action mutated board source markdown")
+assert(text(buf) == before_plain_task_action, "plain markdown task action mutated board buffer")
+
+local controlled_alpha_row = find_row(buf, "Alpha")
+assert(controlled_alpha_row, text(buf))
+vim.api.nvim_win_set_cursor(0, { controlled_alpha_row, 0 })
+assert(tasks.toggle_task_at_cursor() == true, "toggle_task_at_cursor should write through board task actions")
+assert(file_text(tasks_path):find("%- %[x%] #task Alpha") ~= nil, "board toggle did not update source file")
+assert(vim.api.nvim_get_current_buf() == buf, "board toggle changed current buffer")
+assert(vim.bo[buf].readonly == true, "board toggle changed board readonly")
+assert(vim.bo[buf].modifiable == false, "board toggle changed board modifiable")
+local after_toggle = text(buf)
+assert_not_contains(after_toggle, "#task Alpha")
+assert_contains(after_toggle, "#task Beta")
+
+local edit_module = require("obsidian-tasks.edit")
+local beta_row = find_row(buf, "Beta")
+assert(beta_row, after_toggle)
+vim.api.nvim_win_set_cursor(0, { beta_row, 0 })
+local board_edit_form_buf = edit_module.edit_current_task()
+assert(board_edit_form_buf and vim.api.nvim_buf_is_valid(board_edit_form_buf), "edit_current_task should open a form from board task rows")
+assert(vim.api.nvim_get_current_buf() == board_edit_form_buf, "board edit form should become current")
+assert(set_field_line(board_edit_form_buf, "description", "#task Beta Edited"), "board edit form description field missing")
+assert(edit_module.save_form(board_edit_form_buf) == true, "save_form should save board-origin edit forms")
+assert(not vim.api.nvim_buf_is_valid(board_edit_form_buf), "successful board-origin save_form should close the form buffer")
+assert(file_text(tasks_path):find("%- %[ %] #task Beta Edited") ~= nil, "board edit form did not update source file")
+assert(vim.bo[buf].readonly == true, "board edit changed board readonly")
+assert(vim.bo[buf].modifiable == false, "board edit changed board modifiable")
+local after_edit = text(buf)
+assert_contains(after_edit, "#task Beta Edited")
+assert_not_contains(after_edit, "#task Beta\n")
+
+vim.api.nvim_set_current_buf(buf)
+local beta_edited_row = find_row(buf, "Beta Edited")
+assert(beta_edited_row, text(buf))
+vim.api.nvim_win_set_cursor(0, { beta_edited_row, 0 })
+assert(tasks.change_task_status_at_cursor("x") == true, "change_task_status_at_cursor should write through board task actions")
+assert(file_text(tasks_path):find("%- %[x%] #task Beta Edited") ~= nil, "board status change did not update source file")
+assert_not_contains(text(buf), "#task Beta Edited")
+assert(vim.bo[buf].readonly == true, "board status change changed board readonly")
+assert(vim.bo[buf].modifiable == false, "board status change changed board modifiable")
 
 print("PASS smoke_board_module")
 LUA

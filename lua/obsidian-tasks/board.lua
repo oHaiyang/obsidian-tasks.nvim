@@ -378,11 +378,6 @@ function M.refresh(opts)
 end
 
 local function setup_keymaps(buf)
-	local function notify_actions_unavailable()
-		vim.notify("obsidian-tasks.nvim: board task actions are not wired yet", vim.log.levels.WARN)
-		return false
-	end
-
 	vim.keymap.set("n", "q", function()
 		pcall(vim.api.nvim_buf_delete, buf, { force = true })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Close tasks board" })
@@ -402,19 +397,31 @@ local function setup_keymaps(buf)
 		M.go_to_task_source({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Go to task source" })
 
-	vim.keymap.set({ "n" }, "<space>", notify_actions_unavailable, {
+	vim.keymap.set({ "n" }, "<space>", require("obsidian-tasks").toggle_task_at_cursor, {
 		buffer = buf,
 		noremap = true,
 		silent = true,
 		desc = "Toggle task status",
 	})
-	vim.keymap.set("n", "s", notify_actions_unavailable, { buffer = buf, noremap = true, silent = true, desc = "Change task status" })
 	vim.keymap.set("n", "p", function()
-		vim.notify("obsidian-tasks.nvim: postponing tasks from board buffers is not available yet", vim.log.levels.WARN)
+		require("obsidian-tasks").postpone_task_at_cursor()
 	end, { buffer = buf, noremap = true, silent = true, desc = "Postpone task" })
 	vim.keymap.set("n", "e", function()
-		vim.notify("obsidian-tasks.nvim: editing tasks from board buffers is not available yet", vim.log.levels.WARN)
+		require("obsidian-tasks").edit_current_task()
 	end, { buffer = buf, noremap = true, silent = true, desc = "Edit task" })
+	vim.keymap.set("n", "s", function()
+		local entries = require("obsidian-tasks.status").registry(require("obsidian-tasks").config or {})
+		vim.ui.select(entries, {
+			prompt = "Task status",
+			format_item = function(entry)
+				return string.format("[%s] %s (%s)", entry.symbol, entry.name, entry.type)
+			end,
+		}, function(entry)
+			if entry then
+				require("obsidian-tasks").change_task_status_at_cursor(entry.symbol)
+			end
+		end)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Change task status" })
 end
 
 local function open_resolved_path(path)

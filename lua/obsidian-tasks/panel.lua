@@ -35,8 +35,7 @@ function M.find_source(name)
 	end
 
 	if not name or name == "" then
-		local config = get_config()
-		name = M.last_query_name or config.default_query
+		name = M.last_query_name
 	end
 
 	if name and name ~= "" then

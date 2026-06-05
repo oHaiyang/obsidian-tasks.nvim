@@ -7,7 +7,7 @@ local source = require("obsidian-tasks.source")
 local task_model = require("obsidian-tasks.task")
 local task_search = require("obsidian-tasks.task_search")
 
-local BOARD_ACTIONS_UNAVAILABLE = "board task actions are not wired yet"
+local BOARD_ACTIONS_UNAVAILABLE = "board task action is not supported here"
 
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")

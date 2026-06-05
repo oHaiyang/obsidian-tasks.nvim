@@ -584,13 +584,18 @@ function M.save_form(buf)
 	end
 
 	local core = require("obsidian-tasks.core")
+	local board = require("obsidian-tasks.board")
+	local returns_to_board = state.return_buf and vim.api.nvim_buf_is_valid(state.return_buf)
+		and board.is_board_buffer(state.return_buf)
 	local rejected = core.reject_board_buffer_action(state.source_buf)
 	if rejected ~= nil then
 		return rejected
 	end
-	rejected = core.reject_board_task_action(state.source_task)
-	if rejected ~= nil then
-		return rejected
+	if not returns_to_board then
+		rejected = core.reject_board_task_action(state.source_task)
+		if rejected ~= nil then
+			return rejected
+		end
 	end
 
 	local fields = parse_form_lines(vim.api.nvim_buf_get_lines(buf, 0, -1, false))
@@ -619,41 +624,24 @@ function M.save_form(buf)
 
 	vim.api.nvim_set_option_value("modified", false, { buf = buf })
 	vim.notify(state.mode == "create" and "Task created" or "Task updated", vim.log.levels.INFO)
+	if state.return_buf and vim.api.nvim_buf_is_valid(state.return_buf) then
+		pcall(require("obsidian-tasks.board").refresh_after_mutation, state.return_buf)
+	end
 	pcall(vim.api.nvim_buf_delete, buf, { force = true })
 	return true
 end
 
 function M.edit_current_task()
 	local buf = vim.api.nvim_get_current_buf()
-	local rejected = require("obsidian-tasks.core").reject_current_board_action()
-	if rejected ~= nil then
-		return rejected
-	end
+	local board = require("obsidian-tasks.board")
+	local editing_board = board.is_board_buffer(buf)
 
 	local row = vim.api.nvim_win_get_cursor(0)[1]
 	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1]
-	local task = task_model.parse_line({
-		line = line,
-		file_path = vim.api.nvim_buf_get_name(buf),
-		line_number = row,
-		global_filter = "",
-	})
+	local task
 	local state
 
-	if task then
-		state = {
-			mode = "edit",
-			source_buf = buf,
-			file_path = vim.api.nvim_buf_get_name(buf),
-			line_number = row,
-			indentation = task.indentation,
-			list_marker = task.list_marker,
-			source_task = task,
-			today = get_config().today,
-			vault_path = get_config().vault_path,
-			task_format = task.task_format or task.taskFormat or task_model.task_format(),
-		}
-	else
+	if editing_board then
 		task = current_display_task(buf)
 		if not task then
 			vim.notify("Cursor is not on a task", vim.log.levels.ERROR)
@@ -669,7 +657,47 @@ function M.edit_current_task()
 			today = get_config().today,
 			vault_path = get_config().vault_path,
 			task_format = task.task_format or task.taskFormat or task_model.task_format(),
+			return_buf = buf,
 		}
+	else
+		task = task_model.parse_line({
+			line = line,
+			file_path = vim.api.nvim_buf_get_name(buf),
+			line_number = row,
+			global_filter = "",
+		})
+
+		if task then
+			state = {
+				mode = "edit",
+				source_buf = buf,
+				file_path = vim.api.nvim_buf_get_name(buf),
+				line_number = row,
+				indentation = task.indentation,
+				list_marker = task.list_marker,
+				source_task = task,
+				today = get_config().today,
+				vault_path = get_config().vault_path,
+				task_format = task.task_format or task.taskFormat or task_model.task_format(),
+			}
+		else
+			task = current_display_task(buf)
+			if not task then
+				vim.notify("Cursor is not on a task", vim.log.levels.ERROR)
+				return nil
+			end
+			state = {
+				mode = "edit",
+				file_path = task.file_path,
+				line_number = task.line_number,
+				indentation = task.indentation,
+				list_marker = task.list_marker,
+				source_task = task,
+				today = get_config().today,
+				vault_path = get_config().vault_path,
+				task_format = task.task_format or task.taskFormat or task_model.task_format(),
+			}
+		end
 	end
 
 	return open_form(task_to_fields(task), state)
