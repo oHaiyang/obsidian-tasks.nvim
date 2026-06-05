@@ -195,6 +195,34 @@ assert(
   require("obsidian-tasks").pick_date_at_cursor({}) == false,
   "public pick_date_at_cursor should reject board buffers"
 )
+local edit = require("obsidian-tasks.edit")
+local form_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(form_buf, 0, -1, false, {
+  "description: Board bypass edited #task",
+  "status: Todo",
+  "priority:",
+  "created:",
+  "start:",
+  "scheduled:",
+  "due:",
+  "done:",
+  "cancelled:",
+  "recurrence:",
+  "id:",
+  "depends_on:",
+  "on_completion:",
+})
+edit.form_state[form_buf] = {
+  mode = "edit",
+  file_path = tasks_path,
+  line_number = 2,
+  indentation = "",
+  list_marker = "-",
+}
+assert(board.is_board_buffer(form_buf) == false, "form save regression fixture must use a non-board form buffer")
+assert(vim.api.nvim_get_current_buf() == buf, "form save regression fixture must remain focused in the board buffer")
+assert(edit.save_form(form_buf) == false, "edit.save_form should reject when focused in a board buffer")
+assert(vim.api.nvim_buf_is_valid(form_buf), "rejected save_form should leave form buffer valid")
 assert_board_unchanged("direct public board mutation guards")
 local non_board_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(non_board_buf, 0, -1, false, { "1. [ ] #task Alpha [[" .. tasks_path .. "#L2]]" })

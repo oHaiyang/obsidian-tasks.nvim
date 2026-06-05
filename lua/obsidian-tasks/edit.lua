@@ -576,6 +576,11 @@ local function save_to_file(state, line)
 end
 
 function M.save_form(buf)
+	local rejected = require("obsidian-tasks.core").reject_board_action()
+	if rejected ~= nil then
+		return rejected
+	end
+
 	buf = buf or vim.api.nvim_get_current_buf()
 	local state = M.form_state[buf]
 	if not state then
