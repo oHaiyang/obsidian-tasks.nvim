@@ -19,8 +19,6 @@ function M.setup(config)
 		config.remove_global_filter = config.removeGlobalFilter or false
 	end
 	config.global_query = config.global_query or config.globalQuery or ""
-	config.queries = config.queries or {}
-	config.default_query = config.default_query or config.defaultQuery
 	config.presets = config.presets or config.query_presets or config.queryPresets or {}
 	config.task_format = config.task_format or config.taskFormat or "tasks"
 	if type(config.cache) ~= "table" then
@@ -213,7 +211,7 @@ function M.setup_cmp(opts)
 end
 
 function M.open(opts)
-	return require("obsidian-tasks.panel").open(opts)
+	return require("obsidian-tasks.board").open(opts)
 end
 
 function M.open_query(name, opts)

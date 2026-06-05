@@ -81,23 +81,17 @@ end
 function M.open(opts)
 	opts = opts or {}
 	if type(opts) == "string" then
-		opts = { name = opts }
+		opts = { path = opts }
 	end
-	return M.open_query(opts.name, opts)
+	return require("obsidian-tasks.board").open(opts)
 end
 
 function M.open_query(name, opts)
-	opts = opts or {}
-	local source = M.find_source(name)
-	if not source then
-		if name and name ~= "" then
-			vim.notify("obsidian-tasks.nvim: unknown query: " .. name, vim.log.levels.ERROR)
-		else
-			vim.notify("obsidian-tasks.nvim: no queries configured", vim.log.levels.ERROR)
-		end
-		return
-	end
-	return run_source(source, opts)
+	vim.notify(
+		"obsidian-tasks.nvim: named Lua-config queries are no longer supported. Move this query into a vault ```tasks code block and open the markdown board file.",
+		vim.log.levels.ERROR
+	)
+	return nil
 end
 
 function M.run_query(query_text, opts)
@@ -239,16 +233,14 @@ end
 
 function M.setup_commands()
 	vim.api.nvim_create_user_command("ObsidianTasks", function(command)
-		M.open_query(command.args ~= "" and command.args or nil, {
-			pinned = command.bang,
+		require("obsidian-tasks.board").open({
+			path = command.args ~= "" and command.args or nil,
 		})
 	end, {
 		nargs = "?",
 		bang = true,
 		force = true,
-		complete = function()
-			return M.complete_query_names()
-		end,
+		complete = "file",
 	})
 
 	vim.api.nvim_create_user_command("ObsidianTasksQuery", function(command)
@@ -271,14 +263,13 @@ function M.setup_commands()
 		force = true,
 	})
 
-	vim.api.nvim_create_user_command("ObsidianTasksRefreshQueries", function()
-		M.refresh_queries()
-	end, {
-		force = true,
-	})
-
 	vim.api.nvim_create_user_command("ObsidianTasksRefresh", function()
-		require("obsidian-tasks.display").refresh_tasks_view()
+		local board = require("obsidian-tasks.board")
+		if board.is_board_buffer(0) then
+			board.refresh({ buffer = 0 })
+		else
+			require("obsidian-tasks.display").refresh_tasks_view()
+		end
 	end, {
 		force = true,
 	})

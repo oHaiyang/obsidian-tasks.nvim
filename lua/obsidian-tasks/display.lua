@@ -199,7 +199,6 @@ local function build_header_lines(opts)
 		title,
 		source,
 		"",
-		"o queries  [q previous query  ]q next query  gq query source",
 	}
 	if toolbar_visible(opts) then
 		table.insert(lines, "Toolbar: f filter description  c clear filter  y copy markdown  Y copy with backlinks")
@@ -815,18 +814,6 @@ function M.setup_editable_buffer(buf, tasks, opts)
 	vim.keymap.set({ "n" }, "<c-r>", function()
 		M.refresh_tasks_view({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true })
-
-	vim.keymap.set({ "n" }, "o", function()
-		require("obsidian-tasks.panel").select_query({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Select query" })
-
-	vim.keymap.set({ "n" }, "]q", function()
-		require("obsidian-tasks.panel").next_query({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Next query" })
-
-	vim.keymap.set({ "n" }, "[q", function()
-		require("obsidian-tasks.panel").previous_query({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Previous query" })
 
 	vim.keymap.set({ "n" }, "gq", function()
 		require("obsidian-tasks.panel").go_to_query_source({ buffer = buf })
