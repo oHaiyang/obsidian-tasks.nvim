@@ -105,6 +105,41 @@ function M.reject_board_action()
 	return M.reject_current_board_action()
 end
 
+local function current_board_task_index_contains(task)
+	if not task then
+		return false
+	end
+	local buf = vim.api.nvim_get_current_buf()
+	if not is_board_buffer(buf) then
+		return false
+	end
+	for _, indexed in pairs(M.task_index_map[buf] or {}) do
+		if indexed == task then
+			return true
+		end
+	end
+	return false
+end
+
+local function reject_board_task_object(task)
+	if current_board_task_index_contains(task) then
+		return notify_board_actions_unavailable()
+	end
+	return nil
+end
+
+local function reject_board_task_objects(first, second)
+	local rejected = reject_board_task_object(first)
+	if rejected ~= nil then
+		return rejected
+	end
+	rejected = reject_board_task_object(second)
+	if rejected ~= nil then
+		return rejected
+	end
+	return nil
+end
+
 local function refresh_board_after_mutation(buf)
 	local ok, board = pcall(require, "obsidian-tasks.board")
 	if ok and board.is_board_buffer(buf) then
@@ -178,7 +213,7 @@ end
 ---@param updated_task ObsidianTask # Updated task from display
 ---@return boolean success # Whether the changes were applied successfully
 function M.apply_task_changes(original_task, updated_task)
-	local rejected = M.reject_current_board_action()
+	local rejected = reject_board_task_objects(original_task, updated_task)
 	if rejected ~= nil then
 		return rejected
 	end
@@ -187,6 +222,11 @@ function M.apply_task_changes(original_task, updated_task)
 end
 
 function M.apply_task_changes_to_source(original_task, updated_task)
+	local rejected = reject_board_task_objects(original_task, updated_task)
+	if rejected ~= nil then
+		return rejected
+	end
+
 	-- Read file content
 	---@type string[]
 	local lines = {}
@@ -283,7 +323,7 @@ local function write_file_lines(file_path, lines)
 end
 
 function M.apply_postpone_changes(original_task, expr)
-	local rejected = M.reject_current_board_action()
+	local rejected = reject_board_task_object(original_task)
 	if rejected ~= nil then
 		return rejected
 	end

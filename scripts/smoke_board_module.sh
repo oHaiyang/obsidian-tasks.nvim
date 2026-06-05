@@ -16,6 +16,7 @@ outside = uv.fs_realpath(outside) or outside
 
 local board_path = root .. "/Projects/Board.md"
 local tasks_path = root .. "/Projects/Tasks.md"
+local explicit_task_path = outside .. "/Explicit.md"
 local non_md_path = root .. "/Projects/Board.txt"
 local outside_board_path = outside .. "/Outside.md"
 local symlink_board_path = root .. "/Projects/Symlink.md"
@@ -53,6 +54,7 @@ vim.fn.writefile({
   "- [ ] #task Beta",
   "- [x] #task Done",
 }, tasks_path)
+vim.fn.writefile({ "- [ ] #task Explicit non-board file" }, explicit_task_path)
 
 vim.fn.writefile({ "# Not markdown" }, non_md_path)
 vim.fn.writefile({
@@ -271,11 +273,34 @@ assert(
   "explicit non-board date update did not apply"
 )
 assert(core.save_tasks_changes(non_board_buf, {}) == true, "save_tasks_changes should allow explicit non-board buffers while focused in a board buffer")
-assert(core.apply_task_changes(index_map[1], vim.tbl_extend("force", index_map[1], { status = "[x]", status_symbol = "x" })) == false, "apply_task_changes should reject board buffers")
-assert(core.apply_postpone_changes(index_map[1], "+1 day") == false, "apply_postpone_changes should reject board buffers")
-assert(file_text(tasks_path) == source_before, "board actions mutated source file")
-assert(vim.bo[buf].readonly == true, "board buffer lost readonly")
-assert(vim.bo[buf].modifiable == false, "board buffer lost nonmodifiable")
+local task_model = require("obsidian-tasks.task")
+local non_board_task = task_model.parse_line({
+  line = "- [ ] #task Explicit non-board file",
+  file_path = explicit_task_path,
+  line_number = 1,
+  global_filter = "#task",
+})
+assert(non_board_task, "explicit non-board task fixture did not parse")
+local updated_non_board_task = vim.tbl_extend("force", non_board_task, { status = "[x]", status_symbol = "x" })
+assert(vim.api.nvim_get_current_buf() == buf, "explicit non-board task mutation fixture must remain focused in the board buffer")
+assert(
+  core.apply_task_changes(non_board_task, updated_non_board_task) == true,
+  "apply_task_changes should allow explicit non-board task objects while focused in a board buffer"
+)
+assert(
+  file_text(explicit_task_path):find("%- %[x%] #task Explicit non%-board file") ~= nil,
+  "explicit non-board task object update did not mutate its temp markdown file"
+)
+vim.api.nvim_set_current_buf(buf)
+assert(board.is_board_buffer(vim.api.nvim_get_current_buf()) == true, "board task object guard fixture must focus the board buffer")
+local current_index_map = core.task_index_map[buf]
+local board_task = current_index_map and current_index_map[1]
+assert(board_task, "board task object guard fixture requires current board index map")
+local updated_board_task = vim.tbl_extend("force", board_task, { status = "[x]", status_symbol = "x" })
+assert(core.apply_task_changes(board_task, updated_board_task) == false, "apply_task_changes should reject indexed board task objects")
+assert(core.apply_task_changes_to_source(board_task, updated_board_task) == false, "apply_task_changes_to_source should reject indexed board task objects")
+assert(core.apply_postpone_changes(board_task, "+1 day") == false, "apply_postpone_changes should reject indexed board task objects")
+assert_board_unchanged("direct board task object mutation guards")
 
 local collision_a_buf = board.open_path(collision_a_path)
 local collision_b_buf = board.open_path(collision_b_path)
