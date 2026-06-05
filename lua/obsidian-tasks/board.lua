@@ -165,6 +165,22 @@ local function apply_limit(tasks, limit)
 	return limited
 end
 
+local function copy_task(task)
+	local copy = {}
+	for key, value in pairs(task or {}) do
+		copy[key] = value
+	end
+	return copy
+end
+
+local function copy_tasks(tasks)
+	local copied = {}
+	for _, task in ipairs(tasks or {}) do
+		table.insert(copied, copy_task(task))
+	end
+	return copied
+end
+
 local function execute_source(source, opts)
 	opts = opts or {}
 	local config = get_config()
@@ -215,8 +231,9 @@ local function execute_source(source, opts)
 
 	local total_count = #filtered
 	filtered = apply_limit(filtered, plan.limit)
+	local board_tasks = copy_tasks(filtered)
 
-	return display.format_task_result_section(filtered, {
+	return display.format_task_result_section(board_tasks, {
 		section_title = section_title(source),
 		query_plan = plan,
 		layout = plan.layout,

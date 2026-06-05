@@ -344,6 +344,49 @@ assert(file_text(tasks_path) == source_before, "dependency_editor.ensure_task_id
 vim.api.nvim_set_current_buf(buf)
 assert_board_unchanged("direct board task object mutation guards")
 
+tasks.config.cache.enabled = true
+local cache = require("obsidian-tasks.cache")
+cache.clear()
+local cached_tasks = cache.tasks({
+  vault_path = root,
+  global_filter = "#task",
+  use_cache = true,
+})
+local cached_alpha
+for _, task in ipairs(cached_tasks) do
+  if task.file_path == tasks_path and task.description:find("Alpha", 1, true) then
+    cached_alpha = task
+    break
+  end
+end
+assert(cached_alpha, "cache-enabled regression fixture did not find Alpha task")
+
+local cache_board_buf = board.open_path(board_path)
+local cache_board_index_map = core.task_index_map[cache_board_buf]
+local cache_board_alpha = cache_board_index_map and cache_board_index_map[1]
+assert(cache_board_alpha, "cache-enabled board index map missing Alpha task")
+assert(cached_alpha ~= cache_board_alpha, "board index map reused cache task object identity")
+
+local cache_mutation_before = file_text(tasks_path)
+local updated_cached_alpha = vim.tbl_extend("force", cached_alpha, { status = "[x]", status_symbol = "x" })
+assert(
+  core.apply_task_changes(cached_alpha, updated_cached_alpha) == true,
+  "apply_task_changes should allow cache task objects while a board over the same source exists"
+)
+assert(
+  file_text(tasks_path):find("%- %[x%] #task Alpha") ~= nil,
+  "cache task object update did not mutate its temp markdown file"
+)
+vim.fn.writefile(vim.split(cache_mutation_before, "\n", { plain = true }), tasks_path)
+cache.clear()
+
+local updated_cache_board_alpha = vim.tbl_extend("force", cache_board_alpha, { status = "[x]", status_symbol = "x" })
+assert(core.apply_task_changes(cache_board_alpha, updated_cache_board_alpha) == false, "apply_task_changes should still reject board-owned task objects")
+assert(file_text(tasks_path) == cache_mutation_before, "board-owned cache regression task mutated source file")
+vim.api.nvim_set_current_buf(buf)
+assert_board_unchanged("cache-enabled board task object isolation")
+tasks.config.cache.enabled = false
+
 local collision_a_buf = board.open_path(collision_a_path)
 local collision_b_buf = board.open_path(collision_b_path)
 assert(collision_a_buf ~= collision_b_buf, "colliding board paths reused one buffer")
