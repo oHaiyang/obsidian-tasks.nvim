@@ -105,24 +105,24 @@ function M.reject_board_action()
 	return M.reject_current_board_action()
 end
 
-local function current_board_task_index_contains(task)
+local function board_task_index_contains(task)
 	if not task then
 		return false
 	end
-	local buf = vim.api.nvim_get_current_buf()
-	if not is_board_buffer(buf) then
-		return false
-	end
-	for _, indexed in pairs(M.task_index_map[buf] or {}) do
-		if indexed == task then
-			return true
+	for buf, index_map in pairs(M.task_index_map or {}) do
+		if vim.api.nvim_buf_is_valid(buf) and is_board_buffer(buf) then
+			for _, indexed in pairs(index_map or {}) do
+				if indexed == task then
+					return true
+				end
+			end
 		end
 	end
 	return false
 end
 
 local function reject_board_task_object(task)
-	if current_board_task_index_contains(task) then
+	if board_task_index_contains(task) then
 		return notify_board_actions_unavailable()
 	end
 	return nil

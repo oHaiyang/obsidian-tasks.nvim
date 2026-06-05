@@ -325,14 +325,23 @@ assert(
   "explicit non-board task object update did not mutate its temp markdown file"
 )
 vim.api.nvim_set_current_buf(buf)
-assert(board.is_board_buffer(vim.api.nvim_get_current_buf()) == true, "board task object guard fixture must focus the board buffer")
 local current_index_map = core.task_index_map[buf]
 local board_task = current_index_map and current_index_map[1]
 assert(board_task, "board task object guard fixture requires current board index map")
 local updated_board_task = vim.tbl_extend("force", board_task, { status = "[x]", status_symbol = "x" })
+vim.api.nvim_set_current_buf(non_board_buf)
+assert(board.is_board_buffer(vim.api.nvim_get_current_buf()) == false, "board task object guard fixture must focus a non-board buffer")
 assert(core.apply_task_changes(board_task, updated_board_task) == false, "apply_task_changes should reject indexed board task objects")
+assert(file_text(tasks_path) == source_before, "apply_task_changes mutated source file")
 assert(core.apply_task_changes_to_source(board_task, updated_board_task) == false, "apply_task_changes_to_source should reject indexed board task objects")
+assert(file_text(tasks_path) == source_before, "apply_task_changes_to_source mutated source file")
 assert(core.apply_postpone_changes(board_task, "+1 day") == false, "apply_postpone_changes should reject indexed board task objects")
+assert(file_text(tasks_path) == source_before, "apply_postpone_changes mutated source file")
+local off_board_ensured_id, off_board_ensure_err = dependency_editor.ensure_task_id(board_task, { id = "board-off-focus-guard-smoke-id" })
+assert(off_board_ensured_id == nil, "dependency_editor.ensure_task_id should reject indexed board task objects off board focus")
+assert(off_board_ensure_err == "board task actions are not wired yet", "unexpected off-board ensure_task_id error: " .. tostring(off_board_ensure_err))
+assert(file_text(tasks_path) == source_before, "dependency_editor.ensure_task_id off board focus mutated source file")
+vim.api.nvim_set_current_buf(buf)
 assert_board_unchanged("direct board task object mutation guards")
 
 local collision_a_buf = board.open_path(collision_a_path)
