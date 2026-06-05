@@ -128,6 +128,10 @@ local function reject_board_task_object(task)
 	return nil
 end
 
+function M.reject_board_task_action(task)
+	return reject_board_task_object(task)
+end
+
 local function reject_board_task_objects(first, second)
 	local rejected = reject_board_task_object(first)
 	if rejected ~= nil then

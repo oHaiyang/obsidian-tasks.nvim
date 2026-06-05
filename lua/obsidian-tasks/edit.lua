@@ -583,7 +583,12 @@ function M.save_form(buf)
 		return false
 	end
 
-	local rejected = require("obsidian-tasks.core").reject_board_buffer_action(state.source_buf)
+	local core = require("obsidian-tasks.core")
+	local rejected = core.reject_board_buffer_action(state.source_buf)
+	if rejected ~= nil then
+		return rejected
+	end
+	rejected = core.reject_board_task_action(state.source_task)
 	if rejected ~= nil then
 		return rejected
 	end

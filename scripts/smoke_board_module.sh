@@ -226,6 +226,39 @@ assert(board.is_board_buffer(form_buf) == false, "board form save regression fix
 assert(vim.api.nvim_get_current_buf() == buf, "form save regression fixture must remain focused in the board buffer")
 assert(edit.save_form(form_buf) == false, "edit.save_form should reject when source buffer is a board")
 assert(vim.api.nvim_buf_is_valid(form_buf), "rejected save_form should leave form buffer valid")
+assert_board_unchanged("edit.save_form source_buf board guard")
+
+local source_task_form_buf = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(source_task_form_buf, 0, -1, false, {
+  "description: Board source task bypass edited #task",
+  "status: Todo",
+  "priority:",
+  "created:",
+  "start:",
+  "scheduled:",
+  "due:",
+  "done:",
+  "cancelled:",
+  "recurrence:",
+  "id:",
+  "depends_on:",
+  "on_completion:",
+})
+edit.form_state[source_task_form_buf] = {
+  mode = "edit",
+  file_path = tasks_path,
+  line_number = 2,
+  indentation = "",
+  list_marker = "-",
+  source_buf = nil,
+  source_task = index_map[1],
+}
+assert(board.is_board_buffer(source_task_form_buf) == false, "source task form save regression fixture must use a non-board form buffer")
+vim.api.nvim_set_current_buf(buf)
+assert(vim.api.nvim_get_current_buf() == buf, "source task form save regression fixture must remain focused in the board buffer")
+assert(edit.save_form(source_task_form_buf) == false, "edit.save_form should reject indexed board source task objects")
+assert(vim.api.nvim_buf_is_valid(source_task_form_buf), "rejected source task save_form should leave form buffer valid")
+assert_board_unchanged("edit.save_form source_task board guard")
 
 local normal_source_buf = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_name(normal_source_buf, root .. "/Projects/FormSource.md")
