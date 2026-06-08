@@ -267,6 +267,17 @@ local function merge_index_map(target, source)
 	end
 end
 
+local function prefix_lines(lines, prefix)
+	if not prefix or prefix == "" then
+		return lines
+	end
+	local prefixed = {}
+	for _, line in ipairs(lines or {}) do
+		table.insert(prefixed, prefix .. line)
+	end
+	return prefixed
+end
+
 local function build_board_lines(path, source_lines, opts)
 	opts = opts or {}
 	local query_block = require("obsidian-tasks.query_block")
@@ -306,6 +317,7 @@ local function build_board_lines(path, source_lines, opts)
 			tasks = opts.tasks,
 			get_tasks = get_tasks,
 		})
+		section_lines = prefix_lines(section_lines, source.quote_prefix)
 		for _, line in ipairs(section_lines) do
 			table.insert(lines, line)
 		end
@@ -567,9 +579,8 @@ function M.go_to_query_source(opts)
 end
 
 local function task_at_cursor(buf)
-	local line = vim.api.nvim_get_current_line()
-	local index = tonumber(line:match("^%s*(%d+)%. "))
-	return index and (require("obsidian-tasks.core").task_index_map[buf] or {})[index] or nil
+	local parsed = require("obsidian-tasks.parser").parse_display_line(vim.api.nvim_get_current_line())
+	return parsed and parsed.index and (require("obsidian-tasks.core").task_index_map[buf] or {})[parsed.index] or nil
 end
 
 function M.go_to_task_source(opts)

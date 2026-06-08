@@ -38,6 +38,13 @@ vim.fn.writefile({
   "",
   "Middle paragraph stays markdown.",
   "",
+  "> [!danger] Overdue",
+  "> ```tasks",
+  "> # name: Callout Open",
+  "> not done",
+  "> description includes Beta",
+  "> ```",
+  "",
   "```tasks",
   "# name: Broken Query",
   "definitely unsupported",
@@ -83,6 +90,15 @@ local function find_row(buf, needle)
   return nil
 end
 
+local function find_quoted_row(buf, needle)
+  for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
+    if line:sub(1, 1) == ">" and line:find(needle, 1, true) then
+      return row
+    end
+  end
+  return nil
+end
+
 vim.cmd("ObsidianTasks " .. vim.fn.fnameescape(board))
 local buf = vim.api.nvim_get_current_buf()
 assert(vim.api.nvim_buf_get_name(buf):find("obsidian%-tasks://board/"), vim.api.nvim_buf_get_name(buf))
@@ -95,6 +111,9 @@ local rendered = text()
 assert_contains(rendered, "# Board")
 assert_contains(rendered, "Intro paragraph stays markdown.")
 assert_contains(rendered, "Middle paragraph stays markdown.")
+assert_contains(rendered, "> [!danger] Overdue")
+assert_contains(rendered, "> ## Callout Open")
+assert_contains(rendered, "> 3. [ ] #task Beta")
 assert_contains(rendered, "```lua")
 assert_contains(rendered, "print('keep me')")
 assert_contains(rendered, "## Project Open")
@@ -140,6 +159,14 @@ assert(vim.bo[after_postpone_buf].modifiable == false, "board buffer lost nonmod
 local after_postpone_text = text()
 assert_contains(after_postpone_text, "Beta")
 assert_contains(after_postpone_text, "2026-06-07")
+local quoted_beta_row = find_quoted_row(after_postpone_buf, "Beta")
+assert(quoted_beta_row, after_postpone_text)
+vim.api.nvim_win_set_cursor(0, { quoted_beta_row, 0 })
+assert(tasks.change_task_status_at_cursor("x"))
+
+local source_after_quoted_status = table.concat(vim.fn.readfile(tasks_file), "\n")
+assert_contains(source_after_quoted_status, "- [x] #task Beta 📅 2026-06-07")
+assert_not_contains(text(), "#task Beta")
 
 local current_board = root .. "/Projects/Current.md"
 vim.fn.writefile({

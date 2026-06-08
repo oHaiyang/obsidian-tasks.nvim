@@ -26,6 +26,18 @@ M.PRIORITY_ORDER = {
 	lowest = 6,
 }
 
+local function strip_blockquote_prefix(line)
+	local rest = line or ""
+	while true do
+		local quoted, after = rest:match("^(%s*>%s*)(.*)$")
+		if not quoted then
+			break
+		end
+		rest = after
+	end
+	return rest
+end
+
 -- Extract task priority
 ---@param task_text string The text of the task
 ---@return string priority The priority level of the task
@@ -37,6 +49,7 @@ end
 ---@param line string The line to parse
 ---@return ObsidianTask|nil task The parsed task or nil if parsing failed
 function M.parse_display_line(line)
+	line = strip_blockquote_prefix(line)
 	local indentation, index, status, rest = line:match("^(%s*)(%d+)%. (%[.?%]) (.+)")
 	-- require('plenary.log').info('[xxxhhh][parsing line]', index, status, rest);
 

@@ -39,21 +39,48 @@ local function markdown_files(vault_path)
 	return vim.fn.glob(pattern, false, true)
 end
 
+local function split_blockquote(line)
+	line = line or ""
+	local prefix = ""
+	local rest = line
+	while true do
+		local quoted, after = rest:match("^(%s*>%s*)(.*)$")
+		if not quoted then
+			break
+		end
+		prefix = prefix .. quoted
+		rest = after
+	end
+	if prefix ~= "" then
+		return prefix, rest
+	end
+	return nil, line
+end
+
 local function opening_fence(line)
+	local quote_prefix
+	quote_prefix, line = split_blockquote(line)
 	local marker, info = line:match("^%s*(```+)%s*(.-)%s*$")
 	if marker then
-		return marker:sub(1, 1), #marker, trim(info or "")
+		return marker:sub(1, 1), #marker, trim(info or ""), quote_prefix
 	end
 
 	marker, info = line:match("^%s*(~~~+)%s*(.-)%s*$")
 	if marker then
-		return marker:sub(1, 1), #marker, trim(info or "")
+		return marker:sub(1, 1), #marker, trim(info or ""), quote_prefix
 	end
 
 	return nil
 end
 
-local function closing_fence(line, marker_char, marker_len)
+local function closing_fence(line, marker_char, marker_len, quote_prefix)
+	if quote_prefix then
+		local line_quote
+		line_quote, line = split_blockquote(line)
+		if not line_quote then
+			return false
+		end
+	end
 	local marker
 	if marker_char == "`" then
 		marker = line:match("^%s*(```+)%s*$")
@@ -79,7 +106,7 @@ local function metadata(lines)
 	return result
 end
 
-local function source_from_block(path, start_line, end_line, block_lines)
+local function source_from_block(path, start_line, end_line, block_lines, quote_prefix)
 	local meta = metadata(block_lines)
 	local name = meta.name
 	local id = meta.id
@@ -103,6 +130,7 @@ local function source_from_block(path, start_line, end_line, block_lines)
 		source_line = start_line,
 		end_line = end_line,
 		unnamed = unnamed,
+		quote_prefix = quote_prefix,
 	}
 end
 
@@ -112,22 +140,29 @@ function M.scan_lines(lines, path)
 	local index = 1
 
 	while index <= line_count do
-		local marker_char, marker_len, info = opening_fence(lines[index])
+		local marker_char, marker_len, info, quote_prefix = opening_fence(lines[index])
 		if marker_char then
 			local start_line = index
 			local block_lines = {}
 			index = index + 1
 
-			while index <= line_count and not closing_fence(lines[index], marker_char, marker_len) do
+			while index <= line_count and not closing_fence(lines[index], marker_char, marker_len, quote_prefix) do
 				if is_tasks_info(info) then
-					table.insert(block_lines, lines[index])
+					local block_line = lines[index]
+					if quote_prefix then
+						local line_quote, unquoted = split_blockquote(block_line)
+						if line_quote then
+							block_line = unquoted
+						end
+					end
+					table.insert(block_lines, block_line)
 				end
 				index = index + 1
 			end
 
 			local end_line = index <= line_count and index or line_count
 			if is_tasks_info(info) then
-				table.insert(sources, source_from_block(path, start_line, end_line, block_lines))
+				table.insert(sources, source_from_block(path, start_line, end_line, block_lines, quote_prefix))
 			end
 		end
 
