@@ -416,6 +416,16 @@ assert(
 )
 
 vim.api.nvim_set_current_buf(buf)
+local previous_cwd = vim.fn.getcwd()
+vim.cmd("cd " .. vim.fn.fnameescape(root))
+local cwd_relative_buf = board.open_path("./Projects/Board.md ")
+assert(cwd_relative_buf == buf, "cwd-relative board path with trailing whitespace should reuse the board buffer")
+assert(vim.api.nvim_get_current_buf() == buf, "cwd-relative board path changed current buffer unexpectedly")
+vim.cmd("ObsidianTasks ./Projects/Board.md ")
+assert(vim.api.nvim_get_current_buf() == buf, "command path with trailing whitespace should reuse the board buffer")
+vim.cmd("cd " .. vim.fn.fnameescape(previous_cwd))
+
+vim.api.nvim_set_current_buf(buf)
 assert(board.open_path(non_md_path) == nil, "non-markdown board path should reject")
 assert(vim.api.nvim_get_current_buf() == buf, "non-markdown rejection changed current buffer")
 assert(board.open_path(outside_board_path) == nil, "outside-vault markdown board path should reject")

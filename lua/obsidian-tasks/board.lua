@@ -6,6 +6,10 @@ local function get_config()
 	return require("obsidian-tasks").config or {}
 end
 
+local function trim(value)
+	return (value or ""):match("^%s*(.-)%s*$")
+end
+
 local function realpath(path)
 	if not path or path == "" then
 		return path
@@ -98,7 +102,7 @@ end
 local function inside_vault(path, vault_path)
 	path = normalize(path)
 	vault_path = normalize(vault_path)
-	if not path or not vault_path then
+	if type(path) ~= "string" or type(vault_path) ~= "string" then
 		return false
 	end
 	return path == vault_path or path:sub(1, #vault_path + 1) == vault_path .. "/"
@@ -110,6 +114,7 @@ local function resolve_path(path)
 		return nil
 	end
 
+	path = trim(path)
 	if not path or path == "" then
 		local current = vim.api.nvim_buf_get_name(0)
 		if is_markdown(current) and inside_vault(current, vault_path) then
@@ -118,11 +123,22 @@ local function resolve_path(path)
 		return nil, "pick"
 	end
 
-	local resolved = normalize(path)
-	if not inside_vault(resolved, vault_path) then
-		resolved = normalize(join_path(vault_path, path))
+	local cwd_resolved = vim.fn and vim.fn.fnamemodify(path, ":p") or nil
+	local candidates = {
+		normalize(path),
+		cwd_resolved and normalize(cwd_resolved) or nil,
+		normalize(join_path(vault_path, path)),
+	}
+
+	local resolved
+	for _, candidate in ipairs(candidates) do
+		if inside_vault(candidate, vault_path) then
+			resolved = candidate
+			break
+		end
 	end
-	if not inside_vault(resolved, vault_path) then
+
+	if not resolved then
 		vim.notify("obsidian-tasks.nvim: board file must be inside vault_path: " .. tostring(path), vim.log.levels.ERROR)
 		return nil
 	end
