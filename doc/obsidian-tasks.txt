@@ -1,0 +1,531 @@
+*obsidian-tasks.txt* *obsidian-tasks* Obsidian Tasks behavior for Neovim
+
+==============================================================================
+CONTENTS                                            *obsidian-tasks-contents*
+
+1. Overview                                      |obsidian-tasks-overview|
+2. Setup                                         |obsidian-tasks-setup|
+3. Board files                                   |obsidian-tasks-board|
+4. Commands                                      |obsidian-tasks-commands|
+5. Board mappings                                |obsidian-tasks-board-mappings|
+6. Task editing                                  |obsidian-tasks-editing|
+7. Query blocks                                  |obsidian-tasks-query-blocks|
+8. Immediate queries                             |obsidian-tasks-immediate|
+9. Cache                                         |obsidian-tasks-cache|
+10. Completion                                   |obsidian-tasks-completion|
+11. Lua API                                      |obsidian-tasks-api|
+12. Configuration                                |obsidian-tasks-config|
+13. Migration from named config queries          |obsidian-tasks-migration|
+
+==============================================================================
+1. Overview                                      *obsidian-tasks-overview*
+
+obsidian-tasks.nvim scans an Obsidian vault for Markdown tasks and implements
+Obsidian Tasks-style queries inside Neovim.
+
+The main workflow is board-file based. Queries live in vault Markdown files as
+```tasks fenced blocks.  The command |:ObsidianTasks| opens a read-only board
+view for a Markdown file.  Normal Markdown is shown as Markdown, non-tasks
+fenced blocks are preserved, and each ```tasks block is replaced by its task
+results.
+
+The rendered board is not the source Markdown file.  Editing the board buffer
+does not edit the Markdown source.  Task actions on rendered task rows, such as
+toggle, status change, postpone, and edit, write back to the original task
+source files and refresh the board.
+
+Ad hoc queries are still available through |:ObsidianTasksQuery| and
+|obsidian-tasks.run_query()|.  Named queries declared in Lua config are no
+longer supported.
+
+==============================================================================
+2. Setup                                             *obsidian-tasks-setup*
+
+Minimal setup:
+>
+lua << EOF
+require("obsidian-tasks").setup({
+  vault_path = "/path/to/vault",
+  global_filter = "#task",
+})
+EOF
+<
+
+The plugin registers user commands during setup.  The `vault_path` option is
+required for board file selection and vault scanning.
+
+==============================================================================
+3. Board files                                       *obsidian-tasks-board*
+
+A board file is a Markdown file inside `vault_path`.
+
+Example:
+>
+# Tasks Board
+
+Notes above the query stay as read-only Markdown.
+
+```tasks
+# name: Today
+not done
+due today
+sort by due
+```
+
+```tasks
+# name: Waiting
+status.type is ON_HOLD
+```
+<
+
+Open it with:
+>
+:ObsidianTasks Tasks\ Board.md
+<
+
+Board opening rules:
+
+- `:ObsidianTasks {file}` renders that vault Markdown file.
+- `:ObsidianTasks` renders the current buffer when it is a vault Markdown file.
+- `:ObsidianTasks` outside a vault Markdown file opens a picker containing
+  vault Markdown files that contain ```tasks blocks.
+- Files outside `vault_path` are rejected.
+- Non-Markdown files are rejected.
+- Markdown files with no ```tasks blocks still open as read-only Markdown and
+  show a notice that no task query blocks were found.
+
+The board buffer uses:
+
+- `buftype=nofile`
+- `filetype=markdown`
+- `readonly`
+- `nomodifiable`
+
+Use |:ObsidianTasksRefresh| or `<C-r>` in the board to re-render it from disk.
+
+==============================================================================
+4. Commands                                      *obsidian-tasks-commands*
+
+Main board and query commands:
+
+                                                        *:ObsidianTasks*
+:ObsidianTasks [file]
+        Open a read-only board for a vault Markdown file.  With no argument,
+        use the current vault Markdown file or open a picker.
+
+                                                   *:ObsidianTasksQuery*
+:ObsidianTasksQuery [query]
+        Run immediate query text and open a normal task result buffer.  With no
+        argument, prompt for query text.
+
+                                               *:ObsidianTasksRunBlock*
+:ObsidianTasksRunBlock[!]
+        Run the ```tasks block under the cursor as a normal task result buffer.
+        With [!], keep a pinned result buffer.
+
+                                                *:ObsidianTasksRefresh*
+:ObsidianTasksRefresh
+        Refresh the current board or normal task result buffer.
+
+Task action commands:
+
+                                                 *:ObsidianTasksToggle*
+:ObsidianTasksToggle
+        Toggle the task under the cursor.
+
+                                           *:ObsidianTasksChangeStatus*
+:ObsidianTasksChangeStatus {status}
+        Change the task under the cursor to {status}.  {status} may be a status
+        name or symbol from the configured status registry.
+
+                                               *:ObsidianTasksPostpone*
+:ObsidianTasksPostpone [date]
+        Postpone the task under the cursor.  The task must have a due,
+        scheduled, or start date.  [date] accepts the same date expressions used
+        by the date parser, such as `tomorrow`, `+2`, or `2026-06-07`.
+
+                                                    *:ObsidianTasksEdit*
+:ObsidianTasksEdit
+        Open the task form for the task under the cursor.
+
+                                                  *:ObsidianTasksCreate*
+:ObsidianTasksCreate [file]
+        Open a task creation form.  With [file], create the task in that file.
+        Otherwise use the current Markdown buffer or configured `inbox_file`.
+
+                                               *:ObsidianTasksComplete*
+:ObsidianTasksComplete
+        Trigger completion for task fields at the cursor.
+
+                                          *:ObsidianTasksAddDependency*
+:ObsidianTasksAddDependency
+        Add a dependency to the task under the cursor.
+
+                                              *:ObsidianTasksPickDate*
+:ObsidianTasksPickDate[!] [field]
+        Pick or set a date field for the task under the cursor.  [field]
+        defaults to `due`.  Supported fields include `due`, `scheduled`,
+        `start`, `created`, `done`, and `cancelled`.  With [!], force the
+        calendar picker.
+
+Query-file defaults:
+
+                                   *:ObsidianTasksAddQueryFileDefaults*
+:ObsidianTasksAddQueryFileDefaults
+        Add all supported Tasks query-file default properties to the current
+        buffer.
+
+                         *:ObsidianTasksAddQueryFileDefaultsProperties*
+:ObsidianTasksAddQueryFileDefaultsProperties
+        Alias for |:ObsidianTasksAddQueryFileDefaults|.
+
+Preview commands:
+
+                                      *:ObsidianTasksPreviewToggle*
+:ObsidianTasksPreviewToggle
+        Toggle inline previews for ```tasks blocks in the current buffer.
+
+                                     *:ObsidianTasksPreviewRefresh*
+:ObsidianTasksPreviewRefresh
+        Refresh inline previews for ```tasks blocks in the current buffer.
+
+Cache commands:
+
+                                      *:ObsidianTasksRefreshCache*
+:ObsidianTasksRefreshCache[!]
+        Refresh the task cache.  With [!], also refresh the current result view
+        when applicable.
+
+                                        *:ObsidianTasksClearCache*
+:ObsidianTasksClearCache
+        Clear the task cache.
+
+                                       *:ObsidianTasksCacheInfo*
+:ObsidianTasksCacheInfo
+        Show cache status, file count, task count, and watcher status.
+
+                                 *:ObsidianTasksStartCacheWatcher*
+:ObsidianTasksStartCacheWatcher
+        Start the cache watcher when configured and available.
+
+                                  *:ObsidianTasksStopCacheWatcher*
+:ObsidianTasksStopCacheWatcher
+        Stop the cache watcher.
+
+Status shortcut commands:
+
+                                      *:ObsidianTasksStatus{Status}*
+:ObsidianTasksStatus{Status}
+        Generated for configured statuses that are available as commands.
+        Example names include `:ObsidianTasksStatusDone` and
+        `:ObsidianTasksStatusInProgress`.
+
+==============================================================================
+5. Board mappings                            *obsidian-tasks-board-mappings*
+
+The board buffer installs these normal-mode mappings:
+
+q               Close the board buffer.
+<C-r>           Refresh the board from disk.
+gq              Jump to the source ```tasks query block.
+gd              Jump to the source task line.
+gf              Jump to the source task line.
+<Space>         Toggle the rendered task and write back to its source file.
+s               Select a status and write back to the source task.
+p               Postpone the rendered task and write back to its source file.
+e               Edit the rendered task in a task form.
+
+Mappings that operate on tasks only work on rendered task rows.  Normal
+Markdown content in the board remains read-only Markdown.
+
+==============================================================================
+6. Task editing                                  *obsidian-tasks-editing*
+
+The task form is used by |:ObsidianTasksEdit| and |:ObsidianTasksCreate|.  It
+opens an `obstasks-form` buffer with one editable field per line:
+>
+description:
+status:
+priority:
+created:
+start:
+scheduled:
+due:
+done:
+cancelled:
+recurrence:
+id:
+depends_on:
+on_completion:
+<
+
+Save with `<C-S>` or write the form buffer.  Inside the form:
+
+gs              Pick a status.
+gd              Pick a date.
+gD              Pick a dependency.
+<C-Space>       Trigger form completion.
+q               Close the form.
+
+When the form was opened from a board task row, saving writes the original task
+source file and refreshes the board.
+
+==============================================================================
+7. Query blocks                              *obsidian-tasks-query-blocks*
+
+Queries are written in Markdown fenced blocks:
+>
+```tasks
+# name: Due soon
+not done
+due before in 7 days
+sort by due
+```
+<
+
+The optional `# name:` comment is used as the rendered board section heading.
+Without a name, the board uses the source file and line as the section label.
+
+Query block behavior:
+
+- Query errors render in place and do not stop other blocks in the board.
+- Query-file defaults and placeholders use the board Markdown file as context.
+- `explain` output is rendered inside that block's result section.
+- `:ObsidianTasksRunBlock` can run the block under the cursor as an immediate
+  result buffer.
+
+==============================================================================
+8. Immediate queries                            *obsidian-tasks-immediate*
+
+Immediate queries are useful for quick searches that should not be stored in a
+board file:
+>
+:ObsidianTasksQuery not done
+<
+
+Lua:
+>
+require("obsidian-tasks").run_query("not done\nsort by due", {
+  name = "manual",
+})
+<
+
+Immediate query results use the normal task result buffer path, not the board
+file renderer.  They can still be refreshed with |:ObsidianTasksRefresh|.
+
+==============================================================================
+9. Cache                                            *obsidian-tasks-cache*
+
+Enable cache:
+>
+require("obsidian-tasks").setup({
+  vault_path = "/path/to/vault",
+  cache = {
+    enabled = true,
+    watch = false,
+  },
+})
+<
+
+Useful commands:
+
+- |:ObsidianTasksRefreshCache|
+- |:ObsidianTasksRefreshCache|!
+- |:ObsidianTasksClearCache|
+- |:ObsidianTasksCacheInfo|
+- |:ObsidianTasksStartCacheWatcher|
+- |:ObsidianTasksStopCacheWatcher|
+
+When cache is enabled, task mutations notify the cache that the source file
+changed.
+
+==============================================================================
+10. Completion                                *obsidian-tasks-completion*
+
+Completion can suggest status names, priorities, dates, recurrence expressions,
+dependency IDs, and task IDs in Markdown task lines and task forms.
+
+Commands and mappings:
+
+- |:ObsidianTasksComplete|
+- `<Plug>(ObsidianTasksComplete)`
+- `<Plug>(ObsidianTasksAddDependency)`
+- `<Plug>(ObsidianTasksPickDate)`
+
+Example mappings:
+>
+imap <C-Space> <Plug>(ObsidianTasksComplete)
+nmap <leader>tc <Plug>(ObsidianTasksComplete)
+nmap <leader>td <Plug>(ObsidianTasksAddDependency)
+nmap <leader>tt <Plug>(ObsidianTasksPickDate)
+<
+
+The plugin can also register an nvim-cmp source when configured:
+>
+require("obsidian-tasks").setup({
+  vault_path = "/path/to/vault",
+  completion = {
+    cmp = true,
+  },
+})
+<
+
+==============================================================================
+11. Lua API                                      *obsidian-tasks-api*
+
+Setup and opening:
+
+                                                        *obsidian-tasks.setup()*
+require("obsidian-tasks").setup(config)
+        Initialize the plugin and register commands.
+
+                                                         *obsidian-tasks.open()*
+require("obsidian-tasks").open(opts)
+        Open a board file.  `opts` may be a string path or a table with `path`,
+        `file`, or `file_path`.
+
+                                                    *obsidian-tasks.run_query()*
+require("obsidian-tasks").run_query(query, opts)
+        Run immediate query text in a normal result buffer.
+
+                                           *obsidian-tasks.run_query_at_cursor()*
+require("obsidian-tasks").run_query_at_cursor(opts)
+        Run the ```tasks block under the cursor.
+
+Task actions:
+>
+require("obsidian-tasks").toggle_task_at_cursor()
+require("obsidian-tasks").change_task_status_at_cursor(status)
+require("obsidian-tasks").postpone_task_at_cursor(expr)
+require("obsidian-tasks").edit_current_task()
+require("obsidian-tasks").create_task(opts)
+require("obsidian-tasks").add_dependency_at_cursor(opts)
+require("obsidian-tasks").pick_date_at_cursor(opts)
+<
+
+Cache:
+>
+require("obsidian-tasks").refresh_cache(opts)
+require("obsidian-tasks").clear_cache()
+require("obsidian-tasks").cache_stats()
+require("obsidian-tasks").start_cache_watcher()
+require("obsidian-tasks").stop_cache_watcher()
+<
+
+Other:
+>
+require("obsidian-tasks").complete_at_cursor(opts)
+require("obsidian-tasks").setup_cmp(opts)
+require("obsidian-tasks").preview_toggle()
+require("obsidian-tasks").preview_refresh()
+<
+
+Compatibility migration helper:
+>
+require("obsidian-tasks").open_query(name, opts)
+<
+This returns `nil` and reports that named Lua-config queries are no longer
+supported.
+
+==============================================================================
+12. Configuration                              *obsidian-tasks-config*
+
+Common options:
+>
+require("obsidian-tasks").setup({
+  vault_path = "/path/to/vault",
+  global_filter = "#task",
+  remove_global_filter = false,
+  global_query = "",
+  presets = {},
+  task_format = "tasks",
+  inbox_file = "/path/to/vault/Inbox.md",
+  enable_lua_filters = false,
+
+  display = {
+    hierarchical_headings = false,
+  },
+
+  cache = {
+    enabled = false,
+    auto_update_on_write = true,
+    debounce_ms = 0,
+    watch = false,
+    auto_refresh_results = false,
+  },
+
+  completion = {
+    cmp = false,
+    native = false,
+  },
+
+  status_settings = {
+    { symbol = " ", name = "Todo", type = "TODO", next_symbol = "x" },
+    { symbol = "x", name = "Done", type = "DONE", next_symbol = " " },
+  },
+
+  set_done_date = false,
+  set_cancelled_date = false,
+  set_created_date = false,
+  recurrence_on_next_line = false,
+  remove_scheduled_date_on_recurrence = false,
+})
+<
+
+`task_format` may be `"tasks"` or `"dataview"`.
+
+`presets`, `query_presets`, and `queryPresets` are still supported as reusable
+query fragments.  They are not named boards.
+
+The following old options are intentionally unsupported:
+
+- `queries`
+- `default_query`
+- `defaultQuery`
+
+Put saved board queries in vault Markdown ```tasks blocks instead.
+
+==============================================================================
+13. Migration from named config queries      *obsidian-tasks-migration*
+
+Old workflow:
+>
+require("obsidian-tasks").setup({
+  vault_path = "/vault",
+  default_query = "today",
+  queries = {
+    today = "not done\ndue today",
+  },
+})
+
+:ObsidianTasks today
+<
+
+New workflow:
+>
+require("obsidian-tasks").setup({
+  vault_path = "/vault",
+})
+<
+
+Create `/vault/Tasks Board.md`:
+>
+# Tasks Board
+
+```tasks
+# name: Today
+not done
+due today
+```
+<
+
+Open it:
+>
+:ObsidianTasks Tasks\ Board.md
+<
+
+Use |:ObsidianTasksQuery| or |obsidian-tasks.run_query()| for temporary query
+text that should not be stored in a board file.
+
+==============================================================================
+ vim:tw=78:ts=8:ft=help:norl:
