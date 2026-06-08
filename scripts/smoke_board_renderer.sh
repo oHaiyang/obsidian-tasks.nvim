@@ -72,6 +72,7 @@ tasks.setup({
   vault_path = root,
   global_filter = "#task",
 })
+local board_module = require("obsidian-tasks.board")
 
 local function text()
   return table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
@@ -98,6 +99,16 @@ local function find_quoted_row(buf, needle)
   for row, line in ipairs(vim.api.nvim_buf_get_lines(buf, 0, -1, false)) do
     if line:sub(1, 1) == ">" and line:find(needle, 1, true) then
       return row
+    end
+  end
+  return nil
+end
+
+local function first_float_text()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_config(win).relative ~= "" then
+      local float_buf = vim.api.nvim_win_get_buf(win)
+      return table.concat(vim.api.nvim_buf_get_lines(float_buf, 0, -1, false), "\n"), win, float_buf
     end
   end
   return nil
@@ -133,6 +144,28 @@ assert_not_contains(rendered, "definitely unsupported\n```")
 assert_contains(rendered, "## Broken Query")
 assert_contains(rendered, "Query errors:")
 assert_contains(rendered, "Unsupported query instruction")
+
+local kmap = vim.fn.maparg("K", "n", false, true)
+assert(type(kmap) == "table" and kmap.callback ~= nil, "board K mapping missing")
+local project_row = find_row(buf, "Project Open")
+assert(project_row, rendered)
+vim.api.nvim_win_set_cursor(0, { project_row, 0 })
+vim.cmd("ObsidianTasksQuery")
+local query_text, query_win = first_float_text()
+assert(query_win, "query hover did not open")
+assert_contains(query_text, "Tasks query")
+assert_contains(query_text, "Projects/Board.md:")
+assert_contains(query_text, "```tasks")
+assert_contains(query_text, "# name: Project Open")
+assert_contains(query_text, "not done")
+assert_contains(query_text, "sort by due")
+vim.api.nvim_win_close(query_win, true)
+
+local intro_row = find_row(buf, "Intro paragraph")
+assert(intro_row, rendered)
+vim.api.nvim_win_set_cursor(0, { intro_row, 0 })
+assert(board_module.show_query({ buffer = buf }) == nil, "ordinary markdown should not show a query hover")
+assert(first_float_text() == nil, "ordinary markdown should not leave a query hover open")
 
 local alpha_row = find_row(buf, "Alpha")
 assert(alpha_row, rendered)

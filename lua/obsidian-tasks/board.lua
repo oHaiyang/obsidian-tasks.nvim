@@ -104,6 +104,18 @@ local function inside_vault(path, vault_path)
 	return path == vault_path or path:sub(1, #vault_path + 1) == vault_path .. "/"
 end
 
+local function display_path(path)
+	local vault_path = normalize(get_config().vault_path)
+	path = normalize(path)
+	if type(path) == "string" and type(vault_path) == "string" and inside_vault(path, vault_path) then
+		return path:sub(#vault_path + 2)
+	end
+	if vim.fn and vim.fn.fnamemodify then
+		return vim.fn.fnamemodify(path, ":~:.")
+	end
+	return tostring(path or "")
+end
+
 local function resolve_path(path)
 	local vault_path = ensure_vault_path()
 	if not vault_path then
@@ -419,6 +431,10 @@ local function setup_keymaps(buf)
 		M.go_to_query_source({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Go to query source" })
 
+	vim.keymap.set("n", "K", function()
+		M.show_query({ buffer = buf })
+	end, { buffer = buf, noremap = true, silent = true, desc = "Show source query" })
+
 	vim.keymap.set({ "n" }, "gd", function()
 		M.go_to_task_source({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Go to task source" })
@@ -548,6 +564,76 @@ local function section_at_row(state, row)
 	return nil
 end
 
+local function query_hover_lines(source)
+	local lines = {
+		"Tasks query",
+		string.format("%s:%d", display_path(source.source_path), source.source_line or 1),
+		"",
+		"```tasks",
+	}
+	for _, line in ipairs(vim.split(source.query or "", "\n", { plain = true })) do
+		table.insert(lines, line)
+	end
+	table.insert(lines, "```")
+	return lines
+end
+
+local function max_display_width(lines)
+	local width = 0
+	for _, line in ipairs(lines or {}) do
+		width = math.max(width, vim.fn.strdisplaywidth(line))
+	end
+	return width
+end
+
+local function close_query_float()
+	local float = M.query_float
+	if float and float.win and vim.api.nvim_win_is_valid(float.win) then
+		pcall(vim.api.nvim_win_close, float.win, true)
+	end
+	M.query_float = nil
+end
+
+local function open_query_float(lines, source)
+	close_query_float()
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+
+	local columns = math.max(vim.o.columns or 80, 24)
+	local rows = math.max((vim.o.lines or 24) - (vim.o.cmdheight or 1) - 4, 1)
+	local width = math.min(math.max(max_display_width(lines), 24), math.max(columns - 4, 24))
+	local height = math.min(#lines, rows)
+	local win = vim.api.nvim_open_win(buf, false, {
+		relative = "cursor",
+		row = 1,
+		col = 0,
+		width = width,
+		height = height,
+		style = "minimal",
+		border = "rounded",
+		focusable = true,
+	})
+	pcall(vim.api.nvim_set_option_value, "wrap", false, { win = win })
+
+	local function close()
+		close_query_float()
+	end
+	vim.keymap.set("n", "q", close, { buffer = buf, noremap = true, silent = true, nowait = true, desc = "Close query hover" })
+	vim.keymap.set("n", "<Esc>", close, { buffer = buf, noremap = true, silent = true, nowait = true, desc = "Close query hover" })
+
+	M.query_float = {
+		buf = buf,
+		buffer = buf,
+		win = win,
+		window = win,
+		lines = lines,
+		source = source,
+	}
+	return M.query_float
+end
+
 local function navigation_buffer(opts)
 	local current = vim.api.nvim_get_current_buf()
 	local requested = opts and (opts.buffer or opts.buf)
@@ -556,6 +642,35 @@ local function navigation_buffer(opts)
 		return nil
 	end
 	return current
+end
+
+function M.query_at_cursor(opts)
+	opts = opts or {}
+	local buf = navigation_buffer(opts)
+	if not buf then
+		return nil
+	end
+	local state = state_for(buf)
+	if not state then
+		vim.notify("obsidian-tasks.nvim: current buffer is not a board", vim.log.levels.WARN)
+		return nil
+	end
+	local row = vim.api.nvim_win_get_cursor(0)[1]
+	local section = section_at_row(state, row)
+	if not section or not section.source then
+		vim.notify("obsidian-tasks.nvim: no tasks query under cursor", vim.log.levels.WARN)
+		return nil
+	end
+	return section.source, section
+end
+
+function M.show_query(opts)
+	local source = M.query_at_cursor(opts)
+	if not source then
+		close_query_float()
+		return nil
+	end
+	return open_query_float(query_hover_lines(source), source)
 end
 
 function M.go_to_query_source(opts)

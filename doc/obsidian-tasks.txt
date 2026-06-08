@@ -115,8 +115,10 @@ Main board and query commands:
 
                                                    *:ObsidianTasksQuery*
 :ObsidianTasksQuery [query]
-        Run immediate query text and open a normal task result buffer.  With no
-        argument, prompt for query text.
+        In a board buffer with no argument, show the source query for the
+        rendered query section under the cursor in a floating window.  With
+        [query], run immediate query text and open a normal task result
+        buffer.  Outside a board, no argument prompts for query text.
 
                                                *:ObsidianTasksRunBlock*
 :ObsidianTasksRunBlock[!]
@@ -228,6 +230,7 @@ The board buffer installs these normal-mode mappings:
 q               Close the board buffer.
 <C-r>           Refresh the board from disk.
 gq              Jump to the source ```tasks query block.
+K               Show the source query for the rendered query section.
 gd              Jump to the source task line.
 gf              Jump to the source task line.
 <Space>         Toggle the rendered task and write back to its source file.
@@ -284,7 +287,9 @@ sort by due
 <
 
 The optional `# name:` comment is used as the rendered board section heading.
-Without a name, the board uses the source file and line as the section label.
+Without a name, the query block renders task results without adding a generated
+heading.  Use `K` or |:ObsidianTasksQuery| in the rendered section to inspect
+the source query.
 
 Query block behavior:
 

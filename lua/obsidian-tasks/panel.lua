@@ -243,6 +243,11 @@ function M.setup_commands()
 	})
 
 	vim.api.nvim_create_user_command("ObsidianTasksQuery", function(command)
+		if (not command.args or command.args == "") and require("obsidian-tasks.board").is_board_buffer(0) then
+			require("obsidian-tasks.board").show_query({ buffer = 0 })
+			return
+		end
+
 		if command.args and command.args ~= "" then
 			M.run_query(command.args, {
 				name = "manual",
