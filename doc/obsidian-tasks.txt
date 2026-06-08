@@ -1,4 +1,4 @@
-*obsidian-tasks.txt* *obsidian-tasks* Obsidian Tasks behavior for Neovim
+*obsidian-tasks.txt* *obsidian-tasks* *obsidian-task* Obsidian Tasks behavior for Neovim
 
 ==============================================================================
 CONTENTS                                            *obsidian-tasks-contents*
