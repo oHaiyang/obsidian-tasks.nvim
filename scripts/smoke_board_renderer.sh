@@ -46,6 +46,10 @@ vim.fn.writefile({
   "> ```",
   "",
   "```tasks",
+  "description includes Done",
+  "```",
+  "",
+  "```tasks",
   "# name: Broken Query",
   "definitely unsupported",
   "```",
@@ -119,6 +123,8 @@ assert_contains(rendered, "print('keep me')")
 assert_contains(rendered, "## Project Open")
 assert_contains(rendered, "Alpha")
 assert_contains(rendered, "Beta")
+assert_contains(rendered, "Done")
+assert_not_contains(rendered, "Tasks query at")
 assert_not_contains(rendered, "Gamma")
 assert_contains(rendered, "Showing 2 tasks")
 assert_not_contains(rendered, "sort by due")

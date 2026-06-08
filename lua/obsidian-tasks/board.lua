@@ -56,10 +56,6 @@ local function is_markdown(path)
 	return type(path) == "string" and path:sub(-3) == ".md"
 end
 
-local function basename(path)
-	return (path or ""):match("([^/]+)$") or path or ""
-end
-
 local function slug(value)
 	return tostring(value or "board"):gsub("[^%w_%-%./:]+", "_")
 end
@@ -167,7 +163,7 @@ local function section_title(source)
 	if source.name and source.name ~= "" and not source.unnamed then
 		return source.name
 	end
-	return string.format("Tasks query at %s#L%d", basename(source.source_path), source.source_line or 1)
+	return ""
 end
 
 local function apply_limit(tasks, limit)
@@ -219,7 +215,12 @@ local function execute_source(source, opts)
 	plan.original_query = source.query
 
 	if #plan.errors > 0 then
-		local lines = { "## " .. section_title(source), "Query errors:" }
+		local lines = {}
+		local title = section_title(source)
+		if title ~= "" then
+			table.insert(lines, "## " .. title)
+		end
+		table.insert(lines, "Query errors:")
 		for _, err in ipairs(plan.errors) do
 			table.insert(lines, string.format("- line %s: %s", err.line_number or err.line or "?", err.message or "Unknown query error"))
 			if err.instruction and err.instruction ~= "" then
