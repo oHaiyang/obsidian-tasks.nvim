@@ -588,17 +588,27 @@ end
 
 local function close_query_float()
 	local float = M.query_float
+	M.query_float = nil
+	if float and float.autocmd then
+		pcall(vim.api.nvim_del_autocmd, float.autocmd)
+	end
 	if float and float.win and vim.api.nvim_win_is_valid(float.win) then
 		pcall(vim.api.nvim_win_close, float.win, true)
 	end
-	M.query_float = nil
+	if float and float.buf and vim.api.nvim_buf_is_valid(float.buf) then
+		pcall(vim.api.nvim_buf_delete, float.buf, { force = true })
+	end
 end
 
-local function open_query_float(lines, source)
+local function open_query_float(lines, source, source_buf)
 	close_query_float()
+	if not source_buf or source_buf == 0 then
+		source_buf = vim.api.nvim_get_current_buf()
+	end
 	local buf = vim.api.nvim_create_buf(false, true)
 	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 	vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
 	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
 
 	local columns = math.max(vim.o.columns or 80, 24)
@@ -630,7 +640,17 @@ local function open_query_float(lines, source)
 		window = win,
 		lines = lines,
 		source = source,
+		source_buf = source_buf,
 	}
+	if source_buf and vim.api.nvim_buf_is_valid(source_buf) then
+		M.query_float.autocmd = vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave", "WinLeave" }, {
+			buffer = source_buf,
+			once = true,
+			callback = function()
+				close_query_float()
+			end,
+		})
+	end
 	return M.query_float
 end
 
@@ -665,12 +685,17 @@ function M.query_at_cursor(opts)
 end
 
 function M.show_query(opts)
+	opts = opts or {}
+	local source_buf = opts.buffer or opts.buf
+	if not source_buf or source_buf == 0 then
+		source_buf = vim.api.nvim_get_current_buf()
+	end
 	local source = M.query_at_cursor(opts)
 	if not source then
 		close_query_float()
 		return nil
 	end
-	return open_query_float(query_hover_lines(source), source)
+	return open_query_float(query_hover_lines(source), source, source_buf)
 end
 
 function M.go_to_query_source(opts)
