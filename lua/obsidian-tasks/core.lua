@@ -155,7 +155,10 @@ end
 local function format_display_line(parsed)
 	local priority_text = ""
 	if parsed.priority and parsed.priority ~= "normal" then
-		priority_text = "[" .. parsed.priority:upper() .. "] "
+		local symbol = task_model.PRIORITY_SYMBOLS[(parsed.priority or ""):lower()]
+		if symbol and symbol ~= "" then
+			priority_text = symbol .. " "
+		end
 	end
 
 	return string.format(

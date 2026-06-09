@@ -21,8 +21,13 @@ local function assert_has_line(lines, expected)
   assert(has_line(lines, expected), vim.inspect(lines) .. "\nmissing: " .. expected)
 end
 
+local function assert_no_text(lines, unexpected)
+  local text = table.concat(lines or {}, "\n")
+  assert(not text:find(unexpected, 1, true), text .. "\nunexpected: " .. unexpected)
+end
+
 local first_tasks = {
-  { status = "[ ]", description = "#task Alpha" },
+  { status = "[ ]", description = "#task Alpha", priority = "high" },
   { status = "[ ]", description = "#task Beta" },
 }
 
@@ -36,7 +41,8 @@ local first_lines, first_index_map, next_index = display.format_task_result_sect
 
 assert_has_line(first_lines, "## First Section")
 assert_has_line(first_lines, "Showing 4 of 7 tasks")
-assert_has_line(first_lines, "1. [ ] #task Alpha")
+assert_has_line(first_lines, "1. [ ] ⏫ #task Alpha")
+assert_no_text(first_lines, "[HIGH]")
 assert_has_line(first_lines, "2. [ ] #task Beta")
 assert(first_index_map[1] == first_tasks[1], vim.inspect(first_index_map))
 assert(first_index_map[2] == first_tasks[2], vim.inspect(first_index_map))

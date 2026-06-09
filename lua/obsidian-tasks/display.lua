@@ -252,10 +252,9 @@ function M.format_task_for_display(task, index, opts)
 	-- Format priority label (if not normal)
 	local priority_text = ""
 	if M.should_show(opts, "priority", true) and task.priority and task.priority ~= "normal" then
-		if short_mode(opts) then
-			priority_text = (task_model.PRIORITY_SYMBOLS[task.priority] or "") .. " "
-		else
-			priority_text = "[" .. task.priority:upper() .. "] "
+		local symbol = task_model.PRIORITY_SYMBOLS[(task.priority or ""):lower()]
+		if symbol and symbol ~= "" then
+			priority_text = symbol .. " "
 		end
 	end
 	local task_text = M.format_task_body(task, opts)
