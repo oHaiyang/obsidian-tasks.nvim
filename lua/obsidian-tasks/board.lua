@@ -1,6 +1,10 @@
 local M = {}
 
 M.state = {}
+M.BOARD_HELP_LINES = {
+	"> [?] Board keys: q close | <C-r> refresh | K query | gq query source | gd/gf task source | <Space> toggle | s status | p postpone | e edit",
+	"",
+}
 
 local function get_config()
 	return require("obsidian-tasks").config or {}
@@ -298,6 +302,9 @@ local function build_board_lines(path, source_lines, opts)
 	local config = get_config()
 	local sources = query_block.scan_lines(source_lines, path)
 	local lines = {}
+	for _, line in ipairs(M.BOARD_HELP_LINES) do
+		table.insert(lines, line)
+	end
 	local sections = {}
 	local index_map = {}
 	local next_source_line = 1
@@ -350,8 +357,9 @@ local function build_board_lines(path, source_lines, opts)
 	end
 
 	if #sources == 0 then
-		table.insert(lines, 1, "> No tasks query blocks found")
-		table.insert(lines, 2, "")
+		local insert_at = #M.BOARD_HELP_LINES + 1
+		table.insert(lines, insert_at, "> No tasks query blocks found")
+		table.insert(lines, insert_at + 1, "")
 	end
 
 	return lines, sections, index_map
@@ -434,6 +442,10 @@ local function setup_keymaps(buf)
 	vim.keymap.set("n", "K", function()
 		M.show_query({ buffer = buf })
 	end, { buffer = buf, noremap = true, silent = true, desc = "Show source query" })
+
+	vim.keymap.set("n", "?", function()
+		M.show_help({ buffer = buf })
+	end, { buffer = buf, noremap = true, silent = true, desc = "Show board help" })
 
 	vim.keymap.set({ "n" }, "gd", function()
 		M.go_to_task_source({ buffer = buf })
@@ -652,6 +664,103 @@ local function open_query_float(lines, source, source_buf)
 		})
 	end
 	return M.query_float
+end
+
+local function board_help_float_lines()
+	return {
+		"Tasks board keymaps",
+		"",
+		"?          Show or close this help",
+		"q          Close board",
+		"<C-r>      Refresh board from disk",
+		"K          Show source query for current rendered section",
+		"gq         Jump to source ```tasks query block",
+		"gd / gf    Jump to source task line",
+		"<Space>    Toggle task status",
+		"s          Select task status",
+		"p          Postpone task",
+		"e          Edit task in a form",
+		"",
+		"Task actions only work on rendered task rows. Markdown remains read-only.",
+	}
+end
+
+local function close_help_float()
+	local float = M.help_float
+	M.help_float = nil
+	if float and float.autocmd then
+		pcall(vim.api.nvim_del_autocmd, float.autocmd)
+	end
+	if float and float.win and vim.api.nvim_win_is_valid(float.win) then
+		pcall(vim.api.nvim_win_close, float.win, true)
+	end
+	if float and float.buf and vim.api.nvim_buf_is_valid(float.buf) then
+		pcall(vim.api.nvim_buf_delete, float.buf, { force = true })
+	end
+end
+
+local function open_help_float(source_buf)
+	if M.help_float then
+		close_help_float()
+		return nil
+	end
+	close_query_float()
+	if not source_buf or source_buf == 0 then
+		source_buf = vim.api.nvim_get_current_buf()
+	end
+	local lines = board_help_float_lines()
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+
+	local columns = math.max(vim.o.columns or 80, 24)
+	local rows = math.max((vim.o.lines or 24) - (vim.o.cmdheight or 1) - 4, 1)
+	local width = math.min(math.max(max_display_width(lines), 32), math.max(columns - 4, 24))
+	local height = math.min(#lines, rows)
+	local win = vim.api.nvim_open_win(buf, false, {
+		relative = "cursor",
+		row = 1,
+		col = 0,
+		width = width,
+		height = height,
+		style = "minimal",
+		border = "rounded",
+		focusable = false,
+	})
+	pcall(vim.api.nvim_set_option_value, "wrap", false, { win = win })
+
+	M.help_float = {
+		buf = buf,
+		buffer = buf,
+		win = win,
+		window = win,
+		lines = lines,
+		source_buf = source_buf,
+	}
+	if source_buf and vim.api.nvim_buf_is_valid(source_buf) then
+		M.help_float.autocmd = vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave", "BufDelete" }, {
+			buffer = source_buf,
+			once = true,
+			callback = function()
+				close_help_float()
+			end,
+		})
+	end
+	return M.help_float
+end
+
+function M.show_help(opts)
+	opts = opts or {}
+	local buf = opts.buffer or opts.buf
+	if not buf or buf == 0 then
+		buf = vim.api.nvim_get_current_buf()
+	end
+	if not M.is_board_buffer(buf) then
+		vim.notify("obsidian-tasks.nvim: current buffer is not a board", vim.log.levels.WARN)
+		return nil
+	end
+	return open_help_float(buf)
 end
 
 local function navigation_buffer(opts)

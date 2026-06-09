@@ -228,6 +228,7 @@ Status shortcut commands:
 The board buffer installs these normal-mode mappings:
 
 q               Close the board buffer.
+?               Show board keymap help.
 <C-r>           Refresh the board from disk.
 gq              Jump to the source ```tasks query block.
 K               Show the source query for the rendered query section.
