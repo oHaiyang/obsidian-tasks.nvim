@@ -15,6 +15,10 @@ vim.fn.writefile({
   "- [ ] #task Alpha work item 📅 2026-05-20",
   "- [ ] #task Beta home item 📅 2026-05-21",
   "- [ ] #task Later someday item 📅 2026-06-01",
+  "- [ ] #task Recurring routine item 🔁 every day 📅 2026-06-01",
+  "- [ ] #task Happens today item 🛫 2026-05-22",
+  "- [ ] #task Due in three days item 📅 2026-05-25",
+  "- [ ] #task Due after window item 📅 2026-05-26",
   "- [x] #task Done archive item ✅ 2026-05-10",
 }, tasks_file)
 
@@ -51,7 +55,7 @@ assert(descriptions(nested):find("Beta home item", 1, true), descriptions(nested
 local not_plan = query.parse("(not done) AND NOT (description includes someday)")
 assert(#not_plan.errors == 0, vim.inspect(not_plan.errors))
 local and_not = query.filter_tasks(scanned, not_plan)
-assert(#and_not == 2, descriptions(and_not))
+assert(#and_not == 6, descriptions(and_not))
 
 local mixed_plan = query.parse([[
 not done
@@ -68,6 +72,16 @@ assert(descriptions(done_or_someday):find("Later someday item", 1, true), descri
 
 local regex_boolean = query.filter_tasks(scanned, query.parse("(description regex matches /Alpha|Beta/) AND (not done)"))
 assert(#regex_boolean == 2, descriptions(regex_boolean))
+
+local recurring_happens_due_plan = query.parse("(is recurring) OR (happens on today) OR (due in 3days)", { today = "2026-05-22" })
+assert(#recurring_happens_due_plan.errors == 0, vim.inspect(recurring_happens_due_plan.errors))
+local recurring_happens_due = query.filter_tasks(scanned, recurring_happens_due_plan)
+local recurring_happens_due_descriptions = descriptions(recurring_happens_due)
+assert(#recurring_happens_due == 3, recurring_happens_due_descriptions)
+assert(recurring_happens_due_descriptions:find("Recurring routine item", 1, true), recurring_happens_due_descriptions)
+assert(recurring_happens_due_descriptions:find("Happens today item", 1, true), recurring_happens_due_descriptions)
+assert(recurring_happens_due_descriptions:find("Due in three days item", 1, true), recurring_happens_due_descriptions)
+assert(not recurring_happens_due_descriptions:find("Due after window item", 1, true), recurring_happens_due_descriptions)
 
 local function_boolean = query.filter_tasks(scanned, query.parse(
   "(filter by function task.description:find(\"Alpha\", 1, true) ~= nil) OR (done)",

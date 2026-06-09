@@ -619,6 +619,35 @@ local function boolean_operand_shape(value)
 	return rest and outer_delimiter(trim(rest)) ~= nil
 end
 
+local function boolean_expression_shape(value)
+	value = trim(value)
+	if value == "" then
+		return false
+	end
+	if boolean_operand_shape(value) then
+		return true
+	end
+
+	local rest = value:match("^NOT%s+(.+)")
+	if rest then
+		return boolean_expression_shape(rest)
+	end
+
+	for _, operator in ipairs({ "OR", "XOR", "AND" }) do
+		local index, err = find_top_level_operator(value, operator)
+		if err then
+			return false
+		end
+		if index then
+			local left = trim(value:sub(1, index - 1))
+			local right = trim(value:sub(index + #operator))
+			return boolean_expression_shape(left) and boolean_expression_shape(right)
+		end
+	end
+
+	return false
+end
+
 local function parse_subfilter(value, opts)
 	value = strip_outer_delimiters(value)
 	local temp = {
@@ -694,7 +723,7 @@ local function parse_boolean_expr(value, opts)
 			if left == "" or right == "" then
 				return nil, "Boolean operator " .. operator .. " requires filters on both sides", true
 			end
-			if not boolean_operand_shape(left) or not boolean_operand_shape(right) then
+			if not boolean_expression_shape(left) or not boolean_expression_shape(right) then
 				break
 			end
 
@@ -1042,7 +1071,19 @@ function parse_line(plan, line_number, line, opts)
 		return
 	end
 
+	field, value = line_lower:match("^(%w+)%s+in%s+or%s+before%s+(.+)$")
+	if field and value then
+		add_date_filter(plan, line_number, original_line, field, "on_or_before", value, opts)
+		return
+	end
+
 	field, value = line_lower:match("^(%w+)%s+on%s+or%s+after%s+(.+)$")
+	if field and value then
+		add_date_filter(plan, line_number, original_line, field, "on_or_after", value, opts)
+		return
+	end
+
+	field, value = line_lower:match("^(%w+)%s+in%s+or%s+after%s+(.+)$")
 	if field and value then
 		add_date_filter(plan, line_number, original_line, field, "on_or_after", value, opts)
 		return
@@ -1063,6 +1104,12 @@ function parse_line(plan, line_number, line, opts)
 	field, value = line_lower:match("^(%w+)%s+on%s+(.+)$")
 	if field and value then
 		add_date_filter(plan, line_number, original_line, field, "on", value, opts)
+		return
+	end
+
+	field, value = line_lower:match("^(%w+)%s+in%s+(.+)$")
+	if field and value then
+		add_date_filter(plan, line_number, original_line, field, "in", value, opts)
 		return
 	end
 

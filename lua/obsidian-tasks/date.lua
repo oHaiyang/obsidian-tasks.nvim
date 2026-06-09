@@ -392,7 +392,7 @@ function M.matches(value, op, expected)
 		return false
 	end
 
-	if op == "on" then
+	if op == "on" or op == "in" then
 		return value == expected
 	elseif op == "before" then
 		return value < expected
