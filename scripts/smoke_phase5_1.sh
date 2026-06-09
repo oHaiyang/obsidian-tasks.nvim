@@ -83,6 +83,45 @@ assert(recurring_happens_due_descriptions:find("Happens today item", 1, true), r
 assert(recurring_happens_due_descriptions:find("Due in three days item", 1, true), recurring_happens_due_descriptions)
 assert(not recurring_happens_due_descriptions:find("Due after window item", 1, true), recurring_happens_due_descriptions)
 
+local date = require("obsidian-tasks.date")
+
+local function assert_range(expr, expected_start, expected_end, today)
+  local range = date.parse_date_range(expr, { today = today or "2023-02-28" })
+  assert(range and range.start == expected_start and range["end"] == expected_end, expr .. " => " .. vim.inspect(range))
+end
+
+assert_range("2022-04-20 2022-04-24", "2022-04-20", "2022-04-24")
+assert_range("2022-04-24 2022-04-20", "2022-04-20", "2022-04-24")
+assert_range("this week", "2023-02-27", "2023-03-05")
+assert_range("next month", "2023-03-01", "2023-03-31")
+assert_range("2023", "2023-01-01", "2023-12-31")
+assert_range("2023-02", "2023-02-01", "2023-02-28")
+assert_range("2023-Q1", "2023-01-01", "2023-03-31")
+assert_range("2023-W09", "2023-02-27", "2023-03-05")
+assert_range("in a week", "2023-03-07", "2023-03-07")
+assert_range("10 day ago", "2023-02-18", "2023-02-18")
+assert_range("a week ago", "2023-02-21", "2023-02-21")
+assert_range("two weeks", "2023-03-14", "2023-03-14")
+
+local range_tasks = {
+  { description = "Before range", due_date = "2022-04-19", status = "[ ]" },
+  { description = "Range start", due_date = "2022-04-20", status = "[ ]" },
+  { description = "Range end", due_date = "2022-04-24", status = "[ ]" },
+  { description = "After range", due_date = "2022-04-25", status = "[ ]" },
+}
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due in 2022-04-20 2022-04-24"))) == "Range end\nRange start")
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due before 2022-04-20 2022-04-24"))) == "Before range")
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due after 2022-04-20 2022-04-24"))) == "After range")
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due in or before 2022-04-20 2022-04-24"))) == "Before range\nRange end\nRange start")
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due in or after 2022-04-20 2022-04-24"))) == "After range\nRange end\nRange start")
+
+local ago_tasks = {
+  { description = "Boundary", due_date = "2022-04-20", status = "[ ]" },
+  { description = "Recent", due_date = "2022-04-21", status = "[ ]" },
+}
+assert(descriptions(query.filter_tasks(ago_tasks, query.parse("due after 10 day ago", { today = "2022-04-30" }))) == "Recent")
+assert(descriptions(query.filter_tasks(range_tasks, query.parse("due 2022-04"))) == "After range\nBefore range\nRange end\nRange start")
+
 local function_boolean = query.filter_tasks(scanned, query.parse(
   "(filter by function task.description:find(\"Alpha\", 1, true) ~= nil) OR (done)",
   { config = tasks.config, enable_lua_filters = true }

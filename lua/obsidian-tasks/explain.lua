@@ -14,6 +14,16 @@ local function count_filters(filters)
 	return count
 end
 
+local function date_value_label(value)
+	if type(value) == "table" and value.start and value["end"] then
+		if value.start == value["end"] then
+			return value.start
+		end
+		return value.start .. ".." .. value["end"]
+	end
+	return tostring(value or "")
+end
+
 local function filter_label(filter)
 	if not filter then
 		return "unknown filter"
@@ -26,7 +36,7 @@ local function filter_label(filter)
 	elseif filter.type == "regex" then
 		return string.format("%s regex %s /%s/%s", filter.field or "field", filter.negate and "does not match" or "matches", filter.regex and filter.regex.pattern or "", filter.regex and filter.regex.flags or "")
 	elseif filter.type == "date_compare" then
-		return string.format("%s %s %s", filter.field or "date", filter.op or "matches", filter.value or "")
+		return string.format("%s %s %s", filter.field or "date", filter.op or "matches", date_value_label(filter.value))
 	elseif filter.type == "date_exists" then
 		return string.format("%s %s date", filter.exists and "has" or "no", filter.field or "")
 	elseif filter.type == "priority" then

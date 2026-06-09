@@ -390,7 +390,7 @@ local function add_date_filter(plan, line_number, original_line, field, op, expr
 		return
 	end
 
-	local value = date.parse_date_expr(expr, opts)
+	local value = date.parse_date_range(expr, opts)
 	if not value then
 		add_error(plan, line_number, original_line, "Invalid date expression: " .. trim(expr))
 		return
@@ -1109,6 +1109,12 @@ function parse_line(plan, line_number, line, opts)
 
 	field, value = line_lower:match("^(%w+)%s+in%s+(.+)$")
 	if field and value then
+		add_date_filter(plan, line_number, original_line, field, "in", value, opts)
+		return
+	end
+
+	field, value = line_lower:match("^(%w+)%s+(.+)$")
+	if field and value and DATE_FIELDS[lower(field)] then
 		add_date_filter(plan, line_number, original_line, field, "in", value, opts)
 		return
 	end

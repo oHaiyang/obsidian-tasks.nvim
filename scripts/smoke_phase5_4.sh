@@ -32,26 +32,6 @@ local tasks = require("obsidian-tasks")
 tasks.setup({
   vault_path = root,
   global_filter = "#task",
-  queries = {
-    compact = [[
-description includes Alpha
-hide task count
-hide backlink
-hide priority
-hide tags
-hide due date
-hide id
-]],
-    visible = [[
-description includes Beta
-show task count
-show backlink
-show priority
-show tags
-show due date
-show id
-]],
-  },
 })
 
 local function current_lines()
@@ -67,7 +47,15 @@ local function find_line(pattern)
   return nil, nil
 end
 
-tasks.open_query("compact")
+tasks.run_query([[
+description includes Alpha
+hide task count
+hide backlink
+hide priority
+hide tags
+hide due date
+hide id
+]], { name = "compact" })
 local compact_text = table.concat(current_lines(), "\n")
 assert(not compact_text:find("Showing", 1, true), compact_text)
 local alpha_row, alpha_line = find_line("Alpha")
@@ -91,7 +79,15 @@ assert(tasks.save_current_tasks())
 local source = table.concat(vim.fn.readfile(tasks_file), "\n")
 assert(source:find("%- %[x%] #task Alpha", 1, false), source)
 
-tasks.open_query("visible")
+tasks.run_query([[
+description includes Beta
+show task count
+show backlink
+show priority
+show tags
+show due date
+show id
+]], { name = "visible" })
 local visible_text = table.concat(current_lines(), "\n")
 assert(visible_text:find("Showing 1 tasks", 1, true), visible_text)
 local _, beta_line = find_line("Beta")

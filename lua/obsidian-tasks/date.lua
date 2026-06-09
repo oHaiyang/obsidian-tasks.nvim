@@ -61,6 +61,23 @@ local DATE_ABBREVIATIONS = {
 	weekend = "sat",
 }
 
+local NUMBER_WORDS = {
+	a = 1,
+	an = 1,
+	one = 1,
+	two = 2,
+	three = 3,
+	four = 4,
+	five = 5,
+	six = 6,
+	seven = 7,
+	eight = 8,
+	nine = 9,
+	ten = 10,
+	eleven = 11,
+	twelve = 12,
+}
+
 local function parse_ymd(value)
 	local year, month, day = tostring(value or ""):match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
 	if not year then
@@ -89,6 +106,24 @@ local function days_in_month(year, month)
 		31,
 	}
 	return days[month]
+end
+
+local function date_from_parts(year, month, day)
+	local value = string.format("%04d-%02d-%02d", tonumber(year) or 0, tonumber(month) or 0, tonumber(day) or 0)
+	if M.is_valid(value) then
+		return value
+	end
+	return nil
+end
+
+local function date_range(start_date, end_date)
+	if not M.is_valid(start_date) or not M.is_valid(end_date) then
+		return nil
+	end
+	if end_date < start_date then
+		start_date, end_date = end_date, start_date
+	end
+	return { start = start_date, ["end"] = end_date }
 end
 
 function M.is_valid(value)
@@ -180,7 +215,7 @@ local function expand_abbreviation(expr)
 end
 
 local function add_units(today, amount, unit)
-	amount = tonumber(amount)
+	amount = NUMBER_WORDS[tostring(amount or ""):lower()] or tonumber(amount)
 	if not amount then
 		return nil
 	end
@@ -196,6 +231,10 @@ local function add_units(today, amount, unit)
 		return M.add_months(today, amount * 12)
 	end
 	return nil
+end
+
+local function parse_amount(amount)
+	return NUMBER_WORDS[tostring(amount or ""):lower()] or tonumber(amount)
 end
 
 local function parse_named_month(expr, today)
@@ -267,7 +306,24 @@ function M.parse_date_expr(value, opts)
 		return add_weekday(today, WEEKDAYS[expr], "this")
 	end
 
+	local ago_amount, ago_unit = expr:match("^([%+%-]?%d+)%s*([%a]+)%s+ago$")
+	if not ago_amount then
+		ago_amount, ago_unit = expr:match("^([%a]+)%s+([%a]+)%s+ago$")
+	end
+	if ago_amount and ago_unit then
+		local parsed_amount = parse_amount(ago_amount)
+		if parsed_amount then
+			local parsed = add_units(today, -parsed_amount, ago_unit)
+			if parsed then
+				return parsed
+			end
+		end
+	end
+
 	local amount, unit = expr:match("^in%s+([%+%-]?%d+)%s*([%a]+)$")
+	if not amount then
+		amount, unit = expr:match("^in%s+([%a]+)%s+([%a]+)$")
+	end
 	if amount and unit then
 		local parsed = add_units(today, amount, unit)
 		if parsed then
@@ -276,6 +332,9 @@ function M.parse_date_expr(value, opts)
 	end
 
 	amount, unit = expr:match("^([%+%-]?%d+)%s*([%a]+)$")
+	if not amount then
+		amount, unit = expr:match("^([%a]+)%s+([%a]+)$")
+	end
 	if amount and unit then
 		local parsed = add_units(today, amount, unit)
 		if parsed then
@@ -349,6 +408,167 @@ function M.days_between(left, right)
 	return math.floor((left_time - right_time) / (24 * 60 * 60) + 0.5)
 end
 
+local function iso_weekday(value)
+	local day = weekday(value)
+	if day == nil then
+		return nil
+	end
+	return day == 0 and 7 or day
+end
+
+local function start_of_week(value)
+	local day = iso_weekday(value)
+	if not day then
+		return nil
+	end
+	return M.add_days(value, 1 - day)
+end
+
+local function end_of_month(year, month)
+	return date_from_parts(year, month, days_in_month(year, month) or 0)
+end
+
+local function quarter_range(year, quarter)
+	quarter = tonumber(quarter)
+	if not quarter or quarter < 1 or quarter > 4 then
+		return nil
+	end
+	local start_month = (quarter - 1) * 3 + 1
+	return date_range(date_from_parts(year, start_month, 1), end_of_month(year, start_month + 2))
+end
+
+local function this_relative_range(unit, today)
+	local year, month = parse_ymd(today)
+	if not year then
+		return nil
+	end
+	if unit == "week" then
+		local start_date = start_of_week(today)
+		return date_range(start_date, M.add_days(start_date, 6))
+	elseif unit == "month" then
+		return date_range(date_from_parts(year, month, 1), end_of_month(year, month))
+	elseif unit == "quarter" then
+		return quarter_range(year, math.floor((month - 1) / 3) + 1)
+	elseif unit == "year" then
+		return date_range(date_from_parts(year, 1, 1), date_from_parts(year, 12, 31))
+	end
+	return nil
+end
+
+local function move_relative_range(range, unit, amount)
+	if not range then
+		return nil
+	end
+	if unit == "week" then
+		return date_range(M.add_days(range.start, amount * 7), M.add_days(range["end"], amount * 7))
+	elseif unit == "month" then
+		local start_date = M.add_months(range.start, amount)
+		local year, month = parse_ymd(start_date)
+		return date_range(start_date, end_of_month(year, month))
+	elseif unit == "quarter" then
+		local start_date = M.add_months(range.start, amount * 3)
+		local year, month = parse_ymd(start_date)
+		return date_range(start_date, end_of_month(year, month + 2))
+	elseif unit == "year" then
+		local start_date = M.add_months(range.start, amount * 12)
+		local year = parse_ymd(start_date)
+		return date_range(start_date, date_from_parts(year, 12, 31))
+	end
+	return nil
+end
+
+local function parse_relative_date_range(expr, today)
+	local which, unit = expr:match("^(%a+)%s+(%a+)$")
+	if not (which == "last" or which == "this" or which == "next") then
+		return nil
+	end
+	if not (unit == "week" or unit == "month" or unit == "quarter" or unit == "year") then
+		return nil
+	end
+	local range = this_relative_range(unit, today)
+	if which == "last" then
+		return move_relative_range(range, unit, -1)
+	elseif which == "next" then
+		return move_relative_range(range, unit, 1)
+	end
+	return range
+end
+
+local function iso_weeks_in_year(year)
+	local this_start = start_of_week(date_from_parts(year, 1, 4))
+	local next_start = start_of_week(date_from_parts(year + 1, 1, 4))
+	local days = M.days_between(next_start, this_start)
+	return days and math.floor(days / 7) or nil
+end
+
+local function parse_numbered_date_range(expr)
+	local year = expr:match("^(%d%d%d%d)$")
+	if year then
+		year = tonumber(year)
+		return date_range(date_from_parts(year, 1, 1), date_from_parts(year, 12, 31))
+	end
+
+	local quarter_year, quarter = expr:match("^(%d%d%d%d)%-[qQ]([1-4])$")
+	if quarter_year then
+		return quarter_range(tonumber(quarter_year), tonumber(quarter))
+	end
+
+	local month_year, month = expr:match("^(%d%d%d%d)%-(%d%d)$")
+	if month_year then
+		month_year = tonumber(month_year)
+		month = tonumber(month)
+		if month < 1 or month > 12 then
+			return nil
+		end
+		return date_range(date_from_parts(month_year, month, 1), end_of_month(month_year, month))
+	end
+
+	local week_year, week = expr:match("^(%d%d%d%d)%-[wW](%d%d)$")
+	if week_year then
+		week_year = tonumber(week_year)
+		week = tonumber(week)
+		local weeks = iso_weeks_in_year(week_year)
+		if not weeks or week < 1 or week > weeks then
+			return nil
+		end
+		local week_one = start_of_week(date_from_parts(week_year, 1, 4))
+		local start_date = M.add_days(week_one, (week - 1) * 7)
+		return date_range(start_date, M.add_days(start_date, 6))
+	end
+
+	return nil
+end
+
+local function parse_absolute_date_range(expr, opts)
+	local dates = {}
+	for token in expr:gmatch("%d%d%d%d%-%d%d%-%d%d") do
+		if M.is_valid(token) then
+			table.insert(dates, token)
+		end
+	end
+	if #dates > 0 then
+		return date_range(dates[1], dates[2] or dates[1])
+	end
+
+	local single = M.parse_date_expr(expr, opts)
+	if single then
+		return date_range(single, single)
+	end
+	return nil
+end
+
+function M.parse_date_range(value, opts)
+	opts = opts or {}
+	local expr = expand_abbreviation(trim(value):lower())
+	if expr == "" then
+		return nil
+	end
+	local today = opts.today or M.today()
+	return parse_relative_date_range(expr, today)
+		or parse_numbered_date_range(expr)
+		or parse_absolute_date_range(expr, opts)
+end
+
 local DATE_FIELDS = {
 	due = "due_date",
 	scheduled = "scheduled_date",
@@ -388,23 +608,25 @@ function M.get_task_date(task, field)
 end
 
 function M.matches(value, op, expected)
-	if not M.is_valid(value) or not M.is_valid(expected) then
+	local range = expected
+	if type(expected) == "string" then
+		range = date_range(expected, expected)
+	end
+	if not M.is_valid(value) or type(range) ~= "table" or not M.is_valid(range.start) or not M.is_valid(range["end"]) then
 		return false
 	end
 
-	if op == "on" or op == "in" then
-		return value == expected
-	elseif op == "before" then
-		return value < expected
+	if op == "before" then
+		return value < range.start
 	elseif op == "after" then
-		return value > expected
+		return value > range["end"]
 	elseif op == "on_or_before" then
-		return value <= expected
+		return value <= range["end"]
 	elseif op == "on_or_after" then
-		return value >= expected
+		return value >= range.start
 	end
 
-	return false
+	return value >= range.start and value <= range["end"]
 end
 
 return M
