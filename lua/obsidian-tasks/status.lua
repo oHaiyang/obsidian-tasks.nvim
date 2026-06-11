@@ -50,6 +50,14 @@ local function normalize_entry(entry)
 	if type(entry) ~= "table" then
 		return nil
 	end
+	if entry[1] ~= nil or entry[2] ~= nil or entry[3] ~= nil or entry[4] ~= nil then
+		entry = {
+			symbol = entry[1],
+			name = entry[2],
+			nextStatusSymbol = entry[3],
+			type = entry[4],
+		}
+	end
 
 	local symbol = M.normalize_symbol(entry.symbol or entry.character or entry.char or entry.status_symbol or entry.statusSymbol)
 	local next_symbol = entry.next_symbol or entry.nextSymbol or entry.next or entry.nextStatusSymbol
@@ -66,9 +74,35 @@ local function normalize_entry(entry)
 	}
 end
 
+local function append_entries(target, source)
+	if type(source) ~= "table" then
+		return
+	end
+	for _, entry in ipairs(source) do
+		table.insert(target, entry)
+	end
+end
+
+local function status_settings_entries(settings)
+	if type(settings) ~= "table" then
+		return settings
+	end
+
+	local core = settings.coreStatuses or settings.core_statuses
+	local custom = settings.customStatuses or settings.custom_statuses
+	if core ~= nil or custom ~= nil then
+		local entries = {}
+		append_entries(entries, core)
+		append_entries(entries, custom)
+		return entries
+	end
+
+	return settings
+end
+
 local function configured_statuses(config)
 	config = config or {}
-	return config.status_settings or config.statusSettings or config.statuses
+	return status_settings_entries(config.status_settings or config.statusSettings or config.statuses)
 end
 
 local function is_list(value)

@@ -119,6 +119,39 @@ local scanned = scanner.scan_vault({
   global_filter = "#task",
 })
 
+local forwarded_query = query.parse("status.name does not include forwarded")
+local forwarded_tasks = {
+  { description = "Forwarded item", status_symbol = ">", status = "[>]" },
+  { description = "Todo item", status_symbol = " ", status = "[ ]" },
+}
+local upstream_status_config = {
+  statusSettings = {
+    customStatuses = {
+      { symbol = ">", name = "forwarded", nextStatusSymbol = "x", type = "TODO" },
+    },
+  },
+}
+assert(
+  not query.matches(forwarded_tasks[1], forwarded_query, { tasks = forwarded_tasks, status_config = upstream_status_config }),
+  "forwarded status should be filtered by upstream statusSettings"
+)
+assert(
+  query.matches(forwarded_tasks[2], forwarded_query, { tasks = forwarded_tasks, status_config = upstream_status_config }),
+  "todo status should remain when filtering forwarded status"
+)
+
+local tuple_status_config = {
+  statusSettings = {
+    customStatuses = {
+      { ">", "forwarded", "x", "TODO" },
+    },
+  },
+}
+assert(
+  not query.matches(forwarded_tasks[1], forwarded_query, { tasks = forwarded_tasks, status_config = tuple_status_config }),
+  "forwarded status should be filtered by imported status tuples"
+)
+
 local blocked = query.filter_tasks(scanned, query.parse("is blocked"))
 assert(#blocked == 1, vim.inspect(blocked))
 assert(blocked[1].description:find("Child task", 1, true), blocked[1].description)
