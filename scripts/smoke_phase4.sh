@@ -54,6 +54,7 @@ tasks.setup({
 assert(vim.api.nvim_get_commands({}).ObsidianTasksToggle)
 assert(vim.api.nvim_get_commands({}).ObsidianTasksChangeStatus)
 assert(vim.api.nvim_get_commands({}).ObsidianTasksPostpone)
+assert(vim.api.nvim_get_commands({}).ObsidianTasksStatusReport)
 assert(vim.api.nvim_get_commands({}).ObsidianTasksStatusDone)
 assert(vim.api.nvim_get_commands({}).ObsidianTasksStatusInProgress)
 assert(vim.api.nvim_get_commands({}).ObsidianTasksStatusCancelled)
@@ -72,6 +73,16 @@ assert(status.get(">", {
     { symbol = ">", name = "Local Forwarded", type = "TODO" },
   },
 }).name == "Local Forwarded")
+
+vim.cmd("ObsidianTasksStatusReport")
+local report_buf = vim.api.nvim_get_current_buf()
+local report_text = table.concat(vim.api.nvim_buf_get_lines(report_buf, 0, -1, false), "\n")
+assert(vim.bo[report_buf].buftype == "nofile", vim.bo[report_buf].buftype)
+assert(vim.bo[report_buf].filetype == "markdown", vim.bo[report_buf].filetype)
+assert(vim.bo[report_buf].readonly, "status report should be readonly")
+assert(not vim.bo[report_buf].modifiable, "status report should be nomodifiable")
+assert(report_text:find("Vault data.json", 1, true), report_text)
+assert(report_text:find("forwarded", 1, true), report_text)
 
 local mutation = require("obsidian-tasks.mutation")
 

@@ -336,6 +336,13 @@ function M.setup_commands()
 		force = true,
 	})
 
+	vim.api.nvim_create_user_command("ObsidianTasksStatusReport", function()
+		require("obsidian-tasks.status").open_status_report()
+	end, {
+		force = true,
+		desc = "Show effective Obsidian Tasks status definitions",
+	})
+
 	vim.api.nvim_create_user_command("ObsidianTasksRunBlock", function(command)
 		M.run_query_at_cursor({
 			pinned = command.bang,

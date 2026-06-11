@@ -194,13 +194,13 @@ end
 
 local function configured_status_setting(config)
 	if config.status_settings ~= nil then
-		return config.status_settings
+		return config.status_settings, "status_settings"
 	end
 	if config.statusSettings ~= nil then
-		return config.statusSettings
+		return config.statusSettings, "statusSettings"
 	end
 	if config.statuses ~= nil then
-		return config.statuses
+		return config.statuses, "statuses"
 	end
 	return nil
 end
@@ -231,13 +231,45 @@ local function vault_status_settings(config)
 	return settings
 end
 
-local function configured_statuses(config)
+local function status_source(config)
 	config = config or {}
-	local explicit = configured_status_setting(config)
+	local explicit, explicit_name = configured_status_setting(config)
 	if explicit ~= nil then
-		return status_settings_entries(explicit)
+		return status_settings_entries(explicit), {
+			kind = "lua",
+			label = "Lua config (" .. explicit_name .. ")",
+		}
 	end
-	return status_settings_entries(vault_status_settings(config))
+
+	local path = obsidian_tasks_data_path(config.vault_path or config.vaultPath)
+	local settings = vault_status_settings(config)
+	if settings ~= nil then
+		return status_settings_entries(settings), {
+			kind = "vault",
+			label = "Vault data.json",
+			path = path,
+		}
+	end
+
+	local note
+	if not path then
+		note = "vault_path is not configured"
+	elseif vim.fn.filereadable(path) == 1 then
+		note = "data.json has no statusSettings or could not be decoded"
+	else
+		note = "data.json not found"
+	end
+	return nil, {
+		kind = "default",
+		label = "Built-in defaults",
+		path = path,
+		note = note,
+	}
+end
+
+local function configured_statuses(config)
+	local source = status_source(config)
+	return source
 end
 
 local function is_list(value)
@@ -296,6 +328,11 @@ local function get_config()
 		return plugin.config or {}
 	end
 	return {}
+end
+
+function M.source(config)
+	local _, source = status_source(config or get_config())
+	return source
 end
 
 function M.get(symbol, config)
@@ -381,6 +418,79 @@ local function command_suffix(entry)
 		suffix = suffix .. part:sub(1, 1):upper() .. part:sub(2):lower()
 	end
 	return suffix ~= "" and suffix or nil
+end
+
+local function markdown_cell(value)
+	return tostring(value or ""):gsub("\n", " "):gsub("|", "\\|")
+end
+
+local function yes_no(value)
+	return value and "yes" or "no"
+end
+
+function M.report_lines(config)
+	config = config or get_config()
+	local entries = M.registry(config)
+	local source = M.source(config)
+	local lines = {
+		"# Obsidian Tasks Status Report",
+		"",
+		"Source: " .. source.label,
+	}
+
+	if source.path then
+		table.insert(lines, "Path: " .. source.path)
+	end
+	if source.note then
+		table.insert(lines, "Note: " .. source.note)
+	end
+	if config.vault_path or config.vaultPath then
+		table.insert(lines, "Vault: " .. tostring(config.vault_path or config.vaultPath))
+	end
+
+	table.insert(lines, "")
+	table.insert(lines, "| Status | Symbol | Name | Type | Next | Command |")
+	table.insert(lines, "| --- | --- | --- | --- | --- | --- |")
+	for _, entry in ipairs(entries) do
+		table.insert(
+			lines,
+			string.format(
+				"| `%s` | `%s` | %s | `%s` | `%s` | %s |",
+				markdown_cell(M.status_text(entry.symbol)),
+				markdown_cell(entry.symbol == " " and "space" or entry.symbol),
+				markdown_cell(entry.name),
+				markdown_cell(entry.type),
+				markdown_cell(entry.next_symbol == " " and "space" or entry.next_symbol),
+				yes_no(entry.available_as_command)
+			)
+		)
+	end
+
+	table.insert(lines, "")
+	table.insert(lines, "`status.name` and `status.type` queries use these effective status definitions.")
+	return lines
+end
+
+function M.open_status_report(config)
+	local name = "obsidian-tasks://status-report"
+	local buf = vim.fn.bufnr(name)
+	if buf == -1 or not vim.api.nvim_buf_is_valid(buf) then
+		buf = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_name(buf, name)
+	end
+
+	vim.api.nvim_set_current_buf(buf)
+	vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+	vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
+	vim.api.nvim_set_option_value("swapfile", false, { buf = buf })
+	vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
+	vim.api.nvim_set_option_value("readonly", false, { buf = buf })
+	vim.api.nvim_set_option_value("modifiable", true, { buf = buf })
+	vim.api.nvim_buf_set_lines(buf, 0, -1, false, M.report_lines(config or get_config()))
+	vim.api.nvim_set_option_value("modified", false, { buf = buf })
+	vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+	vim.api.nvim_set_option_value("readonly", true, { buf = buf })
+	return buf
 end
 
 function M.setup_status_commands(config)

@@ -129,6 +129,12 @@ Main board and query commands:
 :ObsidianTasksRefresh
         Refresh the current board or normal task result buffer.
 
+                                            *:ObsidianTasksStatusReport*
+:ObsidianTasksStatusReport
+        Open a read-only Markdown report showing the effective status
+        registry.  The report includes the status source, symbol, name, type,
+        next status, and whether each status is available as a command.
+
 Task action commands:
 
                                                  *:ObsidianTasksToggle*
