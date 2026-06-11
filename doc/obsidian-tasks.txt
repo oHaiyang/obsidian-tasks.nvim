@@ -480,6 +480,24 @@ require("obsidian-tasks").setup({
 
 `task_format` may be `"tasks"` or `"dataview"`.
 
+If `status_settings`, `statusSettings`, and `statuses` are omitted,
+obsidian-tasks.nvim reads Obsidian Tasks status settings from:
+>
+{vault_path}/.obsidian/plugins/obsidian-tasks-plugin/data.json
+<
+The `statusSettings.coreStatuses` and `statusSettings.customStatuses` arrays are
+loaded in the same order as Obsidian Tasks.  Explicit Lua status configuration
+takes precedence over the vault file.
+
+Status entries may use either Lua table fields:
+>
+{ symbol = ">", name = "forwarded", nextStatusSymbol = "x", type = "TODO" }
+<
+or Obsidian Tasks status collection tuples:
+>
+{ ">", "forwarded", "x", "TODO" }
+<
+
 `presets`, `query_presets`, and `queryPresets` are still supported as reusable
 query fragments.  They are not named boards.
 

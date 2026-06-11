@@ -8,6 +8,7 @@ trap 'rm -f "$SMOKE_LUA"' EXIT
 cat > "$SMOKE_LUA" <<'LUA'
 local root = vim.fn.tempname()
 vim.fn.mkdir(root .. "/Projects", "p")
+vim.fn.mkdir(root .. "/.obsidian/plugins/obsidian-tasks-plugin", "p")
 
 local tasks_file = root .. "/Projects/Phase4.md"
 vim.fn.writefile({
@@ -20,6 +21,21 @@ vim.fn.writefile({
   "- [ ] #task Free child ⛔ done-parent",
   "- [ ] #task Scheduled only ⏳ 2026-05-18",
 }, tasks_file)
+vim.fn.writefile({
+  "{",
+  '  "statusSettings": {',
+  '    "coreStatuses": [',
+  '      { "symbol": " ", "name": "Todo", "nextStatusSymbol": "x", "availableAsCommand": true, "type": "TODO" },',
+  '      { "symbol": "x", "name": "Done", "nextStatusSymbol": " ", "availableAsCommand": true, "type": "DONE" }',
+  "    ],",
+  '    "customStatuses": [',
+  '      { "symbol": "/", "name": "In Progress", "nextStatusSymbol": "x", "availableAsCommand": true, "type": "IN_PROGRESS" },',
+  '      { "symbol": "-", "name": "Cancelled", "nextStatusSymbol": " ", "availableAsCommand": true, "type": "CANCELLED" },',
+  '      { "symbol": ">", "name": "forwarded", "nextStatusSymbol": "x", "availableAsCommand": false, "type": "TODO" }',
+  "    ]",
+  "  }",
+  "}",
+}, root .. "/.obsidian/plugins/obsidian-tasks-plugin/data.json")
 
 local tasks = require("obsidian-tasks")
 tasks.setup({
@@ -49,6 +65,13 @@ assert(status.type("/") == "IN_PROGRESS")
 assert(status.type("-") == "CANCELLED")
 assert(status.next_symbol("/") == "x")
 assert(status.resolve_symbol("In Progress") == "/")
+assert(status.resolve_symbol("forwarded") == ">")
+assert(status.get(">", {
+  vault_path = root,
+  status_settings = {
+    { symbol = ">", name = "Local Forwarded", type = "TODO" },
+  },
+}).name == "Local Forwarded")
 
 local mutation = require("obsidian-tasks.mutation")
 
@@ -124,6 +147,9 @@ local forwarded_tasks = {
   { description = "Forwarded item", status_symbol = ">", status = "[>]" },
   { description = "Todo item", status_symbol = " ", status = "[ ]" },
 }
+local vault_loaded = query.filter_tasks(forwarded_tasks, forwarded_query)
+assert(#vault_loaded == 1 and vault_loaded[1].description == "Todo item", vim.inspect(vault_loaded))
+
 local upstream_status_config = {
   statusSettings = {
     customStatuses = {

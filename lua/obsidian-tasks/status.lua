@@ -15,8 +15,100 @@ local COMPLETE_TYPES = {
 	NON_TASK = true,
 }
 
+local vault_status_settings_cache = {}
+
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
+end
+
+local function join_path(...)
+	if vim.fs and vim.fs.joinpath then
+		return vim.fs.joinpath(...)
+	end
+
+	local parts = { ... }
+	local path = tostring(parts[1] or "")
+	for index = 2, #parts do
+		local part = tostring(parts[index] or "")
+		if part ~= "" then
+			path = path:gsub("/+$", "") .. "/" .. part:gsub("^/+", "")
+		end
+	end
+	return path
+end
+
+local function normalize_path(path)
+	if type(path) ~= "string" or path == "" then
+		return nil
+	end
+
+	local expanded = vim.fn.expand(path)
+	local absolute = vim.fn.fnamemodify(expanded, ":p")
+	return absolute:gsub("/+$", "")
+end
+
+local function obsidian_tasks_data_path(vault_path)
+	vault_path = normalize_path(vault_path)
+	if not vault_path then
+		return nil
+	end
+	return join_path(vault_path, ".obsidian", "plugins", "obsidian-tasks-plugin", "data.json")
+end
+
+local function file_signature(path)
+	local uv = vim.uv or vim.loop
+	if uv and uv.fs_stat then
+		local ok, stat = pcall(uv.fs_stat, path)
+		if ok and stat then
+			local mtime = stat.mtime or {}
+			return table.concat({
+				tostring(stat.size or 0),
+				tostring(mtime.sec or 0),
+				tostring(mtime.nsec or 0),
+			}, ":")
+		end
+	end
+
+	if vim.fn.filereadable(path) ~= 1 then
+		return nil
+	end
+	return table.concat({
+		tostring(vim.fn.getfsize(path)),
+		tostring(vim.fn.getftime(path)),
+		"0",
+	}, ":")
+end
+
+local function decode_json(content)
+	if vim.json and vim.json.decode then
+		local ok, decoded = pcall(vim.json.decode, content)
+		if ok then
+			return decoded
+		end
+	end
+
+	local ok, decoded = pcall(vim.fn.json_decode, content)
+	if ok then
+		return decoded
+	end
+	return nil
+end
+
+local function read_json_file(path)
+	if type(path) ~= "string" or vim.fn.filereadable(path) ~= 1 then
+		return nil
+	end
+
+	local ok, lines = pcall(vim.fn.readfile, path)
+	if not ok then
+		return nil
+	end
+
+	local decoded = decode_json(table.concat(lines, "\n"))
+	if type(decoded) == "table" then
+		return decoded
+	end
+	return nil
 end
 
 local function normalize_type(value)
@@ -100,9 +192,52 @@ local function status_settings_entries(settings)
 	return settings
 end
 
+local function configured_status_setting(config)
+	if config.status_settings ~= nil then
+		return config.status_settings
+	end
+	if config.statusSettings ~= nil then
+		return config.statusSettings
+	end
+	if config.statuses ~= nil then
+		return config.statuses
+	end
+	return nil
+end
+
+local function vault_status_settings(config)
+	local path = obsidian_tasks_data_path(config.vault_path or config.vaultPath)
+	if not path then
+		return nil
+	end
+
+	local signature = file_signature(path)
+	if not signature then
+		vault_status_settings_cache[path] = nil
+		return nil
+	end
+
+	local cached = vault_status_settings_cache[path]
+	if cached and cached.signature == signature then
+		return cached.settings
+	end
+
+	local data = read_json_file(path)
+	local settings = type(data) == "table" and (data.statusSettings or data.status_settings) or nil
+	vault_status_settings_cache[path] = {
+		signature = signature,
+		settings = settings,
+	}
+	return settings
+end
+
 local function configured_statuses(config)
 	config = config or {}
-	return status_settings_entries(config.status_settings or config.statusSettings or config.statuses)
+	local explicit = configured_status_setting(config)
+	if explicit ~= nil then
+		return status_settings_entries(explicit)
+	end
+	return status_settings_entries(vault_status_settings(config))
 end
 
 local function is_list(value)
