@@ -20,6 +20,7 @@ vim.fn.writefile({
   "- [x] #task Done parent 🆔 done-parent",
   "- [ ] #task Free child ⛔ done-parent",
   "- [ ] #task Scheduled only ⏳ 2026-05-18",
+  "- [>] #task Forwarded from vault settings",
 }, tasks_file)
 vim.fn.writefile({
   "{",
@@ -147,11 +148,30 @@ assert(target == "2026-05-20", target)
 assert(changed[1]:find("⏳ 2026%-05%-20"), changed[1])
 
 local scanner = require("obsidian-tasks.scanner")
+local parser = require("obsidian-tasks.parser")
 local query = require("obsidian-tasks.query")
 local scanned = scanner.scan_vault({
   vault_path = root,
   global_filter = "#task",
 })
+
+local forwarded_scanned = query.filter_tasks(scanned, query.parse("status.name includes forwarded"))
+assert(#forwarded_scanned == 1, vim.inspect(forwarded_scanned))
+assert(forwarded_scanned[1].description:find("Forwarded from vault settings", 1, true), forwarded_scanned[1].description)
+
+local grouped_by_status, group_order = parser.group_tasks(scanned, { "status" }, tasks.config)
+assert(grouped_by_status.forwarded and #grouped_by_status.forwarded == 1, vim.inspect(group_order))
+
+tasks.find_tasks({
+  vault_path = root,
+  global_filter = "#task",
+  filter = { status = "forwarded" },
+  buffer_name = "obsidian-tasks://smoke-forwarded-filter",
+  reuse_buffer = true,
+})
+local filtered_lines = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+assert(filtered_lines:find("Forwarded from vault settings", 1, true), filtered_lines)
+assert(not filtered_lines:find("Todo item", 1, true), filtered_lines)
 
 local forwarded_query = query.parse("status.name does not include forwarded")
 local forwarded_tasks = {

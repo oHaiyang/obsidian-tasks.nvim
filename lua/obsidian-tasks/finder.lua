@@ -5,6 +5,7 @@ local cache = require("obsidian-tasks.cache")
 local display = require("obsidian-tasks.display")
 local query = require("obsidian-tasks.query")
 local sorter = require("obsidian-tasks.sort")
+local status_model = require("obsidian-tasks.status")
 
 local function normalize_filter(filter)
 	if type(filter) == "function" then
@@ -24,17 +25,16 @@ local function normalize_filter(filter)
 	return filter
 end
 
-local function status_matches(task, status)
-	if task.status == status or task.status_symbol == status then
-		return true
-	end
-	if type(status) == "string" and #status == 1 then
-		return task.status == "[" .. status .. "]"
-	end
-	return false
+local function task_status_symbol(task)
+	return status_model.normalize_symbol(task.status_symbol or task.status)
 end
 
-local function apply_filter_options(tasks, filter)
+local function status_matches(task, status, config)
+	local expected = status_model.resolve_symbol(status, config) or status_model.normalize_symbol(status)
+	return task_status_symbol(task) == expected
+end
+
+local function apply_filter_options(tasks, filter, config)
 	local filtered = {}
 
 	for _, task in ipairs(tasks) do
@@ -67,7 +67,7 @@ local function apply_filter_options(tasks, filter)
 
 			include_task = false
 			for _, status in ipairs(status_filters) do
-				if status_matches(task, status) then
+				if status_matches(task, status, config) then
 					include_task = true
 					break
 				end
@@ -108,11 +108,15 @@ function M.find_tasks(opts)
 	local query_text = opts.query
 	local query_plan = nil
 	local composition = nil
+	local status_config = vim.tbl_extend("force", require("obsidian-tasks").config or {}, {
+		vault_path = vault_path,
+		vaultPath = opts.vaultPath,
+	})
 
 	if query_text and query_text ~= "" then
 		local query_opts = {
 			today = opts.today,
-			config = require("obsidian-tasks").config or {},
+			config = status_config,
 			enable_lua_filters = opts.enable_lua_filters or opts.enableLuaFilters,
 			query_source = opts.query_source,
 			query_file_path = opts.query_file_path or opts.queryFilePath,
@@ -177,6 +181,7 @@ function M.find_tasks(opts)
 		toolbar_filter = opts.toolbar_filter,
 		use_cache = opts.use_cache or opts.useCache,
 		remove_global_filter = opts.remove_global_filter or opts.removeGlobalFilter,
+		status_config = status_config,
 	}
 
 	display.last_finder_opts = {
@@ -220,6 +225,11 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 		vim.notify("obsidian-tasks.nvim: vault_path is required", vim.log.levels.ERROR)
 		return
 	end
+	display_opts = display_opts or {}
+	local status_config = display_opts.status_config
+		or vim.tbl_extend("force", require("obsidian-tasks").config or {}, {
+			vault_path = vault_path,
+		})
 
 	local tasks = cache.tasks({
 		vault_path = vault_path,
@@ -231,13 +241,13 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 
 	local query_filtered_tasks = tasks
 	if query_plan then
-		query_filtered_tasks = query.filter_tasks(tasks, query_plan)
+		query_filtered_tasks = query.filter_tasks(tasks, query_plan, status_config)
 	end
 
-	local filtered_tasks = apply_filter_options(query_filtered_tasks, filter)
+	local filtered_tasks = apply_filter_options(query_filtered_tasks, filter, status_config)
 
 	if query_plan and #query_plan.sorts > 0 then
-		filtered_tasks = sorter.apply(filtered_tasks, query_plan.sorts)
+		filtered_tasks = sorter.apply(filtered_tasks, query_plan.sorts, status_config)
 	end
 
 	local total_count = #filtered_tasks
@@ -249,7 +259,7 @@ function M.find_tasks_with_ripgrep(vault_path, filter, use_float, group_by, disp
 	display_opts.shown_count = #filtered_tasks
 	display_opts.limit = query_plan and query_plan.limit or nil
 
-	local grouped_tasks, group_order = parser.group_tasks(filtered_tasks, group_by or {})
+	local grouped_tasks, group_order = parser.group_tasks(filtered_tasks, group_by or {}, status_config)
 	if use_float then
 		display.display_tasks_float(filtered_tasks, grouped_tasks, group_order, display_opts)
 	else

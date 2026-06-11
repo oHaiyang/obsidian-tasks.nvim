@@ -56,9 +56,9 @@ local function preview_lines_for(source, opts)
 		today = opts.today,
 		use_cache = opts.use_cache or opts.useCache,
 	})
-	tasks = query.filter_tasks(tasks, plan)
+	tasks = query.filter_tasks(tasks, plan, config)
 	if #plan.sorts > 0 then
-		tasks = sorter.apply(tasks, plan.sorts)
+		tasks = sorter.apply(tasks, plan.sorts, config)
 	end
 
 	local limit = opts.limit or config.preview_limit or 5

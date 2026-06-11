@@ -145,9 +145,10 @@ end
 -- Group tasks by given criteria
 ---@param tasks ObsidianTask[] The tasks to group
 ---@param group_by string[] The criteria to group by
+---@param config? table Status configuration
 ---@return table<string, ObsidianTask[]> grouped The grouped tasks
 ---@return string[] group_order The order of the groups
-function M.group_tasks(tasks, group_by)
+function M.group_tasks(tasks, group_by, config)
 	if #group_by == 0 then
 		return { default = tasks }, { "default" }
 	end
@@ -184,10 +185,10 @@ function M.group_tasks(tasks, group_by)
 			local group_value
 
 			if current_group == "status" then
-				local entry = status.get(task.status_symbol or task.status)
+				local entry = status.get(task.status_symbol or task.status, config)
 				group_value = entry.name
 			elseif current_group == "status.type" then
-				group_value = status.type(task.status_symbol or task.status)
+				group_value = status.type(task.status_symbol or task.status, config)
 			elseif current_group == "priority" then
 				local priority = task.priority or "normal"
 				group_value = priority:sub(1, 1):upper() .. priority:sub(2)

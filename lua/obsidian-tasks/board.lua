@@ -257,9 +257,9 @@ local function execute_source(source, opts)
 		today = opts.today,
 		use_cache = opts.use_cache or opts.useCache,
 	})
-	local filtered = query.filter_tasks(tasks, plan)
+	local filtered = query.filter_tasks(tasks, plan, config)
 	if #plan.sorts > 0 then
-		filtered = sorter.apply(filtered, plan.sorts)
+		filtered = sorter.apply(filtered, plan.sorts, config)
 	end
 
 	local total_count = #filtered
@@ -271,6 +271,7 @@ local function execute_source(source, opts)
 		query_plan = plan,
 		layout = plan.layout,
 		group_by = plan.group_by,
+		status_config = config,
 		hierarchical_headings = config.display and config.display.hierarchical_headings or false,
 		total_count = total_count,
 		limit = plan.limit,

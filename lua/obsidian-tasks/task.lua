@@ -154,9 +154,9 @@ end
 local function split_csv(value)
 	local items = {}
 	for item in (value or ""):gmatch("[^,]+") do
-		item = trim(item)
-		if item ~= "" then
-			table.insert(items, item)
+		local trimmed = trim(item)
+		if trimmed ~= "" then
+			table.insert(items, trimmed)
 		end
 	end
 	return items
@@ -561,12 +561,10 @@ function M.with_status(task, status)
 	return updated
 end
 
-function M.toggle_status(task)
+function M.toggle_status(task, opts)
 	local current = normalize_status_symbol(task.status_symbol or task.status)
-	if current == " " then
-		return M.with_status(task, "x")
-	end
-	return M.with_status(task, " ")
+	local next_symbol = require("obsidian-tasks.status").next_symbol(current, opts)
+	return M.with_status(task, next_symbol)
 end
 
 function M.status_text(status)

@@ -377,7 +377,7 @@ end
 local function render_task_lines(tasks, opts)
 	opts = opts or {}
 	local group_by = opts.group_by or {}
-	local grouped_tasks, group_order = parser.group_tasks(tasks or {}, group_by)
+	local grouped_tasks, group_order = parser.group_tasks(tasks or {}, group_by, opts.status_config or require("obsidian-tasks").config or {})
 	return M.format_grouped_tasks(grouped_tasks, group_order, opts)
 end
 

@@ -13,8 +13,8 @@ M.PRIORITY_ORDER = {
 	lowest = 6,
 }
 
-local function is_done(task)
-	return status.is_complete_symbol(task.status_symbol or task.status)
+local function is_done(task, config)
+	return status.is_complete_symbol(task.status_symbol or task.status, config)
 end
 
 local function filename_without_extension(task)
@@ -25,15 +25,15 @@ local function filename_without_extension(task)
 	return filename:gsub("%.[^%.]+$", "")
 end
 
-local function value_for(task, field)
+local function value_for(task, field, config)
 	field = (field or ""):lower()
 
 	if field == "priority" then
 		return M.PRIORITY_ORDER[task.priority or "normal"] or M.PRIORITY_ORDER.normal
 	elseif field == "status" then
-		return is_done(task) and 1 or 0
+		return is_done(task, config) and 1 or 0
 	elseif field == "status.type" then
-		return status.type(task.status_symbol or task.status)
+		return status.type(task.status_symbol or task.status, config)
 	elseif field == "description" then
 		return task.description or task.text or ""
 	elseif field == "path" then
@@ -72,7 +72,7 @@ local function compare_values(left, right, reverse)
 	return left < right
 end
 
-function M.apply(tasks, sorts)
+function M.apply(tasks, sorts, config)
 	local sorted = {}
 	for index, task in ipairs(tasks or {}) do
 		task.__obsidian_tasks_order = task.__obsidian_tasks_order or index
@@ -85,7 +85,7 @@ function M.apply(tasks, sorts)
 
 	table.sort(sorted, function(left, right)
 		for _, spec in ipairs(sorts) do
-			local result = compare_values(value_for(left, spec.field), value_for(right, spec.field), spec.reverse)
+			local result = compare_values(value_for(left, spec.field, config), value_for(right, spec.field, config), spec.reverse)
 			if result ~= nil then
 				return result
 			end

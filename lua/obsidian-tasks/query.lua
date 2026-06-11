@@ -1274,7 +1274,8 @@ local function task_status_symbol(task)
 	return (task.status or ""):match("^%[(.)%]$") or ""
 end
 
-local function field_text(task, field)
+local function field_text(task, field, context)
+	context = context or {}
 	local function value_text(value)
 		if value == nil then
 			return ""
@@ -1330,9 +1331,9 @@ local function field_text(task, field)
 	elseif field == "recurrence" then
 		return task.recurrence_rule or ""
 	elseif field == "status.name" then
-		return status.get(task_status_symbol(task)).name
+		return status.get(task_status_symbol(task), context.status_config).name
 	elseif field == "status.type" then
-		return status.type(task_status_symbol(task))
+		return status.type(task_status_symbol(task), context.status_config)
 	elseif field == "links" or field == "outlinks" then
 		return value_text(task.outlinks or task.links or {})
 	elseif field == "file.links" or field == "file.outlinks" then
@@ -1369,12 +1370,12 @@ local function tag_matches(task, needle)
 	return false
 end
 
-local function includes_matches(task, filter)
+local function includes_matches(task, filter, context)
 	local matched
 	if filter.field == "tag" then
 		matched = tag_matches(task, filter.value)
 	else
-		matched = field_text(task, filter.field):lower():find(lower(filter.value), 1, true) ~= nil
+		matched = field_text(task, filter.field, context):lower():find(lower(filter.value), 1, true) ~= nil
 	end
 
 	if filter.negate then
@@ -1383,7 +1384,7 @@ local function includes_matches(task, filter)
 	return matched
 end
 
-local function regex_matches(task, filter)
+local function regex_matches(task, filter, context)
 	local function matches_text(text)
 		return filter.regex.compiled:match_str(text or "") ~= nil
 	end
@@ -1398,7 +1399,7 @@ local function regex_matches(task, filter)
 			end
 		end
 	else
-		matched = matches_text(field_text(task, filter.field))
+		matched = matches_text(field_text(task, filter.field, context))
 	end
 
 	if filter.negate then
@@ -1440,9 +1441,9 @@ local function filter_matches(task, filter, context)
 		end
 		return matches
 	elseif filter.type == "includes" then
-		return includes_matches(task, filter)
+		return includes_matches(task, filter, context)
 	elseif filter.type == "regex" then
-		return regex_matches(task, filter)
+		return regex_matches(task, filter, context)
 	elseif filter.type == "function" then
 		local ok, result = pcall(filter.fn, task, context.query or {})
 		return ok and result == true
@@ -1529,11 +1530,11 @@ function M.matches(task, plan, context)
 	return group_matched
 end
 
-function M.filter_tasks(tasks, plan)
+function M.filter_tasks(tasks, plan, config)
 	local filtered = {}
 	local context = {
 		tasks = tasks or {},
-		status_config = require("obsidian-tasks").config or {},
+		status_config = config or require("obsidian-tasks").config or {},
 		query_file = plan and plan.query_file or nil,
 		queryFile = plan and plan.query_file or nil,
 		query = {
