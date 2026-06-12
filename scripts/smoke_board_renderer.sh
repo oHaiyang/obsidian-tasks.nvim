@@ -162,9 +162,29 @@ help_kmap.callback()
 local help_text, help_win = first_float_text()
 assert(help_win, "board help did not open")
 assert_contains(help_text, "Tasks board keymaps")
-assert_contains(help_text, "<Space>    Toggle task status")
+assert_contains(help_text, "<Space>")
+assert_contains(help_text, "Toggle task status")
+assert_contains(help_text, "]t")
+assert_contains(help_text, "[t")
 help_kmap.callback()
 assert(first_float_text() == nil, "board help should close when ? is pressed again")
+
+local next_task_kmap = vim.fn.maparg("]t", "n", false, true)
+local previous_task_kmap = vim.fn.maparg("[t", "n", false, true)
+assert(type(next_task_kmap) == "table" and next_task_kmap.callback ~= nil, "board ]t mapping missing")
+assert(type(previous_task_kmap) == "table" and previous_task_kmap.callback ~= nil, "board [t mapping missing")
+local jump_start_row = find_row(buf, "Intro paragraph")
+assert(jump_start_row, rendered)
+vim.api.nvim_win_set_cursor(0, { jump_start_row, 0 })
+next_task_kmap.callback()
+local jumped_next = vim.api.nvim_get_current_line()
+assert(jumped_next:find("Alpha", 1, true), jumped_next)
+next_task_kmap.callback()
+local jumped_next_again = vim.api.nvim_get_current_line()
+assert(jumped_next_again:find("Beta", 1, true), jumped_next_again)
+previous_task_kmap.callback()
+local jumped_previous = vim.api.nvim_get_current_line()
+assert(jumped_previous:find("Alpha", 1, true), jumped_previous)
 
 local kmap = vim.fn.maparg("K", "n", false, true)
 assert(type(kmap) == "table" and kmap.callback ~= nil, "board K mapping missing")
@@ -249,6 +269,49 @@ assert_contains(current_text, "# Current Board")
 assert_contains(current_text, "## Current Query")
 assert_contains(current_text, "Beta")
 assert_not_contains(current_text, "Project Open")
+
+local custom_board = root .. "/Projects/CustomKeys.md"
+vim.fn.writefile({
+  "# Custom Keys",
+  "",
+  "```tasks",
+  "not done",
+  "```",
+}, custom_board)
+tasks.setup({
+  vault_path = root,
+  global_filter = "#task",
+  board = {
+    mappings = {
+      help = "H",
+      next_task = "}",
+      previous_task = "{",
+      toggle = false,
+    },
+  },
+})
+vim.cmd("ObsidianTasks " .. vim.fn.fnameescape(custom_board))
+local custom_buf = vim.api.nvim_get_current_buf()
+local custom_text = text()
+assert_contains(custom_text, "H help")
+assert_contains(custom_text, "} next task")
+local custom_help = vim.fn.maparg("H", "n", false, true)
+assert(type(custom_help) == "table" and custom_help.callback ~= nil, "custom H help mapping missing")
+local old_help = vim.fn.maparg("?", "n", false, true)
+assert(type(old_help) ~= "table" or old_help.callback == nil, "default ? help mapping should not be installed")
+local disabled_toggle = vim.fn.maparg("<Space>", "n", false, true)
+assert(type(disabled_toggle) ~= "table" or disabled_toggle.callback == nil, "disabled <Space> mapping should not be installed")
+local custom_next = vim.fn.maparg("}", "n", false, true)
+local custom_previous = vim.fn.maparg("{", "n", false, true)
+assert(type(custom_next) == "table" and custom_next.callback ~= nil, "custom next task mapping missing")
+assert(type(custom_previous) == "table" and custom_previous.callback ~= nil, "custom previous task mapping missing")
+local custom_start = find_row(custom_buf, "Custom Keys")
+assert(custom_start, custom_text)
+vim.api.nvim_win_set_cursor(0, { custom_start, 0 })
+custom_next.callback()
+assert(vim.api.nvim_get_current_line():find("#task", 1, true), vim.api.nvim_get_current_line())
+custom_previous.callback()
+assert(vim.api.nvim_get_current_line():find("#task", 1, true), vim.api.nvim_get_current_line())
 
 local no_query_file = root .. "/Projects/NoQueries.md"
 vim.fn.writefile({

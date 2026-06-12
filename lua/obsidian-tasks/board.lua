@@ -1,9 +1,50 @@
 local M = {}
 
 M.state = {}
-M.BOARD_HELP_LINES = {
-	"> [?] Board keys: q close | <C-r> refresh | K query | gq query source | gd/gf task source | <Space> toggle | s status | p postpone | e edit",
-	"",
+M.DEFAULT_MAPPINGS = {
+	close = "q",
+	refresh = "<C-r>",
+	query_source = "gq",
+	show_query = "K",
+	help = "?",
+	task_source = { "gd", "gf" },
+	toggle = "<Space>",
+	status = "s",
+	postpone = "p",
+	edit = "e",
+	next_task = "]t",
+	previous_task = "[t",
+}
+M.BOARD_HELP_LINES = {}
+
+local MAPPING_DESCRIPTIONS = {
+	close = "Close tasks board",
+	refresh = "Refresh tasks board",
+	query_source = "Go to query source",
+	show_query = "Show source query",
+	help = "Show board help",
+	task_source = "Go to task source",
+	toggle = "Toggle task status",
+	status = "Change task status",
+	postpone = "Postpone task",
+	edit = "Edit task",
+	next_task = "Jump to next task",
+	previous_task = "Jump to previous task",
+}
+
+local MAPPING_HELP = {
+	{ "help", "Show or close this help" },
+	{ "close", "Close board" },
+	{ "refresh", "Refresh board from disk" },
+	{ "show_query", "Show source query for current rendered section" },
+	{ "query_source", "Jump to source ```tasks query block" },
+	{ "task_source", "Jump to source task line" },
+	{ "toggle", "Toggle task status" },
+	{ "status", "Select task status" },
+	{ "postpone", "Postpone task" },
+	{ "edit", "Edit task in a form" },
+	{ "next_task", "Jump to next rendered task" },
+	{ "previous_task", "Jump to previous rendered task" },
 }
 
 local function get_config()
@@ -12,6 +53,97 @@ end
 
 local function trim(value)
 	return (value or ""):match("^%s*(.-)%s*$")
+end
+
+local function clone_mapping(value)
+	if type(value) ~= "table" then
+		return value
+	end
+	return vim.deepcopy(value)
+end
+
+local function configured_mappings()
+	local config = get_config()
+	local custom = (type(config.board) == "table" and (config.board.mappings or config.board.keymaps or config.board.key_maps))
+		or config.board_mappings
+		or config.board_keymaps
+		or config.boardMappings
+		or config.boardKeymaps
+
+	local mappings = {}
+	for key, value in pairs(M.DEFAULT_MAPPINGS) do
+		mappings[key] = clone_mapping(value)
+	end
+	if type(custom) == "table" then
+		for key, value in pairs(custom) do
+			mappings[key] = clone_mapping(value)
+		end
+	end
+	return mappings
+end
+
+local function mapping_list(value)
+	if value == false or value == nil or value == "" then
+		return {}
+	end
+	if type(value) == "table" then
+		local items = {}
+		for _, item in ipairs(value) do
+			if type(item) == "string" and item ~= "" then
+				table.insert(items, item)
+			end
+		end
+		return items
+	end
+	return { tostring(value) }
+end
+
+local function mapping_label(value)
+	local items = mapping_list(value)
+	if #items == 0 then
+		return nil
+	end
+	return table.concat(items, " / ")
+end
+
+local function set_board_mapping(buf, mappings, key, callback)
+	for _, lhs in ipairs(mapping_list(mappings[key])) do
+		vim.keymap.set("n", lhs, callback, {
+			buffer = buf,
+			noremap = true,
+			silent = true,
+			desc = MAPPING_DESCRIPTIONS[key],
+		})
+	end
+end
+
+function M.board_help_lines()
+	local mappings = configured_mappings()
+	local parts = {}
+	for _, item in ipairs({
+		{ "help", "help" },
+		{ "close", "close" },
+		{ "refresh", "refresh" },
+		{ "show_query", "query" },
+		{ "query_source", "query source" },
+		{ "task_source", "task source" },
+		{ "toggle", "toggle" },
+		{ "status", "status" },
+		{ "postpone", "postpone" },
+		{ "edit", "edit" },
+		{ "next_task", "next task" },
+		{ "previous_task", "previous task" },
+	}) do
+		local lhs = mapping_label(mappings[item[1]])
+		if lhs then
+			table.insert(parts, lhs .. " " .. item[2])
+		end
+	end
+	local help_label = mapping_label(mappings.help) or "help"
+	return {
+		"> [" .. help_label .. "] Board keys: " .. table.concat(parts, " | "),
+		"",
+	}
 end
 
 local function realpath(path)
@@ -317,7 +449,7 @@ local function build_board_lines(path, source_lines, opts)
 	local config = get_config()
 	local sources = query_block.scan_lines(source_lines, path)
 	local lines = {}
-	for _, line in ipairs(M.BOARD_HELP_LINES) do
+	for _, line in ipairs(M.board_help_lines()) do
 		table.insert(lines, line)
 	end
 	local sections = {}
@@ -372,7 +504,7 @@ local function build_board_lines(path, source_lines, opts)
 	end
 
 	if #sources == 0 then
-		local insert_at = #M.BOARD_HELP_LINES + 1
+		local insert_at = #M.board_help_lines() + 1
 		table.insert(lines, insert_at, "> No tasks query blocks found")
 		table.insert(lines, insert_at + 1, "")
 	end
@@ -441,47 +573,70 @@ function M.refresh(opts)
 	return true
 end
 
+local function row_has_rendered_task(buf, row)
+	local line = vim.api.nvim_buf_get_lines(buf, row - 1, row, false)[1] or ""
+	local parsed = require("obsidian-tasks.parser").parse_display_line(line)
+	return parsed and parsed.index and (require("obsidian-tasks.core").task_index_map[buf] or {})[parsed.index] ~= nil
+end
+
+function M.jump_task(opts)
+	opts = opts or {}
+	local buf = opts.buffer or vim.api.nvim_get_current_buf()
+	if not M.is_board_buffer(buf) then
+		return false
+	end
+	local direction = opts.direction or 1
+	local current = vim.api.nvim_win_get_cursor(0)[1]
+	local line_count = vim.api.nvim_buf_line_count(buf)
+	local row = current + direction
+	while row >= 1 and row <= line_count do
+		if row_has_rendered_task(buf, row) then
+			pcall(vim.api.nvim_win_set_cursor, 0, { row, 0 })
+			return true
+		end
+		row = row + direction
+	end
+	return false
+end
+
 local function setup_keymaps(buf)
-	vim.keymap.set("n", "q", function()
+	local mappings = configured_mappings()
+
+	set_board_mapping(buf, mappings, "close", function()
 		pcall(vim.api.nvim_buf_delete, buf, { force = true })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Close tasks board" })
+	end)
 
-	vim.keymap.set("n", "<c-r>", function()
+	set_board_mapping(buf, mappings, "refresh", function()
 		M.refresh({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Refresh tasks board" })
+	end)
 
-	vim.keymap.set("n", "gq", function()
+	set_board_mapping(buf, mappings, "query_source", function()
 		M.go_to_query_source({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Go to query source" })
+	end)
 
-	vim.keymap.set("n", "K", function()
+	set_board_mapping(buf, mappings, "show_query", function()
 		M.show_query({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Show source query" })
+	end)
 
-	vim.keymap.set("n", "?", function()
+	set_board_mapping(buf, mappings, "help", function()
 		M.show_help({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Show board help" })
+	end)
 
-	vim.keymap.set({ "n" }, "gd", function()
+	set_board_mapping(buf, mappings, "task_source", function()
 		M.go_to_task_source({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Go to task source" })
-	vim.keymap.set({ "n" }, "gf", function()
-		M.go_to_task_source({ buffer = buf })
-	end, { buffer = buf, noremap = true, silent = true, desc = "Go to task source" })
+	end)
 
-	vim.keymap.set({ "n" }, "<space>", require("obsidian-tasks").toggle_task_at_cursor, {
-		buffer = buf,
-		noremap = true,
-		silent = true,
-		desc = "Toggle task status",
-	})
-	vim.keymap.set("n", "p", function()
+	set_board_mapping(buf, mappings, "toggle", require("obsidian-tasks").toggle_task_at_cursor)
+
+	set_board_mapping(buf, mappings, "postpone", function()
 		require("obsidian-tasks").postpone_task_at_cursor()
-	end, { buffer = buf, noremap = true, silent = true, desc = "Postpone task" })
-	vim.keymap.set("n", "e", function()
+	end)
+
+	set_board_mapping(buf, mappings, "edit", function()
 		require("obsidian-tasks").edit_current_task()
-	end, { buffer = buf, noremap = true, silent = true, desc = "Edit task" })
-	vim.keymap.set("n", "s", function()
+	end)
+
+	set_board_mapping(buf, mappings, "status", function()
 		local entries = require("obsidian-tasks.status").registry(require("obsidian-tasks").config or {})
 		vim.ui.select(entries, {
 			prompt = "Task status",
@@ -493,7 +648,15 @@ local function setup_keymaps(buf)
 				require("obsidian-tasks").change_task_status_at_cursor(entry.symbol)
 			end
 		end)
-	end, { buffer = buf, noremap = true, silent = true, desc = "Change task status" })
+	end)
+
+	set_board_mapping(buf, mappings, "next_task", function()
+		M.jump_task({ buffer = buf, direction = 1 })
+	end)
+
+	set_board_mapping(buf, mappings, "previous_task", function()
+		M.jump_task({ buffer = buf, direction = -1 })
+	end)
 end
 
 local function open_resolved_path(path)
@@ -682,22 +845,20 @@ local function open_query_float(lines, source, source_buf)
 end
 
 local function board_help_float_lines()
-	return {
+	local mappings = configured_mappings()
+	local lines = {
 		"Tasks board keymaps",
 		"",
-		"?          Show or close this help",
-		"q          Close board",
-		"<C-r>      Refresh board from disk",
-		"K          Show source query for current rendered section",
-		"gq         Jump to source ```tasks query block",
-		"gd / gf    Jump to source task line",
-		"<Space>    Toggle task status",
-		"s          Select task status",
-		"p          Postpone task",
-		"e          Edit task in a form",
-		"",
-		"Task actions only work on rendered task rows. Markdown remains read-only.",
 	}
+	for _, item in ipairs(MAPPING_HELP) do
+		local lhs = mapping_label(mappings[item[1]])
+		if lhs then
+			table.insert(lines, string.format("%-12s %s", lhs, item[2]))
+		end
+	end
+	table.insert(lines, "")
+	table.insert(lines, "Task actions only work on rendered task rows. Markdown remains read-only.")
+	return lines
 end
 
 local function close_help_float()

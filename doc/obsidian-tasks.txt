@@ -247,9 +247,31 @@ gf              Jump to the source task line.
 s               Select a status and write back to the source task.
 p               Postpone the rendered task and write back to its source file.
 e               Edit the rendered task in a task form.
+]t              Jump to the next rendered task row.
+[t              Jump to the previous rendered task row.
 
 Mappings that operate on tasks only work on rendered task rows.  Normal
 Markdown content in the board remains read-only Markdown.
+
+Board mappings can be customized:
+>
+require("obsidian-tasks").setup({
+  board = {
+    mappings = {
+      help = "H",
+      next_task = "}",
+      previous_task = "{",
+      task_source = { "gd", "gf" },
+      toggle = false,
+    },
+  },
+})
+<
+
+Supported mapping keys are:
+`close`, `refresh`, `query_source`, `show_query`, `help`, `task_source`,
+`toggle`, `status`, `postpone`, `edit`, `next_task`, and `previous_task`.
+Set a mapping to `false` to disable it.
 
 ==============================================================================
 6. Task editing                                  *obsidian-tasks-editing*
