@@ -437,6 +437,47 @@ local function current_display_task(buf)
 	return parsed.index and index_map[parsed.index] or nil
 end
 
+local function close_form(buf)
+	local state = M.form_state[buf]
+	if state and state.win and vim.api.nvim_win_is_valid(state.win) then
+		pcall(vim.api.nvim_win_close, state.win, true)
+	end
+	if vim.api.nvim_buf_is_valid(buf) then
+		pcall(vim.api.nvim_buf_delete, buf, { force = true })
+	end
+end
+
+local function centered_float_size()
+	local columns = math.max(vim.o.columns or 80, 40)
+	local rows = math.max((vim.o.lines or 24) - (vim.o.cmdheight or 1), 12)
+	local width = math.min(math.max(math.floor(columns * 0.72), 72), math.max(columns - 8, 40))
+	local height = math.min(math.max(math.floor(rows * 0.72), 18), math.max(rows - 6, 10))
+	return width, height, math.floor((columns - width) / 2), math.floor((rows - height) / 2)
+end
+
+local function open_form_window(buf, state)
+	if not state.float then
+		vim.api.nvim_set_current_buf(buf)
+		return nil
+	end
+
+	local width, height, col, row = centered_float_size()
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = "editor",
+		width = width,
+		height = height,
+		col = col,
+		row = row,
+		style = "minimal",
+		border = "rounded",
+		title = state.mode == "create" and " Create task " or " Edit task ",
+		title_pos = "center",
+	})
+	pcall(vim.api.nvim_set_option_value, "wrap", false, { win = win })
+	state.win = win
+	return win
+end
+
 local function open_form(fields, state)
 	local buf = vim.api.nvim_create_buf(true, false)
 	M.form_state[buf] = state
@@ -502,7 +543,9 @@ local function open_form(fields, state)
 	vim.keymap.set("n", "<c-s>", function()
 		M.save_form(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Save task form" })
-	vim.keymap.set("n", "q", ":bd!<CR>", { buffer = buf, noremap = true, silent = true, desc = "Close task form" })
+	vim.keymap.set("n", "q", function()
+		close_form(buf)
+	end, { buffer = buf, noremap = true, silent = true, desc = "Close task form" })
 	vim.keymap.set("n", "gs", function()
 		M.pick_status(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Pick task status" })
@@ -516,7 +559,7 @@ local function open_form(fields, state)
 		M.trigger_complete(buf)
 	end, { buffer = buf, noremap = true, silent = true, desc = "Suggest task field value" })
 
-	vim.api.nvim_set_current_buf(buf)
+	open_form_window(buf, state)
 	return buf
 end
 
@@ -627,7 +670,7 @@ function M.save_form(buf)
 	if state.return_buf and vim.api.nvim_buf_is_valid(state.return_buf) then
 		pcall(require("obsidian-tasks.board").refresh_after_mutation, state.return_buf)
 	end
-	pcall(vim.api.nvim_buf_delete, buf, { force = true })
+	close_form(buf)
 	return true
 end
 
@@ -658,6 +701,7 @@ function M.edit_current_task()
 			vault_path = get_config().vault_path,
 			task_format = task.task_format or task.taskFormat or task_model.task_format(),
 			return_buf = buf,
+			float = true,
 		}
 	else
 		task = task_model.parse_line({
