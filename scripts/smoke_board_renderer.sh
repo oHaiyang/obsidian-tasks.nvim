@@ -38,6 +38,13 @@ vim.fn.writefile({
   "",
   "Middle paragraph stays markdown.",
   "",
+  "## Nested Section",
+  "",
+  "```tasks",
+  "not done",
+  "group by priority",
+  "```",
+  "",
   "> [!danger] Overdue",
   "> ```tasks",
   "> # name: Callout Open",
@@ -126,9 +133,12 @@ local rendered = text()
 assert_contains(rendered, "# Board")
 assert_contains(rendered, "Intro paragraph stays markdown.")
 assert_contains(rendered, "Middle paragraph stays markdown.")
+assert_contains(rendered, "## Nested Section")
+assert_contains(rendered, "### Normal")
+assert_not_contains(rendered, "\n## Normal\n")
 assert_contains(rendered, "> [!danger] Overdue")
-assert_contains(rendered, "> ## Callout Open")
-assert_contains(rendered, "> 3. [ ] #task Beta")
+assert_contains(rendered, "> ### Callout Open")
+assert_contains(rendered, "> 5. [ ] #task Beta")
 assert_contains(rendered, "```lua")
 assert_contains(rendered, "print('keep me')")
 assert_contains(rendered, "## Project Open")
@@ -141,7 +151,7 @@ assert_contains(rendered, "Showing 2 tasks")
 assert_not_contains(rendered, "sort by due")
 assert_not_contains(rendered, "```tasks")
 assert_not_contains(rendered, "definitely unsupported\n```")
-assert_contains(rendered, "## Broken Query")
+assert_contains(rendered, "### Broken Query")
 assert_contains(rendered, "Query errors:")
 assert_contains(rendered, "Unsupported query instruction")
 

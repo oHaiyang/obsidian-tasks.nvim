@@ -193,6 +193,16 @@ local function apply_limit(tasks, limit)
 	return limited
 end
 
+local function heading_marker(level)
+	level = tonumber(level) or 2
+	if level < 1 then
+		level = 1
+	elseif level > 6 then
+		level = 6
+	end
+	return string.rep("#", level)
+end
+
 local function copy_task(task)
 	local copy = {}
 	for key, value in pairs(task or {}) do
@@ -216,6 +226,9 @@ local function execute_source(source, opts)
 	local display = require("obsidian-tasks.display")
 	local sorter = require("obsidian-tasks.sort")
 	local cache = require("obsidian-tasks.cache")
+	local title = section_title(source)
+	local section_heading_level = (source.heading_level or 1) + 1
+	local group_heading_level = title ~= "" and section_heading_level + 1 or section_heading_level
 
 	local query_opts = {
 		today = opts.today,
@@ -232,9 +245,8 @@ local function execute_source(source, opts)
 
 	if #plan.errors > 0 then
 		local lines = {}
-		local title = section_title(source)
 		if title ~= "" then
-			table.insert(lines, "## " .. title)
+			table.insert(lines, heading_marker(section_heading_level) .. " " .. title)
 		end
 		table.insert(lines, "Query errors:")
 		for _, err in ipairs(plan.errors) do
@@ -267,11 +279,13 @@ local function execute_source(source, opts)
 	local board_tasks = copy_tasks(filtered)
 
 	return display.format_task_result_section(board_tasks, {
-		section_title = section_title(source),
+		section_title = title,
+		section_heading_level = section_heading_level,
 		query_plan = plan,
 		layout = plan.layout,
 		group_by = plan.group_by,
 		status_config = config,
+		group_heading_level = group_heading_level,
 		hierarchical_headings = config.display and config.display.hierarchical_headings or false,
 		total_count = total_count,
 		limit = plan.limit,

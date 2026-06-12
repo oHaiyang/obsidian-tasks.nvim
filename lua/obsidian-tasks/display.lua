@@ -381,6 +381,16 @@ local function render_task_lines(tasks, opts)
 	return M.format_grouped_tasks(grouped_tasks, group_order, opts)
 end
 
+local function heading_marker(level)
+	level = tonumber(level) or 2
+	if level < 1 then
+		level = 1
+	elseif level > 6 then
+		level = 6
+	end
+	return string.rep("#", level)
+end
+
 local function max_index(index_map, fallback)
 	local max = fallback or 0
 	for index, _ in pairs(index_map or {}) do
@@ -401,7 +411,7 @@ function M.format_task_result_section(tasks, opts)
 
 	local lines = {}
 	if trim(opts.section_title) ~= "" then
-		table.insert(lines, "## " .. trim(opts.section_title))
+		table.insert(lines, heading_marker(opts.section_heading_level or opts.sectionHeadingLevel or 2) .. " " .. trim(opts.section_title))
 	end
 
 	if opts.query_plan and opts.query_plan.explain then
@@ -473,6 +483,7 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 	local display_lines = {}
 	local index_map = {} -- Map display indices to original tasks
 	local current_index = tonumber(opts.start_index or opts.startIndex) or 1
+	local group_heading_level = tonumber(opts.group_heading_level or opts.groupHeadingLevel) or 2
 
 	-- For hierarchical headings, we need to track which headings we've already displayed
 	local displayed_headings = {}
@@ -497,10 +508,7 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 
 				-- Add all parts as separate headings with appropriate levels, but only if not already displayed
 				for i, part in ipairs(parts) do
-					local level = i + 1 -- Start at level 2
-					if level > 6 then
-						level = 6
-					end -- Max heading level is 6
+					local level = group_heading_level + i - 1
 
 					-- Build the current path to this heading level
 					if current_path == "" then
@@ -511,13 +519,13 @@ function M.format_grouped_tasks(grouped_tasks, group_order, opts)
 
 					-- Only display this heading if we haven't seen it before
 					if not displayed_headings[current_path] then
-						table.insert(display_lines, string.rep("#", level) .. " " .. part)
+						table.insert(display_lines, heading_marker(level) .. " " .. part)
 						displayed_headings[current_path] = true
 					end
 				end
 			else
 				-- Traditional flat heading style
-				table.insert(display_lines, "## " .. group_name:gsub(":", " > "))
+				table.insert(display_lines, heading_marker(group_heading_level) .. " " .. group_name:gsub(":", " > "))
 			end
 		end
 

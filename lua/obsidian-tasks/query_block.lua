@@ -95,6 +95,13 @@ local function is_tasks_info(info)
 	return token:lower() == "tasks"
 end
 
+local function heading_level(line)
+	local _
+	_, line = split_blockquote(line or "")
+	local hashes = line:match("^%s*(#+)%s+%S")
+	return hashes and #hashes or nil
+end
+
 local function metadata(lines)
 	local result = {}
 	for _, line in ipairs(lines) do
@@ -106,7 +113,7 @@ local function metadata(lines)
 	return result
 end
 
-local function source_from_block(path, start_line, end_line, block_lines, quote_prefix)
+local function source_from_block(path, start_line, end_line, block_lines, quote_prefix, parent_heading_level)
 	local meta = metadata(block_lines)
 	local name = meta.name
 	local id = meta.id
@@ -131,6 +138,7 @@ local function source_from_block(path, start_line, end_line, block_lines, quote_
 		end_line = end_line,
 		unnamed = unnamed,
 		quote_prefix = quote_prefix,
+		heading_level = parent_heading_level,
 	}
 end
 
@@ -138,8 +146,14 @@ function M.scan_lines(lines, path)
 	local sources = {}
 	local line_count = #lines
 	local index = 1
+	local current_heading_level = nil
 
 	while index <= line_count do
+		local level = heading_level(lines[index])
+		if level then
+			current_heading_level = level
+		end
+
 		local marker_char, marker_len, info, quote_prefix = opening_fence(lines[index])
 		if marker_char then
 			local start_line = index
@@ -162,7 +176,7 @@ function M.scan_lines(lines, path)
 
 			local end_line = index <= line_count and index or line_count
 			if is_tasks_info(info) then
-				table.insert(sources, source_from_block(path, start_line, end_line, block_lines, quote_prefix))
+				table.insert(sources, source_from_block(path, start_line, end_line, block_lines, quote_prefix, current_heading_level))
 			end
 		end
 

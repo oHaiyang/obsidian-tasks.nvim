@@ -34,6 +34,9 @@ does not edit the Markdown source.  Task actions on rendered task rows, such as
 toggle, status change, postpone, and edit, write back to the original task
 source files and refresh the board.
 
+Generated headings for grouped query results are nested under the Markdown
+heading that contains the source ```tasks block.
+
 Ad hoc queries are still available through |:ObsidianTasksQuery| and
 |obsidian-tasks.run_query()|.  Named queries declared in Lua config are no
 longer supported.
