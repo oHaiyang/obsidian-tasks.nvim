@@ -251,6 +251,7 @@ local function date_suggestions(context, state, base)
 	local seen = {}
 	local defaults = state_with_defaults(state)
 	base = trim(base or "")
+	local expand_dates = context == "markdown" or context == "form"
 
 	if base ~= "" and #base > 1 then
 		local parsed = date.parse_date_expr(base, { today = defaults.today })
@@ -278,7 +279,7 @@ local function date_suggestions(context, state, base)
 	for _, source in ipairs(DATE_SUGGESTIONS) do
 		local item = clone_item(source)
 		item.filter_text = source.word
-		if context == "markdown" then
+		if expand_dates then
 			local parsed = date.parse_date_expr(source.expr or source.word, { today = defaults.today })
 			if parsed then
 				item.word = parsed

@@ -46,6 +46,15 @@ local function has_word(items, word)
   return false
 end
 
+local function find_word(items, word)
+  for _, item in ipairs(items) do
+    if item.word == word then
+      return item
+    end
+  end
+  return nil
+end
+
 local function field_row(buf, key)
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   for index, line in ipairs(lines) do
@@ -81,7 +90,10 @@ assert(completeopt:find("noselect", 1, true), completeopt)
 assert(has_word(edit.suggest_field("status", "W", state), "Waiting"))
 assert(has_word(edit.suggest_field("priority", "h", state), "highest"))
 assert(has_word(edit.suggest_field("priority", "h", state), "high"))
-assert(has_word(edit.suggest_field("due", "tom", state), "tomorrow"))
+local tomorrow_item = find_word(edit.suggest_field("due", "tom", state), "2026-05-17")
+assert(tomorrow_item, vim.inspect(edit.suggest_field("due", "tom", state)))
+assert(tomorrow_item.filter_text == "tomorrow", vim.inspect(tomorrow_item))
+assert(tomorrow_item.abbr:find("tomorrow", 1, true), tomorrow_item.abbr)
 assert(has_word(edit.suggest_field("recurrence", "every w", state), "every week"))
 assert(has_word(edit.suggest_field("on_completion", "d", state), "delete"))
 assert(has_word(edit.suggest_field("depends_on", "alpha", state), "alpha-id"))
@@ -98,6 +110,12 @@ row = set_field(buf, "depends_on", "alpha-id, b")
 vim.api.nvim_win_set_cursor(0, { row, #"depends_on: alpha-id, b" })
 assert(edit.complete(1, "b") == #"depends_on: alpha-id, ")
 assert(has_word(edit.complete(0, "b"), "beta-id"))
+
+row = set_field(buf, "done", "to")
+vim.api.nvim_win_set_cursor(0, { row, #"done: to" })
+assert(edit.complete(1, "to") == #"done: ")
+assert(has_word(edit.complete(0, "to"), "2026-05-16"))
+set_field(buf, "done", "")
 
 row = set_field(buf, "priority", "high")
 vim.api.nvim_win_set_cursor(0, { row, #"priority: high" })
